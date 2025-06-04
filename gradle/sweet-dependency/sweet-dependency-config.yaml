@@ -1,0 +1,35 @@
+preferences:
+  autowire-on-sync-mode: UPDATE_OPTIONAL_DEPENDENCIES
+  repositories-mode: FAIL_ON_PROJECT_REPOS
+
+repositories:
+  gradle-plugin-portal:
+    scope: PLUGINS
+  google:
+  maven-central:
+
+plugins:
+  org.jetbrains.kotlin.jvm:
+    alias: kotlin-jvm
+    version: 2.1.21
+  com.google.devtools.ksp:
+    alias: kotlin-ksp
+    version: 2.1.21-2.0.1
+  org.jetbrains.compose:
+    alias: jetbrains-compose
+    version: 1.8.1
+  org.jetbrains.kotlin.plugin.compose:
+    alias: compose-compiler
+    version-ref: kotlin-jvm
+
+libraries:
+  org.slf4j:
+    slf4j-api:
+      version: 2.0.17
+    slf4j-simple:
+      version-ref: <this>::slf4j-api
+  cafe.adriel.lyricist:
+    lyricist:
+      version: 1.7.0
+    lyricist-processor:
+      version-ref: <this>::lyricist
