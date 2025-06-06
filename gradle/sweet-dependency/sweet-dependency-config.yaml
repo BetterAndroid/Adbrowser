@@ -33,3 +33,6 @@ libraries:
       version: 1.7.0
     lyricist-processor:
       version-ref: <this>::lyricist
+  com.highcapable.betterandroid:
+    compose-extension-desktop:
+      version: 1.0.2

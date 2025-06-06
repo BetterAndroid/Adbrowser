@@ -39,6 +39,7 @@ dependencies {
     implementation(projects.backend)
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
+    implementation(com.highcapable.betterandroid.compose.extension.desktop)
     implementation(cafe.adriel.lyricist.lyricist)
     ksp(cafe.adriel.lyricist.lyricist.processor)
 }
