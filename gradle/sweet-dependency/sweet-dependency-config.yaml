@@ -11,13 +11,13 @@ repositories:
 plugins:
   org.jetbrains.kotlin.jvm:
     alias: kotlin-jvm
-    version: 2.1.21
+    version: 2.2.10
   com.google.devtools.ksp:
     alias: kotlin-ksp
-    version: 2.1.21-2.0.1
+    version: 2.2.10-2.0.2
   org.jetbrains.compose:
     alias: jetbrains-compose
-    version: 1.8.1
+    version: 1.8.2
   org.jetbrains.kotlin.plugin.compose:
     alias: compose-compiler
     version-ref: kotlin-jvm
