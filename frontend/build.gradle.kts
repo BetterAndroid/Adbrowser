@@ -1,12 +1,12 @@
 plugins {
-    autowire(libs.plugins.kotlin.jvm)
-    autowire(libs.plugins.kotlin.ksp)
-    autowire(libs.plugins.jetbrains.compose)
-    autowire(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.ksp)
+    alias(libs.plugins.jetbrains.compose)
+    alias(libs.plugins.compose.compiler)
 }
 
-group = property.project.groupName
-version = property.project.app.version
+group = gropify.project.groupName
+version = gropify.project.app.version
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -37,9 +37,12 @@ compose.desktop {
 
 dependencies {
     implementation(projects.backend)
+
+    ksp(libs.lyricist.processor)
+    implementation(libs.lyricist)
+
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
-    implementation(com.highcapable.betterandroid.compose.extension.desktop)
-    implementation(cafe.adriel.lyricist.lyricist)
-    ksp(cafe.adriel.lyricist.lyricist.processor)
+
+    implementation(libs.betterandroid.compose.extension.desktop)
 }

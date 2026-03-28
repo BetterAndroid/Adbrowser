@@ -1,9 +1,9 @@
 plugins {
-    autowire(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.jvm)
 }
 
-group = property.project.groupName
-version = property.project.app.version
+group = gropify.project.groupName
+version = gropify.project.app.version
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -23,6 +23,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(org.slf4j.slf4j.simple)
-    implementation(org.slf4j.slf4j.api)
+    implementation(libs.slf4j.simple)
+    implementation(libs.slf4j.api)
 }

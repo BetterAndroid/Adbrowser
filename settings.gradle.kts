@@ -1,4 +1,5 @@
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -6,25 +7,38 @@ pluginManagement {
         mavenCentral()
     }
 }
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 plugins {
-    id("com.highcapable.sweetdependency") version "1.0.4"
-    id("com.highcapable.sweetproperty") version "1.0.8"
+    id("com.highcapable.gropify") version "1.0.1"
 }
-sweetDependency {
-    isEnableVerboseMode = false
-}
-sweetProperty {
+
+gropify {
     global {
-        sourcesCode {
+        jvm {
             className = rootProject.name
             includeKeys(
-                "^project\\..*\$".toRegex(),
-                "^gradle\\..*\$".toRegex()
+                "^project\\..*$".toRegex(),
+                "^gradle\\..*$".toRegex()
             )
-            isEnableRestrictedAccess = true
+            isRestrictedAccessEnabled = true
         }
     }
-    rootProject { all { isEnable = false } }
+
+    rootProject {
+        common {
+            isEnabled = false
+        }
+    }
 }
+
 rootProject.name = "Adbrowser"
+
 include(":frontend", ":backend")
