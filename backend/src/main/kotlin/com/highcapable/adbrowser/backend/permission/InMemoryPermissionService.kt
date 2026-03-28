@@ -17,8 +17,22 @@
  * You should have received a copy of the GNU Affero General Public License
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
- *
- * This file is created by fankes on 2025/6/4.
  */
-package com.highcapable.adbrowser.backend.fs
+package com.highcapable.adbrowser.backend.permission
 
+import com.highcapable.adbrowser.backend.domain.FsPermission
+import com.highcapable.adbrowser.backend.fs.FileSystemService
+
+/**
+ * In-memory permission implementation delegating to filesystem store.
+ */
+class InMemoryPermissionService(
+    private val fileSystemService: FileSystemService
+) : PermissionService {
+
+    override fun getPermission(deviceId: String, path: String) =
+        fileSystemService.getAttributes(deviceId, path)?.permission
+
+    override fun updatePermission(deviceId: String, path: String, permission: FsPermission) =
+        fileSystemService.updatePermission(deviceId, path, permission)
+}

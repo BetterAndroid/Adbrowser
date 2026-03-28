@@ -17,26 +17,25 @@
  * You should have received a copy of the GNU Affero General Public License
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
- *
- * This file is created by fankes on 2025/6/4.
  */
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.FrameWindowScope
@@ -47,55 +46,68 @@ import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 
 @Composable
-fun LogViewerWindow(onCloseRequest: () -> Unit) {
+fun InitialSetupWindow(onCloseRequest: () -> Unit) {
     Window(
         onCloseRequest = onCloseRequest,
-        title = strings.logViewer,
+        title = strings.setupTitle,
         resizable = false,
-        state = rememberWindowState(width = 450.dp, height = 600.dp)
+        state = rememberWindowState(width = 720.dp, height = 420.dp)
     ) {
         AdbrowserTheme {
-            LogViewerScreen()
+            InitialSetupScreen()
         }
     }
 }
 
 @Composable
-private fun FrameWindowScope.LogViewerScreen() {
+private fun FrameWindowScope.InitialSetupScreen() {
     val appState = LocalAppState.current
-    var currentTab by remember { mutableStateOf(0) }
-    val adbLogs = appState.adbLogs()
-    val appLogs = appState.appLogs()
+    var adbPath by remember(appState.preferences.adbExecutablePath) {
+        mutableStateOf(appState.preferences.adbExecutablePath)
+    }
+    var showError by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        TabRow(selectedTabIndex = currentTab) {
-            Tab(
-                selected = currentTab == 0,
-                onClick = { currentTab = 0 },
-                text = { Text(strings.adbLog) }
-            )
-            Tab(
-                selected = currentTab == 1,
-                onClick = { currentTab = 1 },
-                text = { Text(strings.appLog) }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = strings.setupTitle,
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Text(
+            text = strings.setupDescription,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedTextField(
+            value = adbPath,
+            onValueChange = {
+                adbPath = it
+                showError = false
+            },
+            label = { Text(strings.adbPathLabel) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (showError) {
+            Text(
+                text = strings.invalidAdbPath,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
             )
         }
 
-        val lines = if (currentTab == 0) adbLogs else appLogs
-        if (lines.isEmpty()) {
-            Text(
-                text = "No logs",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxSize()) {
-                items(lines) { line ->
-                    Text(
-                        text = line,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = {
+                val success = appState.submitAdbPath(adbPath)
+                showError = !success
+            }) {
+                Text(strings.continueText)
             }
         }
     }

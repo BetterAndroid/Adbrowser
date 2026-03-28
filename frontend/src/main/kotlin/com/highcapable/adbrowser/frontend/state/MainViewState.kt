@@ -17,17 +17,18 @@
  * You should have received a copy of the GNU Affero General Public License
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
- *
- * This file is created by fankes on 2025/6/4.
  */
-package com.highcapable.adbrowser.frontend.ui.theme
+package com.highcapable.adbrowser.frontend.state
 
-import androidx.compose.ui.graphics.Color
+/** Main file pane view mode. */
+enum class FileViewMode {
+    List,
+    Grid
+}
 
-val Purple80 = Color(0xFF9CD1C8)
-val PurpleGrey80 = Color(0xFFBFD3D0)
-val Pink80 = Color(0xFFFFD5B2)
-
-val Purple40 = Color(0xFF256A6C)
-val PurpleGrey40 = Color(0xFF4E6263)
-val Pink40 = Color(0xFF925A32)
+/** Main file pane sorting mode. */
+enum class FileSortMode {
+    Name,
+    Size,
+    ModifiedTime
+}
