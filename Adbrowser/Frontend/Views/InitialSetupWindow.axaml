@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        x:Class="Adbrowser.Frontend.Views.InitialSetupWindow"
+        Width="680"
+        Height="380"
+        CanResize="False"
+        mc:Ignorable="d"
+        Title="{Binding Title}">
+    <Border Classes="window-surface" Padding="28">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*">
+            <TextBlock Text="{Binding Title}" Classes="heading-xl" />
+            <TextBlock Grid.Row="1"
+                       Margin="0,8,0,16"
+                       TextWrapping="Wrap"
+                       Text="{Binding Description}" />
+
+            <StackPanel Grid.Row="2" Spacing="8">
+                <TextBlock Text="{Binding AdbPathLabel}" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <TextBox Grid.Column="0" Text="{Binding AdbPath}" Watermark="/usr/local/bin/adb" />
+                    <Button Grid.Column="1" Content="..." Click="OnBrowseClick" />
+                </Grid>
+                <TextBlock Foreground="#B94747" Text="{Binding StatusMessage}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="3"
+                        Margin="0,20,0,0"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="10">
+                <Button Content="{Binding ContinueText}"
+                        MinWidth="120"
+                        Classes="primary"
+                        Command="{Binding ContinueCommand}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

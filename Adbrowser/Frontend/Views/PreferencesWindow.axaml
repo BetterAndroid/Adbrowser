@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        x:Class="Adbrowser.Frontend.Views.PreferencesWindow"
+        Width="760"
+        Height="560"
+        MinWidth="640"
+        MinHeight="460"
+        mc:Ignorable="d"
+        Title="{Binding Title}">
+    <Border Classes="window-surface" Padding="20">
+        <Grid RowDefinitions="*,Auto">
+            <TabControl>
+                <TabItem Header="{Binding GeneralTabTitle}">
+                    <StackPanel Margin="16" Spacing="10">
+                        <TextBlock Text="{Binding LanguageLabel}" FontWeight="SemiBold" />
+                        <ComboBox ItemsSource="{Binding Languages}"
+                                  SelectedItem="{Binding Language}"
+                                  Width="180" />
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="{Binding DeviceTabTitle}">
+                    <StackPanel Margin="16" Spacing="10">
+                        <TextBlock Text="{Binding AdbPathLabel}" FontWeight="SemiBold" />
+                        <TextBox Text="{Binding AdbPath}" Watermark="{Binding AdbPathWatermark}" />
+
+                        <CheckBox Content="{Binding RememberLastDeviceLabel}"
+                                  IsChecked="{Binding RememberLastDevice}" />
+                        <CheckBox Content="{Binding RememberDevicePathLabel}"
+                                  IsChecked="{Binding RememberDevicePath}" />
+                        <CheckBox Content="{Binding TrySuForDirectoryListingLabel}"
+                                  IsChecked="{Binding TrySuForDirectoryListing}" />
+
+                        <TextBlock Text="{Binding DeviceHomePathLabel}" FontWeight="SemiBold" Margin="0,8,0,0" />
+                        <TextBox Text="{Binding HomePath}" Watermark="{Binding DeviceHomePathWatermark}" />
+                        <TextBlock Text="{Binding CurrentDeviceSerial}" Opacity="0.7" />
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0" Spacing="8">
+                <TextBlock VerticalAlignment="Center" Text="{Binding StatusMessage}" />
+                <Button Content="{Binding CancelText}" Command="{Binding CancelCommand}" />
+                <Button Content="{Binding SaveText}" Classes="primary" Command="{Binding SaveCommand}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

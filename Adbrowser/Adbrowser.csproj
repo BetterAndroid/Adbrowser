@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Adbrowser</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.8" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.8" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.8" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.8" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.8" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Frontend/Localization/Resources/*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Frontend/Styles/**" />
+    <AvaloniaResource Include="Frontend/Assets/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Frontend\" />
+  </ItemGroup>
+
+  <Target Name="DisableAvaloniaStats" BeforeTargets="AvaloniaStats">
+    <PropertyGroup>
+      <UsedAvaloniaProducts></UsedAvaloniaProducts>
+    </PropertyGroup>
+  </Target>
+</Project>

@@ -1,0 +1,128 @@
+## Fully .gtignore for IntelliJ, Android Studio and Gradle based Java projects
+## References:
+## - https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
+## - https://github.com/android/platform-samples/blob/main/.gitignore
+
+# VS Code
+.vscode/
+
+# User-specific stuff
+.idea/.idea.Adbrowser/.idea/**/workspace.xml
+.idea/.idea.Adbrowser/.idea/**/tasks.xml
+.idea/.idea.Adbrowser/.idea/**/usage.statistics.xml
+.idea/.idea.Adbrowser/.idea/**/dictionaries
+.idea/.idea.Adbrowser/.idea/**/shelf
+
+# AWS User-specific
+.idea/.idea.Adbrowser/.idea/**/aws.xml
+
+# Generated files
+.idea/.idea.Adbrowser/.idea/**/contentModel.xml
+
+# Sensitive or high-churn files
+.idea/.idea.Adbrowser/.idea/**/dataSources/
+.idea/.idea.Adbrowser/.idea/**/dataSources.ids
+.idea/.idea.Adbrowser/.idea/**/dataSources.local.xml
+.idea/.idea.Adbrowser/.idea/**/sqlDataSources.xml
+.idea/.idea.Adbrowser/.idea/**/dynamic.xml
+.idea/.idea.Adbrowser/.idea/**/uiDesigner.xml
+.idea/.idea.Adbrowser/.idea/**/dbnavigator.xml
+
+# Gradle
+.idea/.idea.Adbrowser/.idea/**/gradle.xml
+.idea/.idea.Adbrowser/.idea/**/libraries
+
+# Gradle and Maven with auto-import
+.idea/.idea.Adbrowser/.idea/.name
+.idea/.idea.Adbrowser/.idea/artifacts
+.idea/.idea.Adbrowser/.idea/compiler.xml
+.idea/.idea.Adbrowser/.idea/jarRepositories.xml
+.idea/.idea.Adbrowser/.idea/modules.xml
+.idea/.idea.Adbrowser/.idea/*.iml
+.idea/.idea.Adbrowser/.idea/modules
+.idea/.idea.Adbrowser/.idea/caches
+.idea/.idea.Adbrowser/.idea/material_theme**
+.idea/.idea.Adbrowser/.idea/other.xml
+*.iml
+*.ipr
+
+# Kotlin
+.kotlin
+.idea/.idea.Adbrowser/.idea/kotlinc.xml
+
+# Misc
+.idea/.idea.Adbrowser/.idea/misc.xml
+.idea/.idea.Adbrowser/.idea/markdown.xml
+
+# CMake
+cmake-build-*/
+
+# Mongo Explorer plugin
+.idea/.idea.Adbrowser/.idea/**/mongoSettings.xml
+
+# File-based project format
+*.iws
+
+# IntelliJ
+out/
+
+# mpeltonen/sbt-idea plugin
+.idea/.idea.Adbrowser/.idea_modules/
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Cursive Clojure plugin
+.idea/.idea.Adbrowser/.idea/replstate.xml
+
+# SonarLint plugin
+.idea/.idea.Adbrowser/.idea/sonarlint/
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# Editor-based Rest Client
+.idea/.idea.Adbrowser/.idea/httpRequests
+
+# Android studio 3.1+ serialized cache file
+.idea/.idea.Adbrowser/.idea/caches/build_file_checksums.ser
+
+# Android studio 3.1+ additional
+.idea/.idea.Adbrowser/.idea/deployment*.xml
+.idea/.idea.Adbrowser/.idea/assetWizardSettings.xml
+.idea/.idea.Adbrowser/.idea/androidTestResultsUserPreferences.xml
+
+# Android projects
+.idea/.idea.Adbrowser/.idea/AndroidProjectSystem.xml
+.idea/.idea.Adbrowser/.idea/deviceManager.xml
+**/local.properties
+/captures
+.externalNativeBuild
+.cxx
+
+# Gradle projects
+.gradle
+build/
+
+# Mkdocs temporary serving folder
+docs-gen
+site
+*.bak
+.idea/.idea.Adbrowser/.idea/appInsightsSettings.xml
+
+# Discord plugin for IntelliJ
+.idea/.idea.Adbrowser/.idea/discord.xml
+
+# Copilot for IntelliJ
+.idea/.idea.Adbrowser/.idea/copilot**
+
+# Mac OS
+.DS_Store
+
+# Csharp
+/Adbrowser/bin
+/Adbrowser/obj
+Adbrowser.sln.DotSettings.user

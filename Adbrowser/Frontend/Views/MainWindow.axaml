@@ -1,0 +1,213 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Adbrowser.Frontend.ViewModels"
+        xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
+        x:Class="Adbrowser.Frontend.Views.MainWindow"
+        Width="1300"
+        Height="820"
+        MinWidth="1000"
+        MinHeight="650"
+        mc:Ignorable="d"
+        Title="{Binding Title}">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <x:String x:Key="FileIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#2E6CD3;}</x:String>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <x:String x:Key="FileIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#4D8FF6;}</x:String>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="ListBox ListBoxItem">
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="svg|Svg.file-icon">
+            <Setter Property="Css" Value="{DynamicResource FileIconStrokeCss}" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:selected svg|Svg.file-icon">
+            <Setter Property="Css" Value="path,rect,circle,ellipse,polygon,polyline,line{stroke:#FFFFFF;}" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryAccentBrush}" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryAccentHoverBrush}" />
+        </Style>
+        <Style Selector="ListBox ListBoxItem:selected:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryAccentPressedBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Classes="menu-host" Grid.Row="0">
+            <Menu Classes="main-menu">
+                <MenuItem Header="{Binding MenuFile}">
+                    <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
+                    <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
+                    <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuPreferences}" Click="OnPreferencesClick" />
+                    <MenuItem Header="{Binding MenuExit}" Click="OnExitClick" />
+                </MenuItem>
+                <MenuItem Header="{Binding MenuEdit}">
+                    <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
+                    <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
+                    <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuSelectAll}" />
+                    <MenuItem Header="{Binding MenuInverseSelect}" />
+                </MenuItem>
+                <MenuItem Header="{Binding MenuView}">
+                    <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
+                    <MenuItem Header="{Binding MenuViewMode}" />
+                    <MenuItem Header="{Binding MenuSortMode}" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuToggleStatusBarDynamic}" Command="{Binding ToggleStatusBarCommand}" />
+                    <MenuItem Header="{Binding MenuAdbLogs}" Click="OnLogsClick" />
+                    <MenuItem Header="{Binding MenuAppLogs}" Click="OnLogsClick" />
+                </MenuItem>
+                <MenuItem Header="{Binding MenuGo}">
+                    <MenuItem Header="{Binding MenuForward}" Command="{Binding NavigateForwardCommand}" />
+                    <MenuItem Header="{Binding MenuBack}" Command="{Binding NavigateBackCommand}" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuUp}" Command="{Binding NavigateUpCommand}" />
+                    <MenuItem Header="{Binding MenuRoot}" Command="{Binding NavigateRootCommand}" />
+                    <MenuItem Header="{Binding MenuHome}" Command="{Binding NavigateHomeCommand}" />
+                    <Separator />
+                    <MenuItem Header="{Binding MenuSearch}" Command="{Binding SearchCommand}" />
+                </MenuItem>
+                <MenuItem Header="{Binding MenuHelp}">
+                    <MenuItem Header="{Binding MenuComingSoon}" IsEnabled="False" />
+                </MenuItem>
+            </Menu>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="300,*">
+            <Border Grid.Column="0" Classes="sidebar" Padding="14">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+                        <TextBlock Text="{Binding DevicesTitle}" FontWeight="SemiBold" FontSize="16" />
+                        <Button Grid.Column="1"
+                                Classes="nav-btn"
+                                Content="↻"
+                                Command="{Binding RefreshDevicesCommand}" />
+                    </Grid>
+                    <ListBox x:Name="DevicesListBox"
+                             Grid.Row="1"
+                             ItemsSource="{Binding Devices}"
+                             SelectedItem="{Binding SelectedDevice}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:AndroidDeviceItem">
+                                <Grid RowDefinitions="Auto,Auto,Auto">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Ellipse Width="9" Height="9" Fill="{Binding StatusBrush}" />
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="1" Text="{Binding Model}" Opacity="0.78" FontSize="12" />
+                                    <TextBlock Grid.Row="2" Text="{Binding Serial}" Opacity="0.75" FontSize="11" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Classes="content-pane" Padding="16">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" Margin="0,0,0,12">
+                        <Button Grid.Column="0" Classes="nav-btn" Content="←" Command="{Binding NavigateBackCommand}" />
+                        <Button Grid.Column="1" Classes="nav-btn" Content="→" Margin="6,0,0,0" Command="{Binding NavigateForwardCommand}" />
+                        <Button Grid.Column="2" Classes="nav-btn" Content="↑" Margin="6,0,0,0" Command="{Binding NavigateUpCommand}" />
+                        <Button Grid.Column="3" Classes="nav-btn" Content="⌂" Margin="6,0,0,0" Command="{Binding NavigateHomeCommand}" />
+                        <TextBox Grid.Column="4"
+                                 Margin="10,0,10,0"
+                                 Text="{Binding PathInput}"
+                                 KeyDown="OnPathInputKeyDown" />
+                        <ComboBox Grid.Column="5" Width="110" ItemsSource="{Binding ViewModes}" SelectedItem="{Binding SelectedViewMode}" />
+                        <ComboBox Grid.Column="6" Width="130" Margin="8,0,0,0" ItemsSource="{Binding SortModes}"
+                                  SelectedItem="{Binding SelectedSortMode}" />
+                    </Grid>
+
+                    <Border Grid.Row="1" Classes="file-list-container" PointerPressed="OnFilePanePointerPressed">
+                        <Grid>
+                            <Grid RowDefinitions="Auto,*">
+                                <Grid Grid.Row="0" ColumnDefinitions="2*,*,*,*" Classes="file-header">
+                                    <TextBlock Grid.Column="0" Text="{Binding HeaderName}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding HeaderSize}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding HeaderModified}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding HeaderPermission}" />
+                                </Grid>
+                                <ListBox Grid.Row="1"
+                                         ItemsSource="{Binding CurrentEntries}"
+                                         SelectedItem="{Binding SelectedEntry}"
+                                         DoubleTapped="OnEntryDoubleTapped"
+                                         DragDrop.AllowDrop="True"
+                                         DragDrop.Drop="OnFilePaneDrop">
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
+                                            <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
+                                            <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
+                                            <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
+                                            <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
+                                            <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
+                                            <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
+                                            <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DeviceFileItem">
+                                            <Border Classes="file-row" Padding="6,5">
+                                                <Grid ColumnDefinitions="2*,*,*,*">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                                                        <svg:Svg Width="16"
+                                                                 Height="16"
+                                                                 Classes="file-icon"
+                                                                 Path="{Binding IconUri}"
+                                                                 Stretch="Uniform" />
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="14" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding SizeText}" FontSize="14" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding ModifiedText}" FontSize="14" />
+                                                    <TextBlock Grid.Column="3" Text="{Binding Permission}" FontSize="14" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="2" Classes="status-bar" Padding="12,6" Margin="0,10,0,0">
+                        <TextBlock Text="{Binding CurrentPath}" VerticalAlignment="Center" />
+                    </Border>
+
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Classes="status-bar" Padding="12,6" IsVisible="{Binding IsStatusBarVisible}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding CommitIdText}"
+                           VerticalAlignment="Center"
+                           Opacity="0.6"
+                           FontSize="11" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

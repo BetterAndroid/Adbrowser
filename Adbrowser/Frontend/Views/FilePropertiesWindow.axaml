@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Adbrowser.Frontend.Views.FilePropertiesWindow"
+        Width="620"
+        Height="420"
+        MinWidth="560"
+        MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Title="">
+    <Border Classes="window-surface" Padding="16">
+        <Grid RowDefinitions="*,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">
+                <TextBlock Name="NameLabel" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" Name="NameText" Margin="0,0,0,8" />
+
+                <TextBlock Grid.Row="1" Name="PathLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Name="PathText" TextWrapping="Wrap" />
+
+                <TextBlock Grid.Row="2" Name="TypeLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Name="TypeText" Margin="0,0,0,8" />
+
+                <TextBlock Grid.Row="3" Name="SizeLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Name="SizeText" Margin="0,0,0,8" />
+
+                <TextBlock Grid.Row="4" Name="ModifiedLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Name="ModifiedText" Margin="0,0,0,8" />
+
+                <TextBlock Grid.Row="5" Name="PermissionLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+                    <TextBlock Name="PermissionText" VerticalAlignment="Center" />
+                    <TextBox Name="ModeTextBox" Width="80" Watermark="644" LostFocus="OnModeTextBoxLostFocus" />
+                    <Button Name="ApplyPermissionButton" Click="OnApplyPermissionClick" />
+                </StackPanel>
+
+                <TextBlock Grid.Row="6" Name="PermissionBitsLabel" FontWeight="SemiBold" Margin="0,0,0,8" />
+                <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Spacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock Name="OwnerBitsLabel" FontWeight="SemiBold" />
+                        <CheckBox Name="OwnerReadCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="OwnerWriteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="OwnerExecuteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Name="GroupBitsLabel" FontWeight="SemiBold" />
+                        <CheckBox Name="GroupReadCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="GroupWriteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="GroupExecuteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Name="OtherBitsLabel" FontWeight="SemiBold" />
+                        <CheckBox Name="OtherReadCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="OtherWriteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                        <CheckBox Name="OtherExecuteCheck" Checked="OnPermissionBitChanged" Unchecked="OnPermissionBitChanged" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                <Button Name="CloseButton" Classes="primary" Click="OnCloseClick" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

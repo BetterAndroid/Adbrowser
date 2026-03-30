@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+        x:Class="Adbrowser.Frontend.Views.LogViewerWindow"
+        Width="940"
+        Height="620"
+        MinWidth="760"
+        MinHeight="480"
+        mc:Ignorable="d"
+        Title="{Binding Title}">
+    <Border Classes="window-surface" Padding="16">
+        <Grid RowDefinitions="Auto,*">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,10">
+                <Button Content="{Binding RefreshText}" Command="{Binding RefreshCommand}" />
+            </StackPanel>
+
+            <dg:DataGrid x:Name="LogGrid"
+                         Grid.Row="1"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True"
+                         ItemsSource="{Binding Entries}">
+                <dg:DataGrid.Columns>
+                    <dg:DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="180" />
+                    <dg:DataGridTextColumn Header="Level" Binding="{Binding Level}" Width="100" />
+                    <dg:DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" />
+                    <dg:DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+                </dg:DataGrid.Columns>
+            </dg:DataGrid>
+        </Grid>
+    </Border>
+</Window>

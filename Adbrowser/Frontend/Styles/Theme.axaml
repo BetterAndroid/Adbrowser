@@ -1,0 +1,175 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Styles.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="MainBackgroundColor">#F3F4F6</Color>
+                    <Color x:Key="PanelBackgroundColor">#FFFFFF</Color>
+                    <Color x:Key="PanelBorderColor">#D6D9DE</Color>
+                    <Color x:Key="PrimaryAccentColor">#2E6CD3</Color>
+                    <Color x:Key="PrimaryAccentHoverColor">#265BB2</Color>
+                    <Color x:Key="PrimaryAccentPressedColor">#1F4D98</Color>
+                    <Color x:Key="HintBackgroundColor">#F8FAFC</Color>
+                    <Color x:Key="HintBorderColor">#E3E7ED</Color>
+                    <Color x:Key="SubtleControlBackgroundColor">#F7F8FB</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="MainBackgroundColor">#161A20</Color>
+                    <Color x:Key="PanelBackgroundColor">#242B35</Color>
+                    <Color x:Key="PanelBorderColor">#3A4453</Color>
+                    <Color x:Key="PrimaryAccentColor">#4D8FF6</Color>
+                    <Color x:Key="PrimaryAccentHoverColor">#3F7FDF</Color>
+                    <Color x:Key="PrimaryAccentPressedColor">#336FC7</Color>
+                    <Color x:Key="HintBackgroundColor">#1E293B</Color>
+                    <Color x:Key="HintBorderColor">#334155</Color>
+                    <Color x:Key="SubtleControlBackgroundColor">#2A3240</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <SolidColorBrush x:Key="MainBackgroundBrush" Color="{DynamicResource MainBackgroundColor}" />
+            <SolidColorBrush x:Key="PanelBackgroundBrush" Color="{DynamicResource PanelBackgroundColor}" />
+            <SolidColorBrush x:Key="PanelBorderBrush" Color="{DynamicResource PanelBorderColor}" />
+            <SolidColorBrush x:Key="PrimaryAccentBrush" Color="{DynamicResource PrimaryAccentColor}" />
+            <SolidColorBrush x:Key="PrimaryAccentHoverBrush" Color="{DynamicResource PrimaryAccentHoverColor}" />
+            <SolidColorBrush x:Key="PrimaryAccentPressedBrush" Color="{DynamicResource PrimaryAccentPressedColor}" />
+            <SolidColorBrush x:Key="HintBackgroundBrush" Color="{DynamicResource HintBackgroundColor}" />
+            <SolidColorBrush x:Key="HintBorderBrush" Color="{DynamicResource HintBorderColor}" />
+            <SolidColorBrush x:Key="SubtleControlBackgroundBrush" Color="{DynamicResource SubtleControlBackgroundColor}" />
+        </ResourceDictionary>
+    </Styles.Resources>
+
+    <Style Selector="Window">
+        <Setter Property="Background" Value="{DynamicResource MainBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="Border.window-surface">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="Border.sidebar">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <Style Selector="Border.menu-host">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+
+    <Style Selector="Menu.main-menu">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Margin" Value="6,4" />
+    </Style>
+
+    <Style Selector="Menu.main-menu > MenuItem">
+        <Setter Property="Padding" Value="10,6" />
+    </Style>
+
+    <Style Selector="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="ContextMenu MenuItem">
+        <Setter Property="Padding" Value="10,6" />
+    </Style>
+
+    <Style Selector="Border.content-pane">
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="Border.file-list-container">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="Grid.file-header">
+        <Setter Property="Background" Value="{DynamicResource SubtleControlBackgroundBrush}" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="Grid.file-header > TextBlock">
+        <Setter Property="Margin" Value="12,7" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Border.file-row">
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="ListBox#DevicesListBox ListBoxItem">
+        <Setter Property="Background" Value="{DynamicResource SubtleControlBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+
+    <Style Selector="Border.status-bar">
+        <Setter Property="Background" Value="{DynamicResource HintBackgroundBrush}" />
+        <Setter Property="BorderThickness" Value="1,1,0,0" />
+        <Setter Property="BorderBrush" Value="{DynamicResource HintBorderBrush}" />
+        <Setter Property="MinHeight" Value="34" />
+    </Style>
+
+    <Style Selector="TextBlock.heading-xl">
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+
+    <Style Selector="TextBlock.heading-md">
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.primary">
+        <Setter Property="Background" Value="{DynamicResource PrimaryAccentBrush}" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccentBrush}" />
+    </Style>
+
+    <Style Selector="Button.primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource PrimaryAccentHoverBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccentHoverBrush}" />
+    </Style>
+
+    <Style Selector="Button.primary:pressed">
+        <Setter Property="Background" Value="{DynamicResource PrimaryAccentPressedBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryAccentPressedBrush}" />
+    </Style>
+
+    <Style Selector="TextBox">
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="ComboBox">
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.nav-btn">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Background" Value="{DynamicResource SubtleControlBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="Button.nav-btn:pointerover">
+        <Setter Property="Background" Value="#EDEFF4" />
+    </Style>
+
+    <Style Selector="Button.nav-btn:pressed">
+        <Setter Property="Background" Value="#E0E4EA" />
+    </Style>
+</Styles>

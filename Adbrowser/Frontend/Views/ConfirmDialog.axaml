@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Adbrowser.Frontend.Views.ConfirmDialog"
+        Width="460"
+        Height="200"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Title="">
+    <Border Classes="window-surface" Padding="16">
+        <Grid RowDefinitions="*,Auto">
+            <TextBlock Name="MessageText" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+                <Button Name="NoButton" Content="" Click="OnNoClick" />
+                <Button Name="YesButton" Content="" Classes="primary" Click="OnYesClick" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

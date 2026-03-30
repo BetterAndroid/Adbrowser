@@ -1,0 +1,201 @@
+// Copyright (C) 2019 HighCapable
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+using Adbrowser.Frontend.Runtime;
+using Adbrowser.Frontend.ViewModels;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+
+namespace Adbrowser.Frontend.Views;
+
+public partial class MainWindow : Window
+{
+    private readonly MainWindowViewModel _viewModel;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        _viewModel = new MainWindowViewModel(
+            AppServices.AdbClient,
+            AppServices.FileSystemService,
+            AppServices.LogService,
+            AppServices.SettingsService,
+            AppServices.LocalizationService);
+
+        DataContext = _viewModel;
+        Loaded += OnLoaded;
+    }
+
+    private async void OnLoaded(object? sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        await _viewModel.InitializeAsync();
+    }
+
+    private void OnPreferencesClick(object? sender, RoutedEventArgs e)
+    {
+        var window = new PreferencesWindow(_viewModel.SelectedDevice?.Serial)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        window.ShowDialog(this);
+    }
+
+    private void OnLogsClick(object? sender, RoutedEventArgs e)
+    {
+        var window = new LogViewerWindow
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        window.ShowDialog(this);
+    }
+
+    private void OnExitClick(object? sender, RoutedEventArgs e)
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.Shutdown();
+        }
+        else
+        {
+            Close();
+        }
+    }
+
+    private void OnEntryDoubleTapped(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.OpenEntryCommand.Execute(null);
+    }
+
+    private void OnFilePanePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            _viewModel.SelectedEntry = null;
+        }
+    }
+
+    private void OnFilePaneDrop(object? sender, DragEventArgs e)
+    {
+        _viewModel.StatusMessage = AppServices.LocalizationService.GetString("status.dropDetected");
+    }
+
+    private async void OnNewFolderClick(object? sender, RoutedEventArgs e)
+    {
+        var t = AppServices.LocalizationService.GetString;
+        var dialog = new SimpleInputDialog(
+            title: t("dialog.newFolder.title"),
+            prompt: t("dialog.newFolder.prompt"),
+            okText: t("dialog.newFolder.create"),
+            cancelText: t("dialog.common.cancel"),
+            validator: static text => !string.IsNullOrWhiteSpace(text));
+        dialog.InvalidInputMessage = t("dialog.input.invalid");
+
+        var result = await dialog.ShowDialog<bool?>(this);
+
+        if (result is true)
+        {
+            await _viewModel.CreateFolderAsync(dialog.Value);
+        }
+    }
+
+    private async void OnDeleteClick(object? sender, RoutedEventArgs e)
+    {
+        var t = AppServices.LocalizationService.GetString;
+        if (!_viewModel.HasSelectedEntry())
+        {
+            _viewModel.StatusMessage = t("status.selectEntryFirst");
+            return;
+        }
+
+        var dialog = new ConfirmDialog(
+            title: t("dialog.delete.title"),
+            message: t("dialog.delete.confirm"),
+            yesText: t("dialog.delete.confirmButton"),
+            noText: t("dialog.common.cancel"));
+        var confirmed = await dialog.ShowDialog<bool?>(this);
+
+        if (confirmed is true)
+        {
+            await _viewModel.DeleteSelectedAsync();
+        }
+    }
+
+    private async void OnPropertiesClick(object? sender, RoutedEventArgs e)
+    {
+        var t = AppServices.LocalizationService.GetString;
+        var snapshot = _viewModel.GetSelectedEntrySnapshot();
+
+        if (snapshot is null)
+        {
+            _viewModel.StatusMessage = t("status.selectEntryFirst");
+            return;
+        }
+
+        var window = new FilePropertiesWindow(snapshot, AppServices.PermissionService, AppServices.LogService)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        window.StatusChanged += message => _viewModel.StatusMessage = message;
+        window.PermissionChanged += (path, permission) => _viewModel.UpdateEntryPermission(path, permission);
+        await window.ShowDialog(this);
+    }
+
+    private async void OnRenameClick(object? sender, RoutedEventArgs e)
+    {
+        var t = AppServices.LocalizationService.GetString;
+        var snapshot = _viewModel.GetSelectedEntrySnapshot();
+
+        if (snapshot is null)
+        {
+            _viewModel.StatusMessage = t("status.selectEntryFirst");
+            return;
+        }
+
+        var dialog = new SimpleInputDialog(
+            title: t("dialog.rename.title"),
+            prompt: string.Empty,
+            okText: t("dialog.rename.confirm"),
+            cancelText: t("dialog.common.cancel"),
+            validator: static text => !string.IsNullOrWhiteSpace(text),
+            initialValue: snapshot.Name,
+            selectAllOnOpen: true);
+        dialog.InvalidInputMessage = t("dialog.input.invalid");
+        var result = await dialog.ShowDialog<bool?>(this);
+
+        if (result is true)
+        {
+            await _viewModel.RenameSelectedAsync(dialog.Value);
+        }
+    }
+
+    private void OnCopyClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.CopySelected();
+    }
+
+    private void OnCutClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.CutSelected();
+    }
+
+    private async void OnPasteClick(object? sender, RoutedEventArgs e)
+    {
+        await _viewModel.PasteAsync();
+    }
+
+    private async void OnPathInputKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Return))
+        {
+            return;
+        }
+
+        e.Handled = true;
+        await _viewModel.NavigateToPathInputAsync();
+    }
+}
