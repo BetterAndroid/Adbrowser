@@ -2,19 +2,22 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="Adbrowser.Frontend.Views.SimpleInputDialog"
         Width="460"
-        Height="220"
         CanResize="False"
+        SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource MainBackgroundBrush}"
         Title="">
-    <Border Classes="window-surface" Padding="16">
-        <Grid RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*">
-            <TextBlock Name="PromptText" FontWeight="SemiBold" />
-            <TextBox Grid.Row="1" Name="InputTextBox" Margin="0,8,0,0" />
-            <TextBlock Grid.Row="2" Name="ErrorText" Foreground="#B94747" Margin="0,8,0,0" />
-            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
-                <Button Name="CancelButton" Content="" Click="OnCancelClick" />
-                <Button Name="OkButton" Content="" Classes="primary" Click="OnOkClick" />
-            </StackPanel>
-        </Grid>
-    </Border>
+    <Grid Background="{DynamicResource MainBackgroundBrush}">
+        <Border Padding="16" Margin="8">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*">
+                <TextBlock Name="PromptText" FontWeight="SemiBold" />
+                <TextBox Grid.Row="1" Name="InputTextBox" Margin="0,8,0,0" />
+                <TextBlock Grid.Row="2" Name="ErrorText" Foreground="#B94747" Margin="0,8,0,0" />
+                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+                    <Button Name="CancelButton" Content="" Click="OnCancelClick" />
+                    <Button Name="OkButton" Content="" Classes="primary" Click="OnOkClick" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>

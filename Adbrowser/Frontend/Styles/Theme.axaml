@@ -11,7 +11,7 @@
                     <Color x:Key="PrimaryAccentHoverColor">#265BB2</Color>
                     <Color x:Key="PrimaryAccentPressedColor">#1F4D98</Color>
                     <Color x:Key="HintBackgroundColor">#F8FAFC</Color>
-                    <Color x:Key="HintBorderColor">#E3E7ED</Color>
+                    <Color x:Key="HintBorderColor">#E3E3E3</Color>
                     <Color x:Key="SubtleControlBackgroundColor">#F7F8FB</Color>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
@@ -45,7 +45,7 @@
 
     <Style Selector="Border.window-surface">
         <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
-        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="CornerRadius" Value="0" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
@@ -53,7 +53,8 @@
     <Style Selector="Border.sidebar">
         <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
-        <Setter Property="BorderThickness" Value="0,0,1,0" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <Style Selector="Border.menu-host">
@@ -81,6 +82,9 @@
 
     <Style Selector="Border.content-pane">
         <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <Style Selector="Border.file-list-container">
@@ -117,7 +121,7 @@
 
     <Style Selector="Border.status-bar">
         <Setter Property="Background" Value="{DynamicResource HintBackgroundBrush}" />
-        <Setter Property="BorderThickness" Value="1,1,0,0" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
         <Setter Property="BorderBrush" Value="{DynamicResource HintBorderBrush}" />
         <Setter Property="MinHeight" Value="34" />
     </Style>
