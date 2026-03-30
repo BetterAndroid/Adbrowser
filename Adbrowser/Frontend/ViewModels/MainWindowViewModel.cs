@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using System.Collections.ObjectModel;
-using System.Reflection;
 using System.Windows.Input;
 using Adbrowser.Backend.Adb;
 using Adbrowser.Backend.Adb.Models;
@@ -12,6 +11,7 @@ using Adbrowser.Backend.Logging;
 using Adbrowser.Frontend.Configuration;
 using Adbrowser.Frontend.Infrastructure;
 using Adbrowser.Frontend.Localization;
+using Adbrowser.Shared;
 
 namespace Adbrowser.Frontend.ViewModels;
 
@@ -21,21 +21,22 @@ namespace Adbrowser.Frontend.ViewModels;
 public sealed class MainWindowViewModel : ViewModelBase
 {
     private readonly IAdbClient _adbClient;
+    private readonly string _buildVersionText;
     private readonly IFileSystemService _fileSystemService;
-    private readonly ILogService _logService;
-    private readonly IAppSettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
+    private readonly ILogService _logService;
+    private readonly RelayCommand _navigateBackCommand;
+    private readonly RelayCommand _navigateForwardCommand;
+    private readonly RelayCommand _navigateUpCommand;
 
     private readonly List<string> _navigationHistory = ["/"];
+    private readonly IAppSettingsService _settingsService;
+    private ClipboardEntrySnapshot? _clipboardEntry;
     private int _navigationIndex;
     private string _pathInput = "/";
     private string _searchKeyword;
-    private SelectionOption _selectedViewMode;
     private SelectionOption _selectedSortMode;
-    private ClipboardEntrySnapshot? _clipboardEntry;
-    private readonly RelayCommand _navigateUpCommand;
-    private readonly RelayCommand _navigateBackCommand;
-    private readonly RelayCommand _navigateForwardCommand;
+    private SelectionOption _selectedViewMode;
 
     /// <summary>
     /// Initializes localized option collections.
@@ -64,6 +65,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         _selectedViewMode = ViewModes[0];
         _selectedSortMode = SortModes[0];
+        _buildVersionText = BuildVersionUtils.GetBuildVersionText();
 
         _navigateUpCommand = new RelayCommand(async () => await NavigateUpAsync(), () => CurrentPath != "/");
         _navigateBackCommand = new RelayCommand(async () => await NavigateBackAsync(), () => _navigationIndex > 0);
@@ -228,9 +230,11 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string MenuRefresh => T("menu.refresh");
     public string MenuViewMode => T("menu.viewMode");
     public string MenuSortMode => T("menu.sortMode");
+
     public string MenuToggleStatusBarDynamic => IsStatusBarVisible
         ? T("menu.hideStatusBar")
         : T("menu.showStatusBar");
+
     public string MenuAdbLogs => T("menu.adbLogs");
     public string MenuAppLogs => T("menu.appLogs");
     public string MenuForward => T("menu.forward");
@@ -261,14 +265,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     /// </summary>
     public string CommitIdText
     {
-        get
-        {
-            var informationalVersion = Assembly.GetExecutingAssembly()
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                .InformationalVersion;
-            var value = string.IsNullOrWhiteSpace(informationalVersion) ? "dev" : informationalVersion;
-            return $"commit: {value}";
-        }
+        get => _buildVersionText;
     }
 
     /// <summary>
