@@ -6,9 +6,8 @@
         MinWidth="560"
         MinHeight="360"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource MainBackgroundBrush}"
         Title="">
-    <Grid Background="{DynamicResource MainBackgroundBrush}">
+    <Grid Classes="window-surface">
         <Border Padding="16" Margin="8">
             <Grid RowDefinitions="*,Auto">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">

@@ -8,9 +8,8 @@
         MinWidth="640"
         MinHeight="460"
         mc:Ignorable="d"
-        Background="{DynamicResource MainBackgroundBrush}"
         Title="{Binding Title}">
-    <Grid Background="{DynamicResource MainBackgroundBrush}">
+    <Grid Classes="window-surface">
         <Border Margin="8">
             <Grid RowDefinitions="*,Auto">
                 <TabControl>

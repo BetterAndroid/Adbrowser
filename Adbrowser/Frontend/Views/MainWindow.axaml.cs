@@ -28,12 +28,23 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
         Loaded += OnLoaded;
+        Closed += OnClosed;
     }
 
     private async void OnLoaded(object? sender, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;
+        RestoreMainPaneWidth();
+        RestoreFileColumnWidths();
         await _viewModel.InitializeAsync();
+    }
+
+    private async void OnClosed(object? sender, EventArgs e)
+    {
+        Closed -= OnClosed;
+        SaveMainPaneWidth();
+        SaveFileColumnWidths();
+        await AppServices.SettingsService.SaveAsync();
     }
 
     private void OnPreferencesClick(object? sender, RoutedEventArgs e)
@@ -197,5 +208,46 @@ public partial class MainWindow : Window
 
         e.Handled = true;
         await _viewModel.NavigateToPathInputAsync();
+    }
+
+    private void RestoreFileColumnWidths()
+    {
+        var settings = AppServices.SettingsService.Current;
+        ApplyColumnWidth(FileHeaderGrid.ColumnDefinitions[0], settings.FileColumnWidthName, 180);
+        ApplyColumnWidth(FileHeaderGrid.ColumnDefinitions[2], settings.FileColumnWidthSize, 90);
+        ApplyColumnWidth(FileHeaderGrid.ColumnDefinitions[4], settings.FileColumnWidthModified, 150);
+        ApplyColumnWidth(FileHeaderGrid.ColumnDefinitions[6], settings.FileColumnWidthPermission, 110);
+    }
+
+    private void RestoreMainPaneWidth()
+    {
+        var settings = AppServices.SettingsService.Current;
+        ApplyColumnWidth(MainLayoutGrid.ColumnDefinitions[0], settings.DevicePaneWidth, 240);
+    }
+
+    private void SaveMainPaneWidth()
+    {
+        var settings = AppServices.SettingsService.Current;
+        settings.DevicePaneWidth = MainLayoutGrid.ColumnDefinitions[0].Width.Value;
+    }
+
+    private void SaveFileColumnWidths()
+    {
+        var settings = AppServices.SettingsService.Current;
+        settings.FileColumnWidthName = FileHeaderGrid.ColumnDefinitions[0].Width.Value;
+        settings.FileColumnWidthSize = FileHeaderGrid.ColumnDefinitions[2].Width.Value;
+        settings.FileColumnWidthModified = FileHeaderGrid.ColumnDefinitions[4].Width.Value;
+        settings.FileColumnWidthPermission = FileHeaderGrid.ColumnDefinitions[6].Width.Value;
+    }
+
+    private static void ApplyColumnWidth(ColumnDefinition column, double width, double minWidth)
+    {
+        var value = double.IsFinite(width) && width > 0 ? width : minWidth;
+        if (value < minWidth)
+        {
+            value = minWidth;
+        }
+
+        column.Width = new GridLength(value, GridUnitType.Pixel);
     }
 }

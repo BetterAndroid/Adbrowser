@@ -5,9 +5,8 @@
         CanResize="False"
         SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource MainBackgroundBrush}"
         Title="">
-    <Grid Background="{DynamicResource MainBackgroundBrush}">
+    <Grid Classes="window-surface">
         <Border Padding="16" Margin="8">
             <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*">
                 <TextBlock Name="PromptText" FontWeight="SemiBold" />

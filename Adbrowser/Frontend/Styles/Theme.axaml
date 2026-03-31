@@ -44,7 +44,7 @@
     </Style>
 
     <Style Selector="Border.window-surface">
-        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="Background" Value="{DynamicResource MainBackgroundColor}" />
         <Setter Property="CornerRadius" Value="0" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -80,6 +80,11 @@
         <Setter Property="Padding" Value="10,6" />
     </Style>
 
+    <Style Selector="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <Style Selector="Border.content-pane">
         <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
@@ -91,17 +96,24 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="ListBox#DevicesListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
     </Style>
 
     <Style Selector="Grid.file-header">
-        <Setter Property="Background" Value="{DynamicResource SubtleControlBackgroundBrush}" />
         <Setter Property="Margin" Value="0" />
     </Style>
 
     <Style Selector="Grid.file-header > TextBlock">
-        <Setter Property="Margin" Value="12,7" />
-        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="12,8" />
+        <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
@@ -112,9 +124,9 @@
     </Style>
 
     <Style Selector="ListBox#DevicesListBox ListBoxItem">
-        <Setter Property="Background" Value="{DynamicResource SubtleControlBackgroundBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="8" />
         <Setter Property="Margin" Value="0,0,0,6" />
     </Style>

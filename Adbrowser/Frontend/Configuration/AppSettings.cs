@@ -47,4 +47,29 @@ public sealed class AppSettings
     /// Stores last visited path for each device serial.
     /// </summary>
     public Dictionary<string, string> DeviceLastPaths { get; set; } = [];
+
+    /// <summary>
+    /// Left device pane width in pixels.
+    /// </summary>
+    public double DevicePaneWidth { get; set; } = 300;
+
+    /// <summary>
+    /// File list name column width in pixels.
+    /// </summary>
+    public double FileColumnWidthName { get; set; } = 360;
+
+    /// <summary>
+    /// File list size column width in pixels.
+    /// </summary>
+    public double FileColumnWidthSize { get; set; } = 140;
+
+    /// <summary>
+    /// File list modified-time column width in pixels.
+    /// </summary>
+    public double FileColumnWidthModified { get; set; } = 240;
+
+    /// <summary>
+    /// File list permission column width in pixels.
+    /// </summary>
+    public double FileColumnWidthPermission { get; set; } = 150;
 }
