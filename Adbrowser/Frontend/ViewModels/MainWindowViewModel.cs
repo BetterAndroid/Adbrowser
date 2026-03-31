@@ -41,7 +41,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     /// <summary>
     /// Initializes localized option collections.
     /// </summary>
-    public MainWindowViewModel(IAdbClient adbClient, IFileSystemService fileSystemService, ILogService logService, IAppSettingsService settingsService, ILocalizationService localizationService)
+    public MainWindowViewModel(IAdbClient adbClient, IFileSystemService fileSystemService, ILogService logService,
+        IAppSettingsService settingsService, ILocalizationService localizationService)
     {
         _adbClient = adbClient;
         _fileSystemService = fileSystemService;
@@ -123,14 +124,28 @@ public sealed class MainWindowViewModel : ViewModelBase
         get;
         private set
         {
-            if (SetProperty(ref field, value) && _pathInput != value)
+            if (SetProperty(ref field, value))
             {
-                PathInput = value;
+                PathBreadcrumbSegments = BuildPathBreadcrumbSegments(value);
+
+                if (_pathInput != value)
+                {
+                    PathInput = value;
+                }
             }
 
             _navigateUpCommand.RaiseCanExecuteChanged();
         }
     } = "/";
+
+    /// <summary>
+    /// Breadcrumb segments rendered in bottom path bar.
+    /// </summary>
+    public IReadOnlyList<PathBreadcrumbItem> PathBreadcrumbSegments
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = [];
 
     /// <summary>
     /// Path text shown in the top path input box.
@@ -339,6 +354,25 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         await NavigateToAsync(PathInput);
+    }
+
+    /// <summary>
+    /// Navigates to selected breadcrumb path.
+    /// </summary>
+    public async Task NavigateToBreadcrumbAsync(string? targetPath)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return;
+        }
+
+        var normalized = NormalizePath(targetPath);
+        if (normalized == CurrentPath)
+        {
+            return;
+        }
+
+        await NavigateToAsync(normalized);
     }
 
     /// <summary>
@@ -601,12 +635,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private async Task RefreshEntriesAsync()
+    private async Task<bool> RefreshEntriesAsync(string? requestedPath = null)
     {
         if (SelectedDevice is null)
         {
             CurrentEntries.Clear();
-            return;
+            return false;
         }
 
         IsBusy = true;
@@ -614,22 +648,30 @@ public sealed class MainWindowViewModel : ViewModelBase
         try
         {
             var serial = SelectedDevice.Serial;
+            var targetPath = requestedPath;
 
-            if (_settingsService.Current.RememberDevicePath
+            if (string.IsNullOrWhiteSpace(targetPath)
+                && _settingsService.Current.RememberDevicePath
                 && _settingsService.Current.DeviceLastPaths.TryGetValue(serial, out var rememberedPath)
                 && !string.IsNullOrWhiteSpace(rememberedPath))
             {
-                CurrentPath = rememberedPath;
+                targetPath = rememberedPath;
             }
 
-            var entries = await _fileSystemService.ListAsync(serial, CurrentPath);
+            targetPath ??= CurrentPath;
+
+            var entries = await _fileSystemService.ListAsync(serial, targetPath);
+
+            CurrentPath = targetPath;
             FillEntries(entries);
             StatusMessage = string.Format(T("status.pathLoaded"), CurrentPath);
+            return true;
         }
         catch (Exception ex)
         {
             _logService.Log(LogLevel.Error, "UI", ex.Message);
             StatusMessage = ex.Message;
+            return false;
         }
         finally
         {
@@ -644,9 +686,13 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        CurrentPath = NormalizePath(path);
+        var targetPath = NormalizePath(path);
+        if (!await RefreshEntriesAsync(targetPath))
+        {
+            return;
+        }
+
         PushHistory(CurrentPath);
-        await RefreshEntriesAsync();
         PersistCurrentPath();
     }
 
@@ -685,10 +731,16 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _navigationIndex--;
+        var targetIndex = _navigationIndex - 1;
+        var targetPath = _navigationHistory[targetIndex];
+
+        if (!await RefreshEntriesAsync(targetPath))
+        {
+            return;
+        }
+
+        _navigationIndex = targetIndex;
         UpdateNavigationCommandStates();
-        CurrentPath = _navigationHistory[_navigationIndex];
-        await RefreshEntriesAsync();
     }
 
     private async Task NavigateForwardAsync()
@@ -698,10 +750,16 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _navigationIndex++;
+        var targetIndex = _navigationIndex + 1;
+        var targetPath = _navigationHistory[targetIndex];
+
+        if (!await RefreshEntriesAsync(targetPath))
+        {
+            return;
+        }
+
+        _navigationIndex = targetIndex;
         UpdateNavigationCommandStates();
-        CurrentPath = _navigationHistory[_navigationIndex];
-        await RefreshEntriesAsync();
     }
 
     private async Task SearchAsync()
@@ -837,6 +895,33 @@ public sealed class MainWindowViewModel : ViewModelBase
         return normalized.Replace("//", "/");
     }
 
+    private static IReadOnlyList<PathBreadcrumbItem> BuildPathBreadcrumbSegments(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            return [];
+        }
+
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return [];
+        }
+
+        var result = new List<PathBreadcrumbItem>();
+
+        var current = string.Empty;
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            current = $"{current}/{segment}";
+            result.Add(new PathBreadcrumbItem(segment, current, false, i > 0));
+        }
+
+        return result;
+    }
+
     private string T(string key) => _localizationService.GetString(key);
 }
 
@@ -871,6 +956,17 @@ public sealed record SelectionOption(string Key, string Display)
 }
 
 /// <summary>
+/// Path breadcrumb item model.
+/// </summary>
+public sealed record PathBreadcrumbItem(string DisplayName, string FullPath, bool IsRoot, bool ShowLeadingArrow)
+{
+    /// <summary>
+    /// Whether breadcrumb name should be shown.
+    /// </summary>
+    public bool ShowName => !IsRoot;
+}
+
+/// <summary>
 /// Sidebar model for Android device item.
 /// </summary>
 public sealed class AndroidDeviceItem(AndroidDevice source)
@@ -896,7 +992,7 @@ public sealed class AndroidDeviceItem(AndroidDevice source)
     public bool IsOnline { get; } = source.IsOnline;
 
     /// <summary>
-    /// Human readable status text.
+    /// Human-readable status text.
     /// </summary>
     public string StatusText => IsOnline ? "online" : "offline";
 

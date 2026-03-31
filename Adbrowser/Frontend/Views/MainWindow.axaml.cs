@@ -210,6 +210,16 @@ public partial class MainWindow : Window
         await _viewModel.NavigateToPathInputAsync();
     }
 
+    private async void OnPathBreadcrumbClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string path })
+        {
+            return;
+        }
+
+        await _viewModel.NavigateToBreadcrumbAsync(path);
+    }
+
     private void RestoreFileColumnWidths()
     {
         var settings = AppServices.SettingsService.Current;

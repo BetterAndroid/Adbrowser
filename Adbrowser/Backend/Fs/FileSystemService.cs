@@ -172,22 +172,20 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
                 continue;
             }
 
-            var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length < 7)
+            // Keep filename intact by limiting split count; the last token contains full name.
+            var tokens = line.Split(' ', 9, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length < 8)
             {
                 continue;
             }
 
-            var sizeTokenIndex = tokens.Length > 6 ? 4 : 3;
-            if (sizeTokenIndex >= tokens.Length)
+            if (!long.TryParse(tokens[4], out var size))
             {
                 continue;
             }
 
-            _ = long.TryParse(tokens[sizeTokenIndex], out var size);
-
-            var nameStartIndex = Math.Min(sizeTokenIndex + 4, tokens.Length - 1);
-            var name = string.Join(' ', tokens[nameStartIndex..]);
+            var nameIndex = tokens.Length - 1;
+            var name = tokens[nameIndex];
             if (string.IsNullOrWhiteSpace(name)
                 || name is "." or ".."
                 || name.EndsWith(" ->", StringComparison.Ordinal))
@@ -201,12 +199,10 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
             }
 
             var date = DateTimeOffset.Now;
-            var dateIndex = sizeTokenIndex + 1;
-            var timeIndex = sizeTokenIndex + 2;
 
-            if (timeIndex < tokens.Length)
+            if (nameIndex > 5)
             {
-                var combined = $"{tokens[dateIndex]} {tokens[timeIndex]}";
+                var combined = string.Join(' ', tokens[5..nameIndex]);
                 if (DateTimeOffset.TryParse(combined, out var parsed))
                 {
                     date = parsed;

@@ -93,9 +93,9 @@
     </Style>
 
     <Style Selector="Border.file-list-container">
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderThickness" Value="1,1,1,0" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="8,8,0,0" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="ClipToBounds" Value="True" />
     </Style>
@@ -109,18 +109,28 @@
 
     <Style Selector="Grid.file-header">
         <Setter Property="Margin" Value="0" />
+        <Setter Property="Height" Value="34" />
     </Style>
 
     <Style Selector="Grid.file-header > TextBlock">
-        <Setter Property="Margin" Value="12,8" />
+        <Setter Property="Margin" Value="12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <Style Selector="Border.file-row">
+        <Setter Property="Padding" Value="6,1" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Height" Value="20" />
+    </Style>
+
+    <Style Selector="Border.path-breadcrumb-bar">
+        <Setter Property="CornerRadius" Value="0,0,8,8" />
+        <Setter Property="BorderThickness" Value="1,0,1,1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
     </Style>
 
     <Style Selector="ListBox#DevicesListBox ListBoxItem">
@@ -136,6 +146,11 @@
         <Setter Property="BorderThickness" Value="0,1,0,0" />
         <Setter Property="BorderBrush" Value="{DynamicResource HintBorderBrush}" />
         <Setter Property="MinHeight" Value="34" />
+    </Style>
+
+    <Style Selector="Border.status-bar.path-breadcrumb-bar">
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
     </Style>
 
     <Style Selector="TextBlock.heading-xl">
