@@ -17,7 +17,7 @@ public static class BuildVersionUtils
         const string shortCommit = ThisAssembly.Git.Commit;
         var buildTime = DateTime.TryParse(ThisAssembly.Git.CommitDate, out var buildDate)
             ? buildDate.ToString("yyyy-MM-dd HH:mm:ss")
-            : "<>";
+            : "<Unknown>";
 
         return $"Build: {shortCommit} | {buildTime}";
     }
