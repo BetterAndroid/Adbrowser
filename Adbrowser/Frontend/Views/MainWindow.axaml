@@ -15,6 +15,10 @@
         <ResourceDictionary>
             <x:Double x:Key="DevicePaneMinWidth">240</x:Double>
             <x:Double x:Key="FilePaneMinWidth">560</x:Double>
+            <GridLength x:Key="FileColNameWidth">360</GridLength>
+            <GridLength x:Key="FileColSizeWidth">140</GridLength>
+            <GridLength x:Key="FileColModifiedWidth">240</GridLength>
+            <GridLength x:Key="FileColPermissionWidth">150</GridLength>
             <SolidColorBrush x:Key="PathBreadcrumbForegroundBrush" Color="{DynamicResource PathBreadcrumbForegroundColor}" />
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
@@ -79,18 +83,22 @@
             <Setter Property="Background" Value="{DynamicResource PrimaryAccentPressedBrush}" />
         </Style>
         <Style Selector="GridSplitter.file-col-splitter">
-            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Background" Value="#01000000" />
             <Setter Property="Width" Value="6" />
             <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="SizeWestEast" />
+            <Setter Property="ZIndex" Value="20" />
         </Style>
         <Style Selector="GridSplitter.file-col-splitter:pointerover">
             <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
         </Style>
         <Style Selector="GridSplitter.pane-splitter">
             <Setter Property="Width" Value="8" />
-            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Background" Value="#01000000" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="SizeWestEast" />
+            <Setter Property="ZIndex" Value="20" />
         </Style>
         <Style Selector="GridSplitter.pane-splitter:pointerover">
             <Setter Property="Background" Value="{DynamicResource PanelBorderBrush}" />
@@ -212,7 +220,7 @@
                     <Border Grid.Row="1" Classes="file-list-container" PointerPressed="OnFilePanePointerPressed">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                       VerticalScrollBarVisibility="Disabled">
-                            <Grid Grid.IsSharedSizeScope="True">
+                            <Grid>
                                 <Grid RowDefinitions="Auto,*">
                                     <Border Grid.Row="0"
                                             Margin="1,1,1,0"
@@ -220,13 +228,13 @@
                                             CornerRadius="7,7,0,0">
                                         <Grid x:Name="FileHeaderGrid" Classes="file-header">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="360" MinWidth="180" SharedSizeGroup="FileColName" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="140" MinWidth="90" SharedSizeGroup="FileColSize" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="240" MinWidth="150" SharedSizeGroup="FileColModified" />
-                                                <ColumnDefinition Width="6" />
-                                                <ColumnDefinition Width="150" MinWidth="110" SharedSizeGroup="FileColPermission" />
+                                                <ColumnDefinition Width="360" MinWidth="180" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="140" MinWidth="90" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="240" MinWidth="150" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="150" MinWidth="110" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Grid.Column="0" Text="{Binding HeaderName}" />
                                             <GridSplitter Grid.Column="1"
@@ -273,13 +281,13 @@
                                                     <Border Classes="file-row">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColName" />
-                                                                <ColumnDefinition Width="6" />
-                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColSize" />
-                                                                <ColumnDefinition Width="6" />
-                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColModified" />
-                                                                <ColumnDefinition Width="6" />
-                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColPermission" />
+                                                                <ColumnDefinition Width="{DynamicResource FileColNameWidth}" MinWidth="180" />
+                                                                <ColumnDefinition Width="10" />
+                                                                <ColumnDefinition Width="{DynamicResource FileColSizeWidth}" MinWidth="90" />
+                                                                <ColumnDefinition Width="10" />
+                                                                <ColumnDefinition Width="{DynamicResource FileColModifiedWidth}" MinWidth="150" />
+                                                                <ColumnDefinition Width="10" />
+                                                                <ColumnDefinition Width="{DynamicResource FileColPermissionWidth}" MinWidth="110" />
                                                             </Grid.ColumnDefinitions>
                                                             <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="10" ClipToBounds="True">
                                                                 <svg:Svg Grid.Column="0"

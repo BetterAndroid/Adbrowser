@@ -13,6 +13,19 @@ namespace Adbrowser.Frontend.Views;
 
 public partial class MainWindow : Window
 {
+    private const string FileColNameWidthKey = "FileColNameWidth";
+    private const string FileColSizeWidthKey = "FileColSizeWidth";
+    private const string FileColModifiedWidthKey = "FileColModifiedWidth";
+    private const string FileColPermissionWidthKey = "FileColPermissionWidth";
+
+    private static readonly (int Index, string ResourceKey)[] FileHeaderSyncedColumns =
+    [
+        (0, FileColNameWidthKey),
+        (2, FileColSizeWidthKey),
+        (4, FileColModifiedWidthKey),
+        (6, FileColPermissionWidthKey)
+    ];
+
     private readonly MainWindowViewModel _viewModel;
 
     public MainWindow()
@@ -36,12 +49,15 @@ public partial class MainWindow : Window
         Loaded -= OnLoaded;
         RestoreMainPaneWidth();
         RestoreFileColumnWidths();
+        HookFileHeaderColumnWidthSync();
+        SyncFileColumnWidthResourcesFromHeader();
         await _viewModel.InitializeAsync();
     }
 
     private async void OnClosed(object? sender, EventArgs e)
     {
         Closed -= OnClosed;
+        UnhookFileHeaderColumnWidthSync();
         SaveMainPaneWidth();
         SaveFileColumnWidths();
         await AppServices.SettingsService.SaveAsync();
@@ -259,5 +275,62 @@ public partial class MainWindow : Window
         }
 
         column.Width = new GridLength(value, GridUnitType.Pixel);
+    }
+
+    private void HookFileHeaderColumnWidthSync()
+    {
+        foreach (var (column, _) in GetValidSyncedHeaderColumns())
+        {
+            column.PropertyChanged += OnFileHeaderColumnPropertyChanged;
+        }
+    }
+
+    private void UnhookFileHeaderColumnWidthSync()
+    {
+        foreach (var (column, _) in GetValidSyncedHeaderColumns())
+        {
+            column.PropertyChanged -= OnFileHeaderColumnPropertyChanged;
+        }
+    }
+
+    private void OnFileHeaderColumnPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == ColumnDefinition.WidthProperty)
+        {
+            SyncFileColumnWidthResourcesFromHeader();
+        }
+    }
+
+    private void SyncFileColumnWidthResourcesFromHeader()
+    {
+        foreach (var (column, resourceKey) in GetValidSyncedHeaderColumns())
+        {
+            UpdateWidthResource(resourceKey, column);
+        }
+    }
+
+    private IEnumerable<(ColumnDefinition Column, string ResourceKey)> GetValidSyncedHeaderColumns()
+    {
+        var columnDefinitions = FileHeaderGrid.ColumnDefinitions;
+        foreach (var (index, resourceKey) in FileHeaderSyncedColumns)
+        {
+            if (index < 0 || index >= columnDefinitions.Count)
+            {
+                continue;
+            }
+
+            yield return (columnDefinitions[index], resourceKey);
+        }
+    }
+
+    private void UpdateWidthResource(string key, ColumnDefinition column)
+    {
+        var width = column.Width.Value;
+        if (!double.IsFinite(width) || width <= 0)
+        {
+            return;
+        }
+
+        Resources[key] = new GridLength(width, GridUnitType.Pixel);
     }
 }
