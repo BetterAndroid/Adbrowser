@@ -16,8 +16,15 @@ public sealed class PreferencesViewModel(
     IAppSettingsService settingsService,
     ILocalizationService localizationService) : ViewModelBase
 {
+    private const double DefaultDevicePaneWidth = 300;
+    private const double DefaultFileColumnWidthName = 360;
+    private const double DefaultFileColumnWidthSize = 140;
+    private const double DefaultFileColumnWidthModified = 240;
+    private const double DefaultFileColumnWidthPermission = 150;
+
     private string _adbPath = string.Empty;
     private bool _foldersFirst;
+    private bool _rememberLastDisplayStyle;
     private LanguageOption _selectedLanguage = new("en-US", "en-US");
     private bool _showHiddenFiles;
     private bool _superuser;
@@ -34,6 +41,7 @@ public sealed class PreferencesViewModel(
         _superuser = settingsService.Current.Superuser;
         _showHiddenFiles = settingsService.Current.ShowHiddenFiles;
         _foldersFirst = settingsService.Current.FoldersFirst;
+        _rememberLastDisplayStyle = settingsService.Current.RememberLastDisplayStyle;
     }
 
     /// <summary>
@@ -91,6 +99,15 @@ public sealed class PreferencesViewModel(
     }
 
     /// <summary>
+    /// Whether to remember last selected list/icon display style.
+    /// </summary>
+    public bool RememberLastDisplayStyle
+    {
+        get => _rememberLastDisplayStyle;
+        set => SetProperty(ref _rememberLastDisplayStyle, value);
+    }
+
+    /// <summary>
     /// Result status text.
     /// </summary>
     public string StatusMessage
@@ -103,6 +120,16 @@ public sealed class PreferencesViewModel(
     /// Save command.
     /// </summary>
     public ICommand SaveCommand => new RelayCommand(async () => await SaveAsync());
+
+    /// <summary>
+    /// Reset sidebar pane width command.
+    /// </summary>
+    public ICommand ResetSidebarSpacingCommand => new RelayCommand(() => _ = ResetSidebarSpacingAsync());
+
+    /// <summary>
+    /// Reset file list column widths command.
+    /// </summary>
+    public ICommand ResetFileColumnWidthsCommand => new RelayCommand(() => _ = ResetFileColumnWidthsAsync());
 
     /// <summary>
     /// Cancel command.
@@ -130,8 +157,12 @@ public sealed class PreferencesViewModel(
     public string FileListSectionTitle => T("preferences.fileList");
     public string ShowHiddenFilesLabel => T("preferences.showHiddenFiles");
     public string FoldersFirstLabel => T("preferences.foldersFirst");
+    public string RememberLastDisplayStyleLabel => T("preferences.rememberLastDisplayStyle");
     public string EnvironmentSectionTitle => T("preferences.environment");
     public string ConnectionSectionTitle => T("preferences.connection");
+    public string ResetOptionsSectionTitle => T("preferences.resetOptions");
+    public string ResetSidebarSpacingText => T("preferences.resetSidebarSpacing");
+    public string ResetFileColumnWidthsText => T("preferences.resetFileColumnWidths");
     public string AdbPathLabel => T("preferences.adbPath");
     public string SuperuserLabel => T("preferences.superuser");
     public string AdbPathWatermark => "/usr/local/bin/adb";
@@ -143,6 +174,11 @@ public sealed class PreferencesViewModel(
     /// </summary>
     public event EventHandler? RequestClose;
 
+    /// <summary>
+    /// Raised when reset actions should be applied in parent window immediately.
+    /// </summary>
+    public event EventHandler<PreferencesLiveApplyEventArgs>? LiveApplyRequested;
+
     private async Task SaveAsync()
     {
         settingsService.Current.Language = SelectedLanguage.Code;
@@ -150,6 +186,12 @@ public sealed class PreferencesViewModel(
         settingsService.Current.Superuser = Superuser;
         settingsService.Current.ShowHiddenFiles = ShowHiddenFiles;
         settingsService.Current.FoldersFirst = FoldersFirst;
+        settingsService.Current.RememberLastDisplayStyle = RememberLastDisplayStyle;
+
+        if (!RememberLastDisplayStyle)
+        {
+            settingsService.Current.LastFileViewMode = "list";
+        }
 
         await settingsService.SaveAsync();
         await localizationService.SetLanguageAsync(SelectedLanguage.Code);
@@ -159,6 +201,23 @@ public sealed class PreferencesViewModel(
     }
 
     private string T(string key) => localizationService.GetString(key);
+
+    private async Task ResetSidebarSpacingAsync()
+    {
+        settingsService.Current.DevicePaneWidth = DefaultDevicePaneWidth;
+        await settingsService.SaveAsync();
+        LiveApplyRequested?.Invoke(this, new PreferencesLiveApplyEventArgs(resetSidebarSpacing: true, resetFileColumnWidths: false));
+    }
+
+    private async Task ResetFileColumnWidthsAsync()
+    {
+        settingsService.Current.FileColumnWidthName = DefaultFileColumnWidthName;
+        settingsService.Current.FileColumnWidthSize = DefaultFileColumnWidthSize;
+        settingsService.Current.FileColumnWidthModified = DefaultFileColumnWidthModified;
+        settingsService.Current.FileColumnWidthPermission = DefaultFileColumnWidthPermission;
+        await settingsService.SaveAsync();
+        LiveApplyRequested?.Invoke(this, new PreferencesLiveApplyEventArgs(resetSidebarSpacing: false, resetFileColumnWidths: true));
+    }
 }
 
 /// <summary>
@@ -168,4 +227,20 @@ public sealed record LanguageOption(string Code, string DisplayName)
 {
     /// <inheritdoc />
     public override string ToString() => DisplayName;
+}
+
+/// <summary>
+/// Indicates which live reset operation should be applied by parent window.
+/// </summary>
+public sealed class PreferencesLiveApplyEventArgs(bool resetSidebarSpacing, bool resetFileColumnWidths) : EventArgs
+{
+    /// <summary>
+    /// Whether left sidebar spacing should be reset immediately.
+    /// </summary>
+    public bool ResetSidebarSpacing { get; } = resetSidebarSpacing;
+
+    /// <summary>
+    /// Whether file list column widths should be reset immediately.
+    /// </summary>
+    public bool ResetFileColumnWidths { get; } = resetFileColumnWidths;
 }

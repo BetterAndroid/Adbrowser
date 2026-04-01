@@ -37,6 +37,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _searchKeyword;
     private SelectionOption _selectedSortMode;
     private SelectionOption _selectedViewMode;
+    private bool _suppressViewModePersistence;
 
     /// <summary>
     /// Initializes localized option collections.
@@ -57,6 +58,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         _selectedViewMode = ViewModes[0];
         _selectedSortMode = SortModes[0];
+        ApplyDisplayStylePreference();
         _buildVersionText = BuildVersionUtils.GetBuildVersionText();
 
         _navigateUpCommand = new RelayCommand(async () => await NavigateUpAsync(), () => CurrentPath != "/");
@@ -189,6 +191,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
             OnPropertyChanged(nameof(IsListViewMode));
             OnPropertyChanged(nameof(IsIconViewMode));
+
+            if (!_suppressViewModePersistence && _settingsService.Current.RememberLastDisplayStyle)
+            {
+                _settingsService.Current.LastFileViewMode = value.Key;
+                _ = _settingsService.SaveAsync();
+            }
         }
     }
 
@@ -887,6 +895,27 @@ public sealed class MainWindowViewModel : ViewModelBase
     public async Task RefreshCurrentEntriesAsync()
     {
         await RefreshEntriesAsync(CurrentPath);
+    }
+
+    /// <summary>
+    /// Applies remembered file display style from current settings.
+    /// </summary>
+    public void ApplyDisplayStylePreference()
+    {
+        var targetKey = _settingsService.Current.RememberLastDisplayStyle
+            ? _settingsService.Current.LastFileViewMode
+            : "list";
+
+        var option = ViewModes.FirstOrDefault(e => e.Key == targetKey) ?? ViewModes[0];
+        _suppressViewModePersistence = true;
+        try
+        {
+            SelectedViewMode = option;
+        }
+        finally
+        {
+            _suppressViewModePersistence = false;
+        }
     }
 
     /// <summary>

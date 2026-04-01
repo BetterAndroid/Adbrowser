@@ -9,6 +9,8 @@ namespace Adbrowser.Frontend.Views;
 
 public partial class PreferencesWindow : Window
 {
+    public event EventHandler<PreferencesLiveApplyEventArgs>? LiveApplyRequested;
+
     public PreferencesWindow()
         : this(null)
     {
@@ -23,6 +25,7 @@ public partial class PreferencesWindow : Window
             AppServices.LocalizationService,
             deviceSerial);
         viewModel.RequestClose += OnRequestClose;
+        viewModel.LiveApplyRequested += (_, args) => LiveApplyRequested?.Invoke(this, args);
         DataContext = viewModel;
     }
 

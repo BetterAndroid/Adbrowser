@@ -25,6 +25,17 @@
                                                   Width="200" />
                                     </StackPanel>
                                 </Border>
+                                <Border Classes="panel-surface">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding ResetOptionsSectionTitle}" FontWeight="SemiBold" FontSize="14" />
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Button Content="{Binding ResetSidebarSpacingText}"
+                                                    Command="{Binding ResetSidebarSpacingCommand}" />
+                                            <Button Content="{Binding ResetFileColumnWidthsText}"
+                                                    Command="{Binding ResetFileColumnWidthsCommand}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
@@ -38,6 +49,8 @@
                                                   IsChecked="{Binding ShowHiddenFiles}" />
                                         <CheckBox Content="{Binding FoldersFirstLabel}"
                                                   IsChecked="{Binding FoldersFirst}" />
+                                        <CheckBox Content="{Binding RememberLastDisplayStyleLabel}"
+                                                  IsChecked="{Binding RememberLastDisplayStyle}" />
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

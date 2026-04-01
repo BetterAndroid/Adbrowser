@@ -39,6 +39,16 @@ public sealed class AppSettings
     public bool ShowHiddenFiles { get; set; } = true;
 
     /// <summary>
+    /// Whether to remember last selected file pane view mode (list/icons).
+    /// </summary>
+    public bool RememberLastDisplayStyle { get; set; } = true;
+
+    /// <summary>
+    /// Last selected file pane view mode key.
+    /// </summary>
+    public string LastFileViewMode { get; set; } = "list";
+
+    /// <summary>
     /// Whether folders should be listed before files.
     /// </summary>
     public bool FoldersFirst { get; set; } = true;

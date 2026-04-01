@@ -75,7 +75,14 @@ public partial class MainWindow : Window
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
+        window.LiveApplyRequested += OnPreferencesLiveApplyRequested;
         await window.ShowDialog(this);
+        window.LiveApplyRequested -= OnPreferencesLiveApplyRequested;
+
+        RestoreMainPaneWidth();
+        RestoreFileColumnWidths();
+        SyncFileColumnWidthResourcesFromHeader();
+        _viewModel.ApplyDisplayStylePreference();
 
         if (!string.Equals(previousLanguage, AppServices.LocalizationService.CurrentLanguage, StringComparison.Ordinal))
         {
@@ -84,6 +91,20 @@ public partial class MainWindow : Window
         }
 
         await _viewModel.RefreshCurrentEntriesAsync();
+    }
+
+    private void OnPreferencesLiveApplyRequested(object? sender, PreferencesLiveApplyEventArgs e)
+    {
+        if (e.ResetSidebarSpacing)
+        {
+            RestoreMainPaneWidth();
+        }
+
+        if (e.ResetFileColumnWidths)
+        {
+            RestoreFileColumnWidths();
+            SyncFileColumnWidthResourcesFromHeader();
+        }
     }
 
     private void OnLogsClick(object? sender, RoutedEventArgs e)
