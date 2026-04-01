@@ -25,7 +25,7 @@ public sealed class AdbShellCommandExecutor(
 
         try
         {
-            var suCommand = $"su -c '{EscapeForSingleQuotedShell(command)}'";
+            var suCommand = $"su -c \"{EscapeForDoubleQuotedShell(command)}\"";
             return await adbClient.ExecuteShellAsync(serial, suCommand, cancellationToken);
         }
         catch (Exception ex)
@@ -35,8 +35,12 @@ public sealed class AdbShellCommandExecutor(
         }
     }
 
-    private static string EscapeForSingleQuotedShell(string value)
+    private static string EscapeForDoubleQuotedShell(string value)
     {
-        return value.Replace("'", "'\\''");
+        return value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("$", "\\$")
+            .Replace("`", "\\`");
     }
 }

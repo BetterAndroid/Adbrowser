@@ -167,13 +167,12 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
             }
 
             var permission = line[..10];
-            if (!(permission[0] is 'd' or '-' or 'l'))
+            if (permission[0] is not ('d' or '-' or 'l'))
             {
                 continue;
             }
 
-            // Keep filename intact by limiting split count; the last token contains full name.
-            var tokens = line.Split(' ', 9, StringSplitOptions.RemoveEmptyEntries);
+            var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length < 8)
             {
                 continue;
@@ -184,8 +183,13 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
                 continue;
             }
 
-            var nameIndex = tokens.Length - 1;
-            var name = tokens[nameIndex];
+            var nameStartIndex = ResolveNameStartIndex(tokens);
+            if (nameStartIndex < 0 || nameStartIndex >= tokens.Length)
+            {
+                continue;
+            }
+
+            var name = string.Join(' ', tokens[nameStartIndex..]);
             if (string.IsNullOrWhiteSpace(name)
                 || name is "." or ".."
                 || name.EndsWith(" ->", StringComparison.Ordinal))
@@ -200,9 +204,9 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
 
             var date = DateTimeOffset.Now;
 
-            if (nameIndex > 5)
+            if (nameStartIndex > 5)
             {
-                var combined = string.Join(' ', tokens[5..nameIndex]);
+                var combined = string.Join(' ', tokens[5..nameStartIndex]);
                 if (DateTimeOffset.TryParse(combined, out var parsed))
                 {
                     date = parsed;
@@ -219,5 +223,39 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
         }
 
         return result;
+    }
+
+    private static int ResolveNameStartIndex(string[] tokens)
+    {
+        return tokens.Length switch
+        {
+            // toybox ls common format: perms links owner group size YYYY-MM-DD HH:mm name...
+            >= 8 when IsIsoDateToken(tokens[5]) && IsClockToken(tokens[6]) => 7,
+            // busybox/coreutils-like format: perms links owner group size Mon dd HH:mm|yyyy name...
+            >= 9 when IsMonthToken(tokens[5]) => 8,
+            _ => Math.Min(7, tokens.Length - 1)
+        };
+
+        // Fallback: preserve as much filename as possible if format is unexpected.
+    }
+
+    private static bool IsIsoDateToken(string value)
+    {
+        return DateOnly.TryParse(value, out _);
+    }
+
+    private static bool IsClockToken(string value)
+    {
+        return TimeOnly.TryParse(value, out _);
+    }
+
+    private static bool IsMonthToken(string value)
+    {
+        if (value.Length != 3)
+        {
+            return false;
+        }
+
+        return value.All(char.IsLetter);
     }
 }
