@@ -18,11 +18,13 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
     {
         logService.Log(LogLevel.Trace, "FS", $"List path '{path}' for '{serial}'.");
 
-        var safePath = EscapeShell(path);
+        var listPath = NormalizeDirectoryListPath(path);
+        var safePath = EscapeShell(listPath);
         var lsCommand = $"ls -la '{safePath}'";
         var output = await shellCommandExecutor.ExecuteFileOperationAsync(serial, lsCommand, cancellationToken);
 
-        var entries = ParseLsOutput(path, output);
+        var entries = ParseLsOutput(path, output).ToList();
+        await ResolveSymlinkDirectoryFlagsAsync(serial, entries, cancellationToken);
 
         if (entries.Count == 0)
         {
@@ -135,6 +137,16 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
         return value.Replace("'", "'\\''");
     }
 
+    private static string NormalizeDirectoryListPath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || path == "/")
+        {
+            return "/";
+        }
+
+        return $"{path.TrimEnd('/')}/";
+    }
+
     private static string BuildTargetPath(string sourcePath, string newName)
     {
         var normalized = sourcePath.TrimEnd('/');
@@ -213,10 +225,12 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
                 }
             }
 
+            var isSymlink = permission[0] == 'l';
             result.Add(new DeviceFileEntry(
                 parentPath,
                 name,
                 permission[0] == 'd',
+                isSymlink,
                 size,
                 date,
                 permission[1..]));
@@ -257,5 +271,91 @@ public sealed class FileSystemService(IShellCommandExecutor shellCommandExecutor
         }
 
         return value.All(char.IsLetter);
+    }
+
+    private async Task ResolveSymlinkDirectoryFlagsAsync(
+        string serial,
+        List<DeviceFileEntry> entries,
+        CancellationToken cancellationToken)
+    {
+        var symlinkIndexes = new List<int>();
+
+        for (var i = 0; i < entries.Count; i++)
+        {
+            if (entries[i].IsSymlink)
+            {
+                symlinkIndexes.Add(i);
+            }
+        }
+
+        if (symlinkIndexes.Count == 0)
+        {
+            return;
+        }
+
+        // Batch resolve symlink target types to avoid one adb shell round-trip per item.
+        // This significantly reduces latency in directories containing many symlinks (e.g. root).
+        const int chunkSize = 32;
+
+        for (var start = 0; start < symlinkIndexes.Count; start += chunkSize)
+        {
+            var batchIndexes = symlinkIndexes.Skip(start).Take(chunkSize).ToArray();
+            var command = BuildSymlinkDirectoryCheckCommand(entries, batchIndexes);
+            var output = await shellCommandExecutor.ExecuteFileOperationAsync(serial, command, cancellationToken);
+            ApplySymlinkDirectoryCheckResult(entries, batchIndexes, output);
+        }
+    }
+
+    private static string BuildSymlinkDirectoryCheckCommand(
+        IReadOnlyList<DeviceFileEntry> entries,
+        IReadOnlyList<int> batchIndexes)
+    {
+        var segments = new List<string>(batchIndexes.Count);
+
+        for (var i = 0; i < batchIndexes.Count; i++)
+        {
+            var entry = entries[batchIndexes[i]];
+            var fullPath = entry.Path == "/"
+                ? $"/{entry.Name}"
+                : $"{entry.Path.TrimEnd('/')}/{entry.Name}";
+            var escaped = EscapeShell(fullPath);
+            var marker = i.ToString();
+            segments.Add($"if [ -d '{escaped}' ]; then echo '{marker}:1'; else echo '{marker}:0'; fi");
+        }
+
+        return string.Join("; ", segments);
+    }
+
+    private void ApplySymlinkDirectoryCheckResult(
+        List<DeviceFileEntry> entries,
+        IReadOnlyList<int> batchIndexes,
+        string output)
+    {
+        var resultMap = new Dictionary<int, bool>();
+        var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            var separator = line.IndexOf(':');
+            if (separator <= 0 || separator >= line.Length - 1)
+            {
+                continue;
+            }
+
+            if (!int.TryParse(line[..separator], out var localIndex))
+            {
+                continue;
+            }
+
+            resultMap[localIndex] = line[(separator + 1)..] == "1";
+        }
+
+        for (var i = 0; i < batchIndexes.Count; i++)
+        {
+            var entryIndex = batchIndexes[i];
+            var isDirectory = resultMap.TryGetValue(i, out var value) && value;
+            entries[entryIndex] = entries[entryIndex] with { IsDirectory = isDirectory };
+        }
     }
 }

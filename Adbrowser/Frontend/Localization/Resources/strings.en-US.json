@@ -88,6 +88,7 @@
   "dialog.properties.execute": "Execute",
   "dialog.properties.typeFile": "File",
   "dialog.properties.typeDirectory": "Directory",
+  "dialog.properties.typeSymlink": "Symbolic Link",
   "dialog.properties.invalidPermission": "Invalid numeric permission.",
   "dialog.properties.permissionUpdated": "Permission updated.",
   "dialog.input.invalid": "Invalid input.",

@@ -88,6 +88,7 @@
   "dialog.properties.execute": "执行",
   "dialog.properties.typeFile": "文件",
   "dialog.properties.typeDirectory": "目录",
+  "dialog.properties.typeSymlink": "符号链接",
   "dialog.properties.invalidPermission": "权限数字格式无效。",
   "dialog.properties.permissionUpdated": "权限已更新。",
   "dialog.input.invalid": "输入无效。",

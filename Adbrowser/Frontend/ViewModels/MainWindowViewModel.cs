@@ -486,6 +486,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             SelectedEntry.Name,
             GetEntryFullPath(SelectedEntry),
             SelectedEntry.IsDirectory,
+            SelectedEntry.IsSymlink,
             SelectedEntry.Size,
             SelectedEntry.ModifiedTime,
             SelectedEntry.Permission);
@@ -1018,6 +1019,7 @@ public sealed record FileEntrySnapshot(
     string Name,
     string FullPath,
     bool IsDirectory,
+    bool IsSymlink,
     long Size,
     DateTimeOffset ModifiedTime,
     string SymbolicPermission);
@@ -1099,10 +1101,11 @@ public sealed class DeviceFileItem : ObservableObject
         Name = source.Name;
         Path = source.Path;
         IsDirectory = source.IsDirectory;
+        IsSymlink = source.IsSymlink;
         Size = source.Size;
         ModifiedTime = source.ModifiedTime;
         _permission = source.Permission;
-        IconUri = FileIconResolver.Resolve(IsDirectory, Name).ToString();
+        IconUri = FileIconResolver.Resolve(IsDirectory, IsSymlink, Name).ToString();
     }
 
     /// <summary>
@@ -1119,6 +1122,11 @@ public sealed class DeviceFileItem : ObservableObject
     /// Whether this entry is directory.
     /// </summary>
     public bool IsDirectory { get; }
+
+    /// <summary>
+    /// Whether this entry is a symbolic link.
+    /// </summary>
+    public bool IsSymlink { get; }
 
     /// <summary>
     /// Size in bytes.

@@ -12,20 +12,10 @@ namespace Adbrowser.Frontend.Views;
 
 public partial class FilePropertiesWindow : Window
 {
-    private readonly FileEntrySnapshot? _snapshot;
-    private readonly IPermissionService? _permissionService;
     private readonly ILogService? _logService;
+    private readonly IPermissionService? _permissionService;
+    private readonly FileEntrySnapshot? _snapshot;
     private bool _isSyncingPermissionUi;
-
-    /// <summary>
-    /// Raised when this window wants to report a user-facing status message.
-    /// </summary>
-    public event Action<string>? StatusChanged;
-
-    /// <summary>
-    /// Raised when permission of current file has been updated.
-    /// </summary>
-    public event Action<string, string>? PermissionChanged;
 
     public FilePropertiesWindow()
     {
@@ -65,12 +55,26 @@ public partial class FilePropertiesWindow : Window
 
         NameText.Text = snapshot.Name;
         PathText.Text = snapshot.FullPath;
-        TypeText.Text = snapshot.IsDirectory ? t("dialog.properties.typeDirectory") : t("dialog.properties.typeFile");
+        TypeText.Text = snapshot.IsSymlink
+            ? t("dialog.properties.typeSymlink")
+            : snapshot.IsDirectory
+                ? t("dialog.properties.typeDirectory")
+                : t("dialog.properties.typeFile");
         SizeText.Text = snapshot.IsDirectory ? "-" : snapshot.Size.ToString("N0");
         ModifiedText.Text = snapshot.ModifiedTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 
         _ = LoadPermissionAsync();
     }
+
+    /// <summary>
+    /// Raised when this window wants to report a user-facing status message.
+    /// </summary>
+    public event Action<string>? StatusChanged;
+
+    /// <summary>
+    /// Raised when permission of current file has been updated.
+    /// </summary>
+    public event Action<string, string>? PermissionChanged;
 
     private async Task<FilePermissionInfo?> LoadPermissionAsync()
     {

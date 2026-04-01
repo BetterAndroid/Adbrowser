@@ -10,6 +10,7 @@ public sealed record DeviceFileEntry(
     string Path,
     string Name,
     bool IsDirectory,
+    bool IsSymlink,
     long Size,
     DateTimeOffset ModifiedTime,
     string Permission);

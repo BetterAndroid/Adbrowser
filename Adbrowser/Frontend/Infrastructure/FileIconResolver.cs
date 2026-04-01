@@ -16,8 +16,15 @@ public static class FileIconResolver
     /// <summary>
     /// Resolves icon uri for entry kind and file extension.
     /// </summary>
-    public static Uri Resolve(bool isDirectory, string fileName)
+    public static Uri Resolve(bool isDirectory, bool isSymlink, string fileName)
     {
+        if (isSymlink)
+        {
+            return isDirectory
+                ? new Uri($"{BasePath}/LinkedFolder.svg")
+                : new Uri($"{BasePath}/LinkedFile.svg");
+        }
+
         if (isDirectory)
         {
             return new Uri($"{BasePath}/Folder.svg");
