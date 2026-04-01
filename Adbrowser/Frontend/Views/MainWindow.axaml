@@ -179,7 +179,7 @@
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" MinWidth="{StaticResource FilePaneMinWidth}" />
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Classes="sidebar" Padding="14">
+            <Border Grid.Column="0" Classes="panel-surface">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,10">
                         <TextBlock Text="{Binding DevicesTitle}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />

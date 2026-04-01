@@ -34,6 +34,16 @@ public sealed class AppSettings
     public bool Superuser { get; set; }
 
     /// <summary>
+    /// Whether hidden files and directories should be shown.
+    /// </summary>
+    public bool ShowHiddenFiles { get; set; } = true;
+
+    /// <summary>
+    /// Whether folders should be listed before files.
+    /// </summary>
+    public bool FoldersFirst { get; set; } = true;
+
+    /// <summary>
     /// Last selected device serial.
     /// </summary>
     public string LastDeviceSerial { get; set; } = string.Empty;

@@ -68,13 +68,14 @@ public partial class MainWindow : Window
         await AppServices.SettingsService.SaveAsync();
     }
 
-    private void OnPreferencesClick(object? sender, RoutedEventArgs e)
+    private async void OnPreferencesClick(object? sender, RoutedEventArgs e)
     {
         var window = new PreferencesWindow(_viewModel.SelectedDevice?.Serial)
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
-        window.ShowDialog(this);
+        await window.ShowDialog(this);
+        await _viewModel.RefreshCurrentEntriesAsync();
     }
 
     private void OnLogsClick(object? sender, RoutedEventArgs e)

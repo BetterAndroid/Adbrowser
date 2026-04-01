@@ -50,11 +50,12 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="Border.sidebar">
+    <Style Selector="Border.panel-surface">
         <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14" />
     </Style>
 
     <Style Selector="Border.menu-host">

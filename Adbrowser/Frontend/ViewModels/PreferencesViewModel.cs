@@ -16,17 +16,11 @@ public sealed class PreferencesViewModel(
     IAppSettingsService settingsService,
     ILocalizationService localizationService) : ViewModelBase
 {
-    private string _language = "en-US";
     private string _adbPath = string.Empty;
-    private bool _rememberLastDevice;
-    private bool _rememberDevicePath;
+    private bool _foldersFirst;
+    private string _language = "en-US";
+    private bool _showHiddenFiles;
     private bool _superuser;
-    private string _homePath = "/";
-
-    /// <summary>
-    /// Raised when settings were saved and caller should close this window.
-    /// </summary>
-    public event EventHandler? RequestClose;
 
     /// <summary>
     /// Creates preferences view model from current settings.
@@ -36,29 +30,15 @@ public sealed class PreferencesViewModel(
     {
         _language = settingsService.Current.Language;
         _adbPath = settingsService.Current.AdbPath;
-        _rememberLastDevice = settingsService.Current.RememberLastDevice;
-        _rememberDevicePath = settingsService.Current.RememberDevicePath;
         _superuser = settingsService.Current.Superuser;
-
-        if (!string.IsNullOrWhiteSpace(serial)
-            && settingsService.Current.DeviceHomePaths.TryGetValue(serial, out var home)
-            && !string.IsNullOrWhiteSpace(home))
-        {
-            _homePath = home;
-        }
-
-        CurrentDeviceSerial = serial ?? string.Empty;
+        _showHiddenFiles = settingsService.Current.ShowHiddenFiles;
+        _foldersFirst = settingsService.Current.FoldersFirst;
     }
 
     /// <summary>
     /// Available language options.
     /// </summary>
     public ObservableCollection<string> Languages { get; } = ["en-US", "zh-CN"];
-
-    /// <summary>
-    /// Current device serial for home path configuration.
-    /// </summary>
-    public string CurrentDeviceSerial { get; private set; } = string.Empty;
 
     /// <summary>
     /// Selected UI language.
@@ -79,24 +59,6 @@ public sealed class PreferencesViewModel(
     }
 
     /// <summary>
-    /// Whether remember last selected device.
-    /// </summary>
-    public bool RememberLastDevice
-    {
-        get => _rememberLastDevice;
-        set => SetProperty(ref _rememberLastDevice, value);
-    }
-
-    /// <summary>
-    /// Whether remember each device path.
-    /// </summary>
-    public bool RememberDevicePath
-    {
-        get => _rememberDevicePath;
-        set => SetProperty(ref _rememberDevicePath, value);
-    }
-
-    /// <summary>
     /// Whether to try listing directories with su.
     /// </summary>
     public bool Superuser
@@ -106,12 +68,21 @@ public sealed class PreferencesViewModel(
     }
 
     /// <summary>
-    /// Home path for the selected device.
+    /// Whether hidden files and folders should be shown.
     /// </summary>
-    public string HomePath
+    public bool ShowHiddenFiles
     {
-        get => _homePath;
-        set => SetProperty(ref _homePath, value);
+        get => _showHiddenFiles;
+        set => SetProperty(ref _showHiddenFiles, value);
+    }
+
+    /// <summary>
+    /// Whether folders should be displayed before files.
+    /// </summary>
+    public bool FoldersFirst
+    {
+        get => _foldersFirst;
+        set => SetProperty(ref _foldersFirst, value);
     }
 
     /// <summary>
@@ -143,34 +114,37 @@ public sealed class PreferencesViewModel(
     /// </summary>
     public string GeneralTabTitle => T("preferences.general");
 
+    public string FilesTabTitle => T("preferences.files");
+
     /// <summary>
     /// Device tab title.
     /// </summary>
     public string DeviceTabTitle => T("preferences.device");
 
     public string LanguageLabel => T("preferences.language");
+    public string FileListSectionTitle => T("preferences.fileList");
+    public string ShowHiddenFilesLabel => T("preferences.showHiddenFiles");
+    public string FoldersFirstLabel => T("preferences.foldersFirst");
+    public string EnvironmentSectionTitle => T("preferences.environment");
+    public string ConnectionSectionTitle => T("preferences.connection");
     public string AdbPathLabel => T("preferences.adbPath");
-    public string RememberLastDeviceLabel => T("preferences.rememberLastDevice");
-    public string RememberDevicePathLabel => T("preferences.rememberDevicePath");
     public string SuperuserLabel => T("preferences.superuser");
-    public string DeviceHomePathLabel => T("preferences.deviceHomePath");
     public string AdbPathWatermark => "/usr/local/bin/adb";
-    public string DeviceHomePathWatermark => "/data/local/tmp";
     public string CancelText => T("dialog.common.cancel");
     public string SaveText => T("preferences.save");
+
+    /// <summary>
+    /// Raised when settings were saved and caller should close this window.
+    /// </summary>
+    public event EventHandler? RequestClose;
 
     private async Task SaveAsync()
     {
         settingsService.Current.Language = Language;
         settingsService.Current.AdbPath = AdbPath.Trim();
-        settingsService.Current.RememberLastDevice = RememberLastDevice;
-        settingsService.Current.RememberDevicePath = RememberDevicePath;
         settingsService.Current.Superuser = Superuser;
-
-        if (!string.IsNullOrWhiteSpace(CurrentDeviceSerial) && !string.IsNullOrWhiteSpace(HomePath))
-        {
-            settingsService.Current.DeviceHomePaths[CurrentDeviceSerial] = HomePath.Trim();
-        }
+        settingsService.Current.ShowHiddenFiles = ShowHiddenFiles;
+        settingsService.Current.FoldersFirst = FoldersFirst;
 
         await settingsService.SaveAsync();
         await localizationService.SetLanguageAsync(Language);

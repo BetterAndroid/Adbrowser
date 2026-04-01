@@ -848,9 +848,15 @@ public sealed class MainWindowViewModel : ViewModelBase
     private void FillEntries(IReadOnlyList<DeviceFileEntry> entries)
     {
         CurrentEntries.Clear();
+        var showHiddenFiles = _settingsService.Current.ShowHiddenFiles;
 
         foreach (var item in entries)
         {
+            if (!showHiddenFiles && IsHiddenEntryName(item.Name))
+            {
+                continue;
+            }
+
             CurrentEntries.Add(new DeviceFileItem(item));
         }
 
@@ -860,12 +866,20 @@ public sealed class MainWindowViewModel : ViewModelBase
     private void ApplySort()
     {
         var sortModeKey = SelectedSortMode.Key;
-        var sorted = sortModeKey switch
-        {
-            "size" => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.Size).ThenBy(e => e.Name),
-            "modified" => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.ModifiedTime).ThenBy(e => e.Name),
-            _ => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenBy(e => e.Name)
-        };
+        var foldersFirst = _settingsService.Current.FoldersFirst;
+        var sorted = foldersFirst
+            ? sortModeKey switch
+            {
+                "size" => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.Size).ThenBy(e => e.Name),
+                "modified" => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenByDescending(e => e.ModifiedTime).ThenBy(e => e.Name),
+                _ => CurrentEntries.OrderByDescending(e => e.IsDirectory).ThenBy(e => e.Name)
+            }
+            : sortModeKey switch
+            {
+                "size" => CurrentEntries.OrderByDescending(e => e.Size).ThenBy(e => e.Name),
+                "modified" => CurrentEntries.OrderByDescending(e => e.ModifiedTime).ThenBy(e => e.Name),
+                _ => CurrentEntries.OrderBy(e => e.Name)
+            };
 
         var values = sorted.ToArray();
         CurrentEntries.Clear();
@@ -874,6 +888,14 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             CurrentEntries.Add(item);
         }
+    }
+
+    /// <summary>
+    /// Reloads current path and re-applies file list options.
+    /// </summary>
+    public async Task RefreshCurrentEntriesAsync()
+    {
+        await RefreshEntriesAsync(CurrentPath);
     }
 
     private void PushHistory(string path)
@@ -969,6 +991,11 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     private string T(string key) => _localizationService.GetString(key);
+
+    private static bool IsHiddenEntryName(string name)
+    {
+        return !string.IsNullOrWhiteSpace(name) && name.StartsWith(".", StringComparison.Ordinal);
+    }
 
     private string BuildListLoadFailureHint(string errorMessage)
     {

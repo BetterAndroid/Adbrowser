@@ -10,40 +10,76 @@
         mc:Ignorable="d"
         Title="{Binding Title}">
     <Grid Classes="window-surface">
-        <Border Margin="8">
+        <Border Margin="12">
             <Grid RowDefinitions="*,Auto">
-                <TabControl>
+                <TabControl TabStripPlacement="Top">
                     <TabItem Header="{Binding GeneralTabTitle}">
-                        <StackPanel Margin="16" Spacing="10">
-                            <TextBlock Text="{Binding LanguageLabel}" FontWeight="SemiBold" />
-                            <ComboBox ItemsSource="{Binding Languages}"
-                                      SelectedItem="{Binding Language}"
-                                      Width="180" />
-                        </StackPanel>
+                        <ScrollViewer>
+                            <StackPanel Margin="0 10 0 5 " Spacing="10">
+                                <Border Classes="panel-surface">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding LanguageLabel}" FontWeight="SemiBold" FontSize="14" />
+                                        <ComboBox ItemsSource="{Binding Languages}"
+                                                  SelectedItem="{Binding Language}"
+                                                  HorizontalAlignment="Left"
+                                                  Width="200" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="{Binding FilesTabTitle}">
+                        <ScrollViewer>
+                            <StackPanel Margin="0 10 0 5 " Spacing="10">
+                                <Border Classes="panel-surface">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding FileListSectionTitle}" FontWeight="SemiBold" FontSize="14" />
+                                        <CheckBox Content="{Binding ShowHiddenFilesLabel}"
+                                                  IsChecked="{Binding ShowHiddenFiles}" />
+                                        <CheckBox Content="{Binding FoldersFirstLabel}"
+                                                  IsChecked="{Binding FoldersFirst}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
                     <TabItem Header="{Binding DeviceTabTitle}">
-                        <StackPanel Margin="16" Spacing="10">
-                            <TextBlock Text="{Binding AdbPathLabel}" FontWeight="SemiBold" />
-                            <TextBox Text="{Binding AdbPath}" Watermark="{Binding AdbPathWatermark}" />
-
-                            <CheckBox Content="{Binding RememberLastDeviceLabel}"
-                                      IsChecked="{Binding RememberLastDevice}" />
-                            <CheckBox Content="{Binding RememberDevicePathLabel}"
-                                      IsChecked="{Binding RememberDevicePath}" />
-                            <CheckBox Content="{Binding SuperuserLabel}"
-                                      IsChecked="{Binding Superuser}" />
-
-                            <TextBlock Text="{Binding DeviceHomePathLabel}" FontWeight="SemiBold" Margin="0,8,0,0" />
-                            <TextBox Text="{Binding HomePath}" Watermark="{Binding DeviceHomePathWatermark}" />
-                            <TextBlock Text="{Binding CurrentDeviceSerial}" Opacity="0.7" />
-                        </StackPanel>
+                        <ScrollViewer>
+                            <StackPanel Margin="0 10 0 5 " Spacing="10">
+                                <Border Classes="panel-surface">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding EnvironmentSectionTitle}" FontWeight="SemiBold" FontSize="14" />
+                                        <Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding AdbPathLabel}"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,12,0" />
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding AdbPath}"
+                                                     Watermark="{Binding AdbPathWatermark}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Border Classes="panel-surface">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding ConnectionSectionTitle}" FontWeight="SemiBold" FontSize="14" />
+                                        <CheckBox Content="{Binding SuperuserLabel}"
+                                                  IsChecked="{Binding Superuser}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
                 </TabControl>
-
-                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,16,16" Spacing="8">
-                    <TextBlock VerticalAlignment="Center" Text="{Binding StatusMessage}" />
-                    <Button Content="{Binding CancelText}" Command="{Binding CancelCommand}" />
-                    <Button Content="{Binding SaveText}" Classes="primary" Command="{Binding SaveCommand}" />
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,8,8" Spacing="12">
+                    <TextBlock VerticalAlignment="Center" Text="{Binding StatusMessage}" Opacity="0.6" Margin="0,0,10,0" />
+                    <Button Content="{Binding CancelText}"
+                            Command="{Binding CancelCommand}"
+                            Width="80" HorizontalContentAlignment="Center" />
+                    <Button Content="{Binding SaveText}"
+                            Classes="primary"
+                            Command="{Binding SaveCommand}"
+                            Width="80" HorizontalContentAlignment="Center" />
                 </StackPanel>
             </Grid>
         </Border>
