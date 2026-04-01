@@ -27,6 +27,7 @@
                     <Color x:Key="FileListHintForegroundColor">#97B6E9</Color>
                     <Color x:Key="PathBreadcrumbForegroundColor">#6B7280</Color>
                     <x:String x:Key="PathBreadcrumbIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#6B7280;fill:#6B7280;}</x:String>
+                    <x:String x:Key="NavButtonIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#334155;fill:none;}</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <x:String x:Key="FileIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#4D8FF6;}</x:String>
@@ -34,6 +35,7 @@
                     <Color x:Key="FileListHintForegroundColor">#27487B</Color>
                     <Color x:Key="PathBreadcrumbForegroundColor">#9CA3AF</Color>
                     <x:String x:Key="PathBreadcrumbIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#9CA3AF;fill:#9CA3AF;}</x:String>
+                    <x:String x:Key="NavButtonIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#D1D5DB;fill:none;}</x:String>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -66,6 +68,9 @@
         </Style>
         <Style Selector="svg|Svg.file-icon">
             <Setter Property="Css" Value="{DynamicResource FileIconStrokeCss}" />
+        </Style>
+        <Style Selector="Button.nav-btn svg|Svg.nav-icon">
+            <Setter Property="Css" Value="{DynamicResource NavButtonIconCss}" />
         </Style>
         <Style Selector="ListBox ListBoxItem:selected svg|Svg.file-icon">
             <Setter Property="Css" Value="path,rect,circle,ellipse,polygon,polyline,line{stroke:#FFFFFF;}" />
@@ -171,9 +176,14 @@
                         <TextBlock Text="{Binding DevicesTitle}" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
                         <Button Grid.Column="1"
                                 Classes="nav-btn"
-                                Content="↻"
                                 VerticalAlignment="Center"
-                                Command="{Binding RefreshDevicesCommand}" />
+                                Command="{Binding RefreshDevicesCommand}">
+                            <svg:Svg Classes="nav-icon"
+                                     Width="16"
+                                     Height="16"
+                                     Path="avares://Adbrowser/Frontend/Assets/Icons/Refresh.svg"
+                                     Stretch="Uniform" />
+                        </Button>
                     </Grid>
                     <ListBox x:Name="DevicesListBox"
                              Grid.Row="1"
@@ -204,10 +214,34 @@
             <Border Grid.Column="2" Classes="content-pane" Padding="16">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto" Margin="0,0,0,12">
-                        <Button Grid.Column="0" Classes="nav-btn" Content="←" Command="{Binding NavigateBackCommand}" />
-                        <Button Grid.Column="1" Classes="nav-btn" Content="→" Margin="6,0,0,0" Command="{Binding NavigateForwardCommand}" />
-                        <Button Grid.Column="2" Classes="nav-btn" Content="↑" Margin="6,0,0,0" Command="{Binding NavigateUpCommand}" />
-                        <Button Grid.Column="3" Classes="nav-btn" Content="⌂" Margin="6,0,0,0" Command="{Binding NavigateHomeCommand}" />
+                        <Button Grid.Column="0" Classes="nav-btn" Command="{Binding NavigateBackCommand}">
+                            <svg:Svg Classes="nav-icon"
+                                     Width="16"
+                                     Height="16"
+                                     Path="avares://Adbrowser/Frontend/Assets/Icons/ArrowLeft.svg"
+                                     Stretch="Uniform" />
+                        </Button>
+                        <Button Grid.Column="1" Classes="nav-btn" Margin="6,0,0,0" Command="{Binding NavigateForwardCommand}">
+                            <svg:Svg Classes="nav-icon"
+                                     Width="16"
+                                     Height="16"
+                                     Path="avares://Adbrowser/Frontend/Assets/Icons/ArrowRight.svg"
+                                     Stretch="Uniform" />
+                        </Button>
+                        <Button Grid.Column="2" Classes="nav-btn" Margin="6,0,0,0" Command="{Binding NavigateUpCommand}">
+                            <svg:Svg Classes="nav-icon"
+                                     Width="16"
+                                     Height="16"
+                                     Path="avares://Adbrowser/Frontend/Assets/Icons/ArrowUp.svg"
+                                     Stretch="Uniform" />
+                        </Button>
+                        <Button Grid.Column="3" Classes="nav-btn" Margin="6,0,0,0" Command="{Binding NavigateHomeCommand}">
+                            <svg:Svg Classes="nav-icon"
+                                     Width="16"
+                                     Height="16"
+                                     Path="avares://Adbrowser/Frontend/Assets/Icons/Home.svg"
+                                     Stretch="Uniform" />
+                        </Button>
                         <TextBox Grid.Column="4"
                                  Margin="10,0,10,0"
                                  Text="{Binding PathInput}"
