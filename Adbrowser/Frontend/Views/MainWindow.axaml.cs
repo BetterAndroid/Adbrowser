@@ -1,6 +1,7 @@
 // Copyright (C) 2019 HighCapable
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using System.Collections.Specialized;
 using Adbrowser.Frontend.Runtime;
 using Adbrowser.Frontend.ViewModels;
 using Avalonia;
@@ -8,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace Adbrowser.Frontend.Views;
 
@@ -27,6 +29,7 @@ public partial class MainWindow : Window
     ];
 
     private readonly MainWindowViewModel _viewModel;
+    private bool _pendingScrollToTop;
 
     public MainWindow()
     {
@@ -40,6 +43,7 @@ public partial class MainWindow : Window
             AppServices.LocalizationService);
 
         DataContext = _viewModel;
+        _viewModel.CurrentEntries.CollectionChanged += OnCurrentEntriesChanged;
         Loaded += OnLoaded;
         Closed += OnClosed;
     }
@@ -57,6 +61,7 @@ public partial class MainWindow : Window
     private async void OnClosed(object? sender, EventArgs e)
     {
         Closed -= OnClosed;
+        _viewModel.CurrentEntries.CollectionChanged -= OnCurrentEntriesChanged;
         UnhookFileHeaderColumnWidthSync();
         SaveMainPaneWidth();
         SaveFileColumnWidths();
@@ -332,5 +337,37 @@ public partial class MainWindow : Window
         }
 
         Resources[key] = new GridLength(width, GridUnitType.Pixel);
+    }
+
+    private void OnCurrentEntriesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_pendingScrollToTop)
+        {
+            return;
+        }
+
+        if (_viewModel.CurrentEntries.Count == 0)
+        {
+            return;
+        }
+
+        _pendingScrollToTop = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _pendingScrollToTop = false;
+            ScrollFileViewsToTop();
+        }, DispatcherPriority.Background);
+    }
+
+    private void ScrollFileViewsToTop()
+    {
+        if (_viewModel.CurrentEntries.Count == 0)
+        {
+            return;
+        }
+
+        var first = _viewModel.CurrentEntries[0];
+        FilesListBox.ScrollIntoView(first);
+        FilesIconBox.ScrollIntoView(first);
     }
 }
