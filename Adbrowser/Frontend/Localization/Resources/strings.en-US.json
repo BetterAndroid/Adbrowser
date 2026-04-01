@@ -97,6 +97,8 @@
   "preferences.files": "Files",
   "preferences.device": "Device",
   "preferences.language": "Language",
+  "preferences.languageOption.zhCN": "Chinese (Simplified)",
+  "preferences.languageOption.enUS": "English (United States)",
   "preferences.fileList": "File List",
   "preferences.showHiddenFiles": "Show hidden files and folders",
   "preferences.foldersFirst": "Show folders before files",

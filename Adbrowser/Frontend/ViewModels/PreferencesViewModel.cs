@@ -18,7 +18,7 @@ public sealed class PreferencesViewModel(
 {
     private string _adbPath = string.Empty;
     private bool _foldersFirst;
-    private string _language = "en-US";
+    private LanguageOption _selectedLanguage = new("en-US", "en-US");
     private bool _showHiddenFiles;
     private bool _superuser;
 
@@ -28,7 +28,8 @@ public sealed class PreferencesViewModel(
     public PreferencesViewModel(IAppSettingsService settingsService, ILocalizationService localizationService, string? serial)
         : this(settingsService, localizationService)
     {
-        _language = settingsService.Current.Language;
+        _selectedLanguage = Languages.FirstOrDefault(e => e.Code == settingsService.Current.Language)
+                            ?? Languages.First(e => e.Code == "en-US");
         _adbPath = settingsService.Current.AdbPath;
         _superuser = settingsService.Current.Superuser;
         _showHiddenFiles = settingsService.Current.ShowHiddenFiles;
@@ -38,15 +39,19 @@ public sealed class PreferencesViewModel(
     /// <summary>
     /// Available language options.
     /// </summary>
-    public ObservableCollection<string> Languages { get; } = ["en-US", "zh-CN"];
+    public ObservableCollection<LanguageOption> Languages { get; } =
+    [
+        new("zh-CN", localizationService.GetString("preferences.languageOption.zhCN")),
+        new("en-US", localizationService.GetString("preferences.languageOption.enUS"))
+    ];
 
     /// <summary>
     /// Selected UI language.
     /// </summary>
-    public string Language
+    public LanguageOption SelectedLanguage
     {
-        get => _language;
-        set => SetProperty(ref _language, value);
+        get => _selectedLanguage;
+        set => SetProperty(ref _selectedLanguage, value);
     }
 
     /// <summary>
@@ -140,18 +145,27 @@ public sealed class PreferencesViewModel(
 
     private async Task SaveAsync()
     {
-        settingsService.Current.Language = Language;
+        settingsService.Current.Language = SelectedLanguage.Code;
         settingsService.Current.AdbPath = AdbPath.Trim();
         settingsService.Current.Superuser = Superuser;
         settingsService.Current.ShowHiddenFiles = ShowHiddenFiles;
         settingsService.Current.FoldersFirst = FoldersFirst;
 
         await settingsService.SaveAsync();
-        await localizationService.SetLanguageAsync(Language);
+        await localizationService.SetLanguageAsync(SelectedLanguage.Code);
 
         StatusMessage = T("status.preferencesSaved");
         RequestClose?.Invoke(this, EventArgs.Empty);
     }
 
     private string T(string key) => localizationService.GetString(key);
+}
+
+/// <summary>
+/// User-friendly language option.
+/// </summary>
+public sealed record LanguageOption(string Code, string DisplayName)
+{
+    /// <inheritdoc />
+    public override string ToString() => DisplayName;
 }

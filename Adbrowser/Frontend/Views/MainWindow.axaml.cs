@@ -70,11 +70,19 @@ public partial class MainWindow : Window
 
     private async void OnPreferencesClick(object? sender, RoutedEventArgs e)
     {
+        var previousLanguage = AppServices.LocalizationService.CurrentLanguage;
         var window = new PreferencesWindow(_viewModel.SelectedDevice?.Serial)
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         await window.ShowDialog(this);
+
+        if (!string.Equals(previousLanguage, AppServices.LocalizationService.CurrentLanguage, StringComparison.Ordinal))
+        {
+            await _viewModel.RefreshLocalizationAsync();
+            return;
+        }
+
         await _viewModel.RefreshCurrentEntriesAsync();
     }
 

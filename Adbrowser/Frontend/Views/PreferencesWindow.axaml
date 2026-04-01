@@ -20,7 +20,7 @@
                                     <StackPanel Spacing="8">
                                         <TextBlock Text="{Binding LanguageLabel}" FontWeight="SemiBold" FontSize="14" />
                                         <ComboBox ItemsSource="{Binding Languages}"
-                                                  SelectedItem="{Binding Language}"
+                                                  SelectedItem="{Binding SelectedLanguage}"
                                                   HorizontalAlignment="Left"
                                                   Width="200" />
                                     </StackPanel>

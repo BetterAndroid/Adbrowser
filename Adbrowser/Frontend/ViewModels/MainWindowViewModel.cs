@@ -51,18 +51,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _localizationService = localizationService;
 
         _searchKeyword = string.Empty;
-        ViewModes =
-        [
-            new SelectionOption("list", T("main.viewMode.list")),
-            new SelectionOption("icons", T("main.viewMode.icons"))
-        ];
-
-        SortModes =
-        [
-            new SelectionOption("name", T("main.sortMode.name")),
-            new SelectionOption("size", T("main.sortMode.size")),
-            new SelectionOption("modified", T("main.sortMode.modified"))
-        ];
+        ViewModes = [];
+        SortModes = [];
+        RebuildLocalizedOptions();
 
         _selectedViewMode = ViewModes[0];
         _selectedSortMode = SortModes[0];
@@ -898,6 +889,56 @@ public sealed class MainWindowViewModel : ViewModelBase
         await RefreshEntriesAsync(CurrentPath);
     }
 
+    /// <summary>
+    /// Forces refresh for all localized UI texts in this view model.
+    /// </summary>
+    public async Task RefreshLocalizationAsync()
+    {
+        RebuildLocalizedOptions();
+
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(DevicesTitle));
+        OnPropertyChanged(nameof(SearchKeywordWatermark));
+        OnPropertyChanged(nameof(SearchButtonText));
+        OnPropertyChanged(nameof(HeaderName));
+        OnPropertyChanged(nameof(HeaderSize));
+        OnPropertyChanged(nameof(HeaderModified));
+        OnPropertyChanged(nameof(HeaderPermission));
+
+        OnPropertyChanged(nameof(MenuAbout));
+        OnPropertyChanged(nameof(MenuFile));
+        OnPropertyChanged(nameof(MenuEdit));
+        OnPropertyChanged(nameof(MenuView));
+        OnPropertyChanged(nameof(MenuGo));
+        OnPropertyChanged(nameof(MenuHelp));
+        OnPropertyChanged(nameof(MenuPreferences));
+        OnPropertyChanged(nameof(MenuNewFolder));
+        OnPropertyChanged(nameof(MenuRename));
+        OnPropertyChanged(nameof(MenuDelete));
+        OnPropertyChanged(nameof(MenuProperties));
+        OnPropertyChanged(nameof(MenuExit));
+        OnPropertyChanged(nameof(MenuCut));
+        OnPropertyChanged(nameof(MenuCopy));
+        OnPropertyChanged(nameof(MenuPaste));
+        OnPropertyChanged(nameof(MenuSelectAll));
+        OnPropertyChanged(nameof(MenuInverseSelect));
+        OnPropertyChanged(nameof(MenuRefresh));
+        OnPropertyChanged(nameof(MenuViewMode));
+        OnPropertyChanged(nameof(MenuSortMode));
+        OnPropertyChanged(nameof(MenuToggleStatusBarDynamic));
+        OnPropertyChanged(nameof(MenuAdbLogs));
+        OnPropertyChanged(nameof(MenuAppLogs));
+        OnPropertyChanged(nameof(MenuForward));
+        OnPropertyChanged(nameof(MenuBack));
+        OnPropertyChanged(nameof(MenuUp));
+        OnPropertyChanged(nameof(MenuRoot));
+        OnPropertyChanged(nameof(MenuHome));
+        OnPropertyChanged(nameof(MenuSearch));
+        OnPropertyChanged(nameof(MenuComingSoon));
+
+        await RefreshEntriesAsync(CurrentPath);
+    }
+
     private void PushHistory(string path)
     {
         if (_navigationIndex < _navigationHistory.Count - 1)
@@ -991,6 +1032,44 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     private string T(string key) => _localizationService.GetString(key);
+
+    private void RebuildLocalizedOptions()
+    {
+        var selectedViewKey = _selectedViewMode?.Key ?? "list";
+        var selectedSortKey = _selectedSortMode?.Key ?? "name";
+
+        var viewModes = new[]
+        {
+            new SelectionOption("list", T("main.viewMode.list")),
+            new SelectionOption("icons", T("main.viewMode.icons"))
+        };
+
+        var sortModes = new[]
+        {
+            new SelectionOption("name", T("main.sortMode.name")),
+            new SelectionOption("size", T("main.sortMode.size")),
+            new SelectionOption("modified", T("main.sortMode.modified"))
+        };
+
+        ViewModes.Clear();
+        foreach (var mode in viewModes)
+        {
+            ViewModes.Add(mode);
+        }
+
+        SortModes.Clear();
+        foreach (var mode in sortModes)
+        {
+            SortModes.Add(mode);
+        }
+
+        _selectedViewMode = ViewModes.FirstOrDefault(e => e.Key == selectedViewKey) ?? ViewModes[0];
+        _selectedSortMode = SortModes.FirstOrDefault(e => e.Key == selectedSortKey) ?? SortModes[0];
+        OnPropertyChanged(nameof(SelectedViewMode));
+        OnPropertyChanged(nameof(SelectedSortMode));
+        OnPropertyChanged(nameof(IsListViewMode));
+        OnPropertyChanged(nameof(IsIconViewMode));
+    }
 
     private static bool IsHiddenEntryName(string name)
     {
