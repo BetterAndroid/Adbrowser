@@ -30,8 +30,8 @@
                                       IsChecked="{Binding RememberLastDevice}" />
                             <CheckBox Content="{Binding RememberDevicePathLabel}"
                                       IsChecked="{Binding RememberDevicePath}" />
-                            <CheckBox Content="{Binding TrySuForDirectoryListingLabel}"
-                                      IsChecked="{Binding TrySuForDirectoryListing}" />
+                            <CheckBox Content="{Binding SuperuserLabel}"
+                                      IsChecked="{Binding Superuser}" />
 
                             <TextBlock Text="{Binding DeviceHomePathLabel}" FontWeight="SemiBold" Margin="0,8,0,0" />
                             <TextBox Text="{Binding HomePath}" Watermark="{Binding DeviceHomePathWatermark}" />

@@ -687,7 +687,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             FileListHintMessage = entries.Count == 0
                 ? T("main.fileListHint.emptyFolder")
                 : string.Empty;
-            StatusMessage = string.Format(T("status.pathLoaded"), CurrentPath);
             return true;
         }
         catch (Exception ex)

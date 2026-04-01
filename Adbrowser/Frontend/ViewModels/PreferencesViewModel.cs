@@ -20,7 +20,7 @@ public sealed class PreferencesViewModel(
     private string _adbPath = string.Empty;
     private bool _rememberLastDevice;
     private bool _rememberDevicePath;
-    private bool _trySuForDirectoryListing;
+    private bool _superuser;
     private string _homePath = "/";
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class PreferencesViewModel(
         _adbPath = settingsService.Current.AdbPath;
         _rememberLastDevice = settingsService.Current.RememberLastDevice;
         _rememberDevicePath = settingsService.Current.RememberDevicePath;
-        _trySuForDirectoryListing = settingsService.Current.TrySuForDirectoryListing;
+        _superuser = settingsService.Current.Superuser;
 
         if (!string.IsNullOrWhiteSpace(serial)
             && settingsService.Current.DeviceHomePaths.TryGetValue(serial, out var home)
@@ -97,12 +97,12 @@ public sealed class PreferencesViewModel(
     }
 
     /// <summary>
-    /// Whether to try listing directories with su first.
+    /// Whether to try listing directories with su.
     /// </summary>
-    public bool TrySuForDirectoryListing
+    public bool Superuser
     {
-        get => _trySuForDirectoryListing;
-        set => SetProperty(ref _trySuForDirectoryListing, value);
+        get => _superuser;
+        set => SetProperty(ref _superuser, value);
     }
 
     /// <summary>
@@ -152,7 +152,7 @@ public sealed class PreferencesViewModel(
     public string AdbPathLabel => T("preferences.adbPath");
     public string RememberLastDeviceLabel => T("preferences.rememberLastDevice");
     public string RememberDevicePathLabel => T("preferences.rememberDevicePath");
-    public string TrySuForDirectoryListingLabel => T("preferences.trySuForDirectoryListing");
+    public string SuperuserLabel => T("preferences.superuser");
     public string DeviceHomePathLabel => T("preferences.deviceHomePath");
     public string AdbPathWatermark => "/usr/local/bin/adb";
     public string DeviceHomePathWatermark => "/data/local/tmp";
@@ -165,7 +165,7 @@ public sealed class PreferencesViewModel(
         settingsService.Current.AdbPath = AdbPath.Trim();
         settingsService.Current.RememberLastDevice = RememberLastDevice;
         settingsService.Current.RememberDevicePath = RememberDevicePath;
-        settingsService.Current.TrySuForDirectoryListing = TrySuForDirectoryListing;
+        settingsService.Current.Superuser = Superuser;
 
         if (!string.IsNullOrWhiteSpace(CurrentDeviceSerial) && !string.IsNullOrWhiteSpace(HomePath))
         {

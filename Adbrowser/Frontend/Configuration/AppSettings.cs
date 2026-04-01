@@ -29,9 +29,9 @@ public sealed class AppSettings
     public bool RememberDevicePath { get; set; } = true;
 
     /// <summary>
-    /// Whether to try running directory listing with su first.
+    /// Whether to try running directory listing with su.
     /// </summary>
-    public bool TrySuForDirectoryListing { get; set; }
+    public bool Superuser { get; set; }
 
     /// <summary>
     /// Last selected device serial.

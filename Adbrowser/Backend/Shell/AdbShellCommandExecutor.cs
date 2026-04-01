@@ -18,7 +18,7 @@ public sealed class AdbShellCommandExecutor(
     /// <inheritdoc />
     public async Task<string> ExecuteFileOperationAsync(string serial, string command, CancellationToken cancellationToken = default)
     {
-        if (!settingsService.Current.TrySuForDirectoryListing)
+        if (!settingsService.Current.Superuser)
         {
             return await adbClient.ExecuteShellAsync(serial, command, cancellationToken);
         }
