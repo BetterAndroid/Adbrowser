@@ -19,11 +19,15 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <x:String x:Key="FileIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#2E6CD3;}</x:String>
+                    <x:String x:Key="FileListHintIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#97B6E9;}</x:String>
+                    <Color x:Key="FileListHintForegroundColor">#97B6E9</Color>
                     <Color x:Key="PathBreadcrumbForegroundColor">#6B7280</Color>
                     <x:String x:Key="PathBreadcrumbIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#6B7280;fill:#6B7280;}</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <x:String x:Key="FileIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#4D8FF6;}</x:String>
+                    <x:String x:Key="FileListHintIconStrokeCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#27487B;}</x:String>
+                    <Color x:Key="FileListHintForegroundColor">#27487B</Color>
                     <Color x:Key="PathBreadcrumbForegroundColor">#9CA3AF</Color>
                     <x:String x:Key="PathBreadcrumbIconCss">path,rect,circle,ellipse,polygon,polyline,line{stroke:#9CA3AF;fill:#9CA3AF;}</x:String>
                 </ResourceDictionary>
@@ -245,76 +249,93 @@
                                             <TextBlock Grid.Column="6" Text="{Binding HeaderPermission}" />
                                         </Grid>
                                     </Border>
-                                    <ListBox Grid.Row="1"
-                                             x:Name="FilesListBox"
-                                             ItemsSource="{Binding CurrentEntries}"
-                                             SelectedItem="{Binding SelectedEntry}"
-                                             DoubleTapped="OnEntryDoubleTapped"
-                                             DragDrop.AllowDrop="True"
-                                             DragDrop.Drop="OnFilePaneDrop">
-                                        <ListBox.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
-                                                <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
-                                                <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
-                                                <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
-                                                <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
-                                                <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
-                                                <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
-                                                <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
-                                            </ContextMenu>
-                                        </ListBox.ContextMenu>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:DeviceFileItem">
-                                                <Border Classes="file-row">
-                                                    <Grid>
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" SharedSizeGroup="FileColName" />
-                                                            <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="Auto" SharedSizeGroup="FileColSize" />
-                                                            <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="Auto" SharedSizeGroup="FileColModified" />
-                                                            <ColumnDefinition Width="6" />
-                                                            <ColumnDefinition Width="Auto" SharedSizeGroup="FileColPermission" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="10" ClipToBounds="True">
-                                                            <svg:Svg Grid.Column="0"
-                                                                     Width="16"
-                                                                     Height="16"
-                                                                     VerticalAlignment="Center"
-                                                                     Classes="file-icon"
-                                                                     Path="{Binding IconUri}"
-                                                                     Stretch="Uniform" />
-                                                            <TextBlock Grid.Column="1"
-                                                                       Text="{Binding DisplayName}"
+                                    <Grid Grid.Row="1">
+                                        <ListBox x:Name="FilesListBox"
+                                                 ItemsSource="{Binding CurrentEntries}"
+                                                 SelectedItem="{Binding SelectedEntry}"
+                                                 DoubleTapped="OnEntryDoubleTapped"
+                                                 DragDrop.AllowDrop="True"
+                                                 DragDrop.Drop="OnFilePaneDrop">
+                                            <ListBox.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
+                                                    <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
+                                                    <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
+                                                    <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
+                                                    <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
+                                                    <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
+                                                    <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
+                                                    <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
+                                                </ContextMenu>
+                                            </ListBox.ContextMenu>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:DeviceFileItem">
+                                                    <Border Classes="file-row">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColName" />
+                                                                <ColumnDefinition Width="6" />
+                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColSize" />
+                                                                <ColumnDefinition Width="6" />
+                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColModified" />
+                                                                <ColumnDefinition Width="6" />
+                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="FileColPermission" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="10" ClipToBounds="True">
+                                                                <svg:Svg Grid.Column="0"
+                                                                         Width="16"
+                                                                         Height="16"
+                                                                         VerticalAlignment="Center"
+                                                                         Classes="file-icon"
+                                                                         Path="{Binding IconUri}"
+                                                                         Stretch="Uniform" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding DisplayName}"
+                                                                           FontSize="14"
+                                                                           VerticalAlignment="Center"
+                                                                           TextWrapping="NoWrap"
+                                                                           TextTrimming="CharacterEllipsis" />
+                                                            </Grid>
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding SizeText}"
                                                                        FontSize="14"
-                                                                       VerticalAlignment="Center"
                                                                        TextWrapping="NoWrap"
-                                                                       TextTrimming="CharacterEllipsis" />
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ClipToBounds="True" />
+                                                            <TextBlock Grid.Column="4"
+                                                                       Text="{Binding ModifiedText}"
+                                                                       FontSize="14"
+                                                                       TextWrapping="NoWrap"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ClipToBounds="True" />
+                                                            <TextBlock Grid.Column="6"
+                                                                       Text="{Binding Permission}"
+                                                                       FontSize="14"
+                                                                       TextWrapping="NoWrap"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ClipToBounds="True" />
                                                         </Grid>
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding SizeText}"
-                                                                   FontSize="14"
-                                                                   TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   ClipToBounds="True" />
-                                                        <TextBlock Grid.Column="4"
-                                                                   Text="{Binding ModifiedText}"
-                                                                   FontSize="14"
-                                                                   TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   ClipToBounds="True" />
-                                                        <TextBlock Grid.Column="6"
-                                                                   Text="{Binding Permission}"
-                                                                   FontSize="14"
-                                                                   TextWrapping="NoWrap"
-                                                                   TextTrimming="CharacterEllipsis"
-                                                                   ClipToBounds="True" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <StackPanel IsVisible="{Binding IsFileListHintVisible}"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Spacing="10"
+                                                    IsHitTestVisible="False">
+                                            <svg:Svg Width="80"
+                                                     Height="80"
+                                                     Path="avares://Adbrowser/Frontend/Assets/Icons/Folder.svg"
+                                                     Stretch="Uniform"
+                                                     Css="{DynamicResource FileListHintIconStrokeCss}" />
+                                            <TextBlock Text="{Binding FileListHintMessage}"
+                                                       Foreground="{DynamicResource FileListHintForegroundColor}"
+                                                       FontSize="16"
+                                                       TextAlignment="Center"
+                                                       HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                    </Grid>
                                 </Grid>
                             </Grid>
                         </ScrollViewer>

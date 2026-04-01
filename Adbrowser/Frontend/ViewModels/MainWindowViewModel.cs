@@ -224,6 +224,26 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string HeaderModified => T("main.header.modified");
     public string HeaderPermission => T("main.header.permission");
 
+    /// <summary>
+    /// Center hint text shown over file list when directory is empty or load fails.
+    /// </summary>
+    public string FileListHintMessage
+    {
+        get;
+        private set
+        {
+            if (SetProperty(ref field, value))
+            {
+                OnPropertyChanged(nameof(IsFileListHintVisible));
+            }
+        }
+    } = string.Empty;
+
+    /// <summary>
+    /// Whether file list hint overlay is visible.
+    /// </summary>
+    public bool IsFileListHintVisible => !string.IsNullOrWhiteSpace(FileListHintMessage);
+
     public string MenuAbout => T("menu.about");
     public string MenuFile => T("menu.file");
     public string MenuEdit => T("menu.edit");
@@ -640,16 +660,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (SelectedDevice is null)
         {
             CurrentEntries.Clear();
+            FileListHintMessage = string.Empty;
             return false;
         }
 
         IsBusy = true;
+        var serial = SelectedDevice.Serial;
+        var targetPath = requestedPath;
 
         try
         {
-            var serial = SelectedDevice.Serial;
-            var targetPath = requestedPath;
-
             if (string.IsNullOrWhiteSpace(targetPath)
                 && _settingsService.Current.RememberDevicePath
                 && _settingsService.Current.DeviceLastPaths.TryGetValue(serial, out var rememberedPath)
@@ -664,14 +684,20 @@ public sealed class MainWindowViewModel : ViewModelBase
 
             CurrentPath = targetPath;
             FillEntries(entries);
+            FileListHintMessage = entries.Count == 0
+                ? T("main.fileListHint.emptyFolder")
+                : string.Empty;
             StatusMessage = string.Format(T("status.pathLoaded"), CurrentPath);
             return true;
         }
         catch (Exception ex)
         {
             _logService.Log(LogLevel.Error, "UI", ex.Message);
+            CurrentPath = targetPath ?? CurrentPath;
+            FillEntries([]);
+            FileListHintMessage = BuildListLoadFailureHint(ex.Message);
             StatusMessage = ex.Message;
-            return false;
+            return true;
         }
         finally
         {
@@ -775,6 +801,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var entries = await _fileSystemService.SearchAsync(SelectedDevice.Serial, CurrentPath, SearchKeyword.Trim());
             FillEntries(entries);
+            FileListHintMessage = string.Empty;
             StatusMessage = string.Format(T("status.searchResult"), entries.Count, SearchKeyword);
         }
         catch (Exception ex)
@@ -923,6 +950,46 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     private string T(string key) => _localizationService.GetString(key);
+
+    private string BuildListLoadFailureHint(string errorMessage)
+    {
+        if (IsPathNotFoundError(errorMessage))
+        {
+            return T("main.fileListHint.pathNotFound");
+        }
+
+        if (IsPermissionDeniedError(errorMessage))
+        {
+            return T("main.fileListHint.permissionDenied");
+        }
+
+        return T("main.fileListHint.loadFailed");
+    }
+
+    private static bool IsPathNotFoundError(string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return false;
+        }
+
+        var value = errorMessage.ToLowerInvariant();
+        return value.Contains("no such file or directory", StringComparison.Ordinal)
+               || value.Contains("not found", StringComparison.Ordinal);
+    }
+
+    private static bool IsPermissionDeniedError(string errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return false;
+        }
+
+        var value = errorMessage.ToLowerInvariant();
+        return value.Contains("permission denied", StringComparison.Ordinal)
+               || value.Contains("operation not permitted", StringComparison.Ordinal)
+               || value.Contains("not permitted", StringComparison.Ordinal);
+    }
 }
 
 /// <summary>
