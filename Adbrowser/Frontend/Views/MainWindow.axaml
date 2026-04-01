@@ -252,6 +252,7 @@
                                      Stretch="Uniform" />
                         </Button>
                         <TextBox Grid.Column="4"
+                                 Classes="path-input"
                                  Margin="10,0,10,0"
                                  Text="{Binding PathInput}"
                                  KeyDown="OnPathInputKeyDown" />

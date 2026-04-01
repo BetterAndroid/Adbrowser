@@ -183,6 +183,13 @@
         <Setter Property="CornerRadius" Value="6" />
     </Style>
 
+    <Style Selector="TextBox.path-input">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinHeight" Value="34" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
+
     <Style Selector="ComboBox">
         <Setter Property="CornerRadius" Value="6" />
     </Style>
