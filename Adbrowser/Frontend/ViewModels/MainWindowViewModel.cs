@@ -189,8 +189,27 @@ public sealed class MainWindowViewModel : ViewModelBase
     public SelectionOption SelectedViewMode
     {
         get => _selectedViewMode;
-        set => SetProperty(ref _selectedViewMode, value);
+        set
+        {
+            if (!SetProperty(ref _selectedViewMode, value))
+            {
+                return;
+            }
+
+            OnPropertyChanged(nameof(IsListViewMode));
+            OnPropertyChanged(nameof(IsIconViewMode));
+        }
     }
+
+    /// <summary>
+    /// Whether file pane is showing list view.
+    /// </summary>
+    public bool IsListViewMode => SelectedViewMode.Key == "list";
+
+    /// <summary>
+    /// Whether file pane is showing icon grid view.
+    /// </summary>
+    public bool IsIconViewMode => SelectedViewMode.Key == "icons";
 
     /// <summary>
     /// Current sort mode key.

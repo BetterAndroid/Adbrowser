@@ -66,6 +66,15 @@
             Selector="ListBox#DevicesListBox ListBoxItem:first-child:last-child /template/ ContentPresenter#PART_ContentPresenter, ListBox#FilesListBox ListBoxItem:first-child:last-child /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="CornerRadius" Value="0" />
         </Style>
+        <Style Selector="ListBox#FilesIconBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBox#FilesIconBox ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
         <Style Selector="svg|Svg.file-icon">
             <Setter Property="Css" Value="{DynamicResource FileIconStrokeCss}" />
         </Style>
@@ -252,9 +261,10 @@
                     </Grid>
 
                     <Border Grid.Row="1" Classes="file-list-container" PointerPressed="OnFilePanePointerPressed">
-                        <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                      VerticalScrollBarVisibility="Disabled">
-                            <Grid>
+                        <Grid>
+                            <ScrollViewer IsVisible="{Binding IsListViewMode}"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Disabled">
                                 <Grid RowDefinitions="Auto,*">
                                     <Border Grid.Row="0"
                                             Margin="1,1,1,0"
@@ -291,96 +301,151 @@
                                             <TextBlock Grid.Column="6" Text="{Binding HeaderPermission}" />
                                         </Grid>
                                     </Border>
-                                    <Grid Grid.Row="1">
-                                        <ListBox x:Name="FilesListBox"
-                                                 ItemsSource="{Binding CurrentEntries}"
-                                                 SelectedItem="{Binding SelectedEntry}"
-                                                 DoubleTapped="OnEntryDoubleTapped"
-                                                 DragDrop.AllowDrop="True"
-                                                 DragDrop.Drop="OnFilePaneDrop">
-                                            <ListBox.ContextMenu>
-                                                <ContextMenu>
-                                                    <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
-                                                    <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
-                                                    <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
-                                                    <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
-                                                    <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
-                                                    <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
-                                                    <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
-                                                    <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
-                                                </ContextMenu>
-                                            </ListBox.ContextMenu>
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate x:DataType="vm:DeviceFileItem">
-                                                    <Border Classes="file-row">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="{DynamicResource FileColNameWidth}" MinWidth="180" />
-                                                                <ColumnDefinition Width="10" />
-                                                                <ColumnDefinition Width="{DynamicResource FileColSizeWidth}" MinWidth="90" />
-                                                                <ColumnDefinition Width="10" />
-                                                                <ColumnDefinition Width="{DynamicResource FileColModifiedWidth}" MinWidth="150" />
-                                                                <ColumnDefinition Width="10" />
-                                                                <ColumnDefinition Width="{DynamicResource FileColPermissionWidth}" MinWidth="110" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="10" ClipToBounds="True">
-                                                                <svg:Svg Grid.Column="0"
-                                                                         Width="16"
-                                                                         Height="16"
-                                                                         VerticalAlignment="Center"
-                                                                         Classes="file-icon"
-                                                                         Path="{Binding IconUri}"
-                                                                         Stretch="Uniform" />
-                                                                <TextBlock Grid.Column="1"
-                                                                           Text="{Binding DisplayName}"
-                                                                           FontSize="14"
-                                                                           VerticalAlignment="Center"
-                                                                           TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis" />
-                                                            </Grid>
-                                                            <TextBlock Grid.Column="2"
-                                                                       Text="{Binding SizeText}"
+                                    <ListBox x:Name="FilesListBox"
+                                             Grid.Row="1"
+                                             ItemsSource="{Binding CurrentEntries}"
+                                             SelectedItem="{Binding SelectedEntry}"
+                                             DoubleTapped="OnEntryDoubleTapped"
+                                             DragDrop.AllowDrop="True"
+                                             DragDrop.Drop="OnFilePaneDrop">
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
+                                                <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
+                                                <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
+                                                <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
+                                                <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
+                                                <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
+                                                <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
+                                                <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:DeviceFileItem">
+                                                <Border Classes="file-row">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="{DynamicResource FileColNameWidth}" MinWidth="180" />
+                                                            <ColumnDefinition Width="10" />
+                                                            <ColumnDefinition Width="{DynamicResource FileColSizeWidth}" MinWidth="90" />
+                                                            <ColumnDefinition Width="10" />
+                                                            <ColumnDefinition Width="{DynamicResource FileColModifiedWidth}" MinWidth="150" />
+                                                            <ColumnDefinition Width="10" />
+                                                            <ColumnDefinition Width="{DynamicResource FileColPermissionWidth}" MinWidth="110" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="10" ClipToBounds="True">
+                                                            <svg:Svg Grid.Column="0"
+                                                                     Width="16"
+                                                                     Height="16"
+                                                                     VerticalAlignment="Center"
+                                                                     Classes="file-icon"
+                                                                     Path="{Binding IconUri}"
+                                                                     Stretch="Uniform" />
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding DisplayName}"
                                                                        FontSize="14"
+                                                                       VerticalAlignment="Center"
                                                                        TextWrapping="NoWrap"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       ClipToBounds="True" />
-                                                            <TextBlock Grid.Column="4"
-                                                                       Text="{Binding ModifiedText}"
-                                                                       FontSize="14"
-                                                                       TextWrapping="NoWrap"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       ClipToBounds="True" />
-                                                            <TextBlock Grid.Column="6"
-                                                                       Text="{Binding Permission}"
-                                                                       FontSize="14"
-                                                                       TextWrapping="NoWrap"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       ClipToBounds="True" />
+                                                                       TextTrimming="CharacterEllipsis" />
                                                         </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                        <StackPanel IsVisible="{Binding IsFileListHintVisible}"
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center"
-                                                    Spacing="10"
-                                                    IsHitTestVisible="False">
-                                            <svg:Svg Width="80"
-                                                     Height="80"
-                                                     Path="avares://Adbrowser/Frontend/Assets/Icons/Folder.svg"
-                                                     Stretch="Uniform"
-                                                     Css="{DynamicResource FileListHintIconStrokeCss}" />
-                                            <TextBlock Text="{Binding FileListHintMessage}"
-                                                       Foreground="{DynamicResource FileListHintForegroundColor}"
-                                                       FontSize="16"
-                                                       TextAlignment="Center"
-                                                       HorizontalAlignment="Center" />
-                                        </StackPanel>
-                                    </Grid>
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding SizeText}"
+                                                                   FontSize="14"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ClipToBounds="True" />
+                                                        <TextBlock Grid.Column="4"
+                                                                   Text="{Binding ModifiedText}"
+                                                                   FontSize="14"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ClipToBounds="True" />
+                                                        <TextBlock Grid.Column="6"
+                                                                   Text="{Binding Permission}"
+                                                                   FontSize="14"
+                                                                   TextWrapping="NoWrap"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   ClipToBounds="True" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
                                 </Grid>
-                            </Grid>
-                        </ScrollViewer>
+                            </ScrollViewer>
+
+                            <ScrollViewer IsVisible="{Binding IsIconViewMode}"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto">
+                                <ListBox x:Name="FilesIconBox"
+                                         Margin="8"
+                                         ItemsSource="{Binding CurrentEntries}"
+                                         SelectedItem="{Binding SelectedEntry}"
+                                         DoubleTapped="OnEntryDoubleTapped"
+                                         DragDrop.AllowDrop="True"
+                                         DragDrop.Drop="OnFilePaneDrop">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="{Binding MenuRefresh}" Command="{Binding RefreshEntriesCommand}" />
+                                            <MenuItem Header="{Binding MenuNewFolder}" Click="OnNewFolderClick" />
+                                            <MenuItem Header="{Binding MenuRename}" Click="OnRenameClick" />
+                                            <MenuItem Header="{Binding MenuCopy}" Click="OnCopyClick" />
+                                            <MenuItem Header="{Binding MenuCut}" Click="OnCutClick" />
+                                            <MenuItem Header="{Binding MenuPaste}" Click="OnPasteClick" />
+                                            <MenuItem Header="{Binding MenuDelete}" Click="OnDeleteClick" />
+                                            <MenuItem Header="{Binding MenuProperties}" Click="OnPropertiesClick" />
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DeviceFileItem">
+                                            <Border Width="120"
+                                                    Height="104"
+                                                    Padding="8"
+                                                    CornerRadius="8"
+                                                    Background="Transparent">
+                                                <StackPanel HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Spacing="8">
+                                                    <svg:Svg Width="34"
+                                                             Height="34"
+                                                             Classes="file-icon"
+                                                             Path="{Binding IconUri}"
+                                                             Stretch="Uniform" />
+                                                    <TextBlock Width="100"
+                                                               Text="{Binding DisplayName}"
+                                                               TextAlignment="Center"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxLines="2" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </ScrollViewer>
+
+                            <StackPanel IsVisible="{Binding IsFileListHintVisible}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Spacing="10"
+                                        IsHitTestVisible="False">
+                                <svg:Svg Width="80"
+                                         Height="80"
+                                         Path="avares://Adbrowser/Frontend/Assets/Icons/Folder.svg"
+                                         Stretch="Uniform"
+                                         Css="{DynamicResource FileListHintIconStrokeCss}" />
+                                <TextBlock Text="{Binding FileListHintMessage}"
+                                           Foreground="{DynamicResource FileListHintForegroundColor}"
+                                           FontSize="16"
+                                           TextAlignment="Center"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <Border Grid.Row="2" Classes="status-bar path-breadcrumb-bar" Padding="12,6" Margin="0">
