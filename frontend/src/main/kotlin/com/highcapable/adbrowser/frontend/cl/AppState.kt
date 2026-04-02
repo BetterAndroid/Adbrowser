@@ -24,9 +24,11 @@ package com.highcapable.adbrowser.frontend.cl
 
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.window.ApplicationScope
+import com.highcapable.adbrowser.backend.AppServices
 
 data class AppState(
-    val application: ApplicationScope
+    val application: ApplicationScope,
+    val appServices: AppServices
 )
 
 val LocalAppState = compositionLocalOf<AppState> {

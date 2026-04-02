@@ -24,7 +24,9 @@ package com.highcapable.adbrowser.frontend
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.window.application
+import com.highcapable.adbrowser.backend.AppServices
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
@@ -32,11 +34,19 @@ import com.highcapable.adbrowser.frontend.ui.window.MainWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.rememberWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.windowRegistries
+import kotlinx.coroutines.runBlocking
 
-fun main() = runApp()
+fun main() {
+    // Initialize all backend services before the UI event loop starts.
+    // initialize() only does disk IO (load settings) and object construction,
+    // so blocking the main thread here is safe and avoids any Window lifecycle issues.
+    val services = AppServices()
+    runBlocking { services.initialize() }
+    runApp(services)
+}
 
-private fun runApp() = application {
-    val appState = AppState(application = this)
+private fun runApp(services: AppServices) = application {
+    val appState = remember { AppState(application = this, services) }
     val windowManager = rememberWindowManager()
 
     CompositionLocalProvider(

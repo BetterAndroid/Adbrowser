@@ -20,7 +20,7 @@
  *
  * This file is created by fankes on 2026/4/2.
  */
-package com.highcapable.adbrowser.backend.runtime
+package com.highcapable.adbrowser.backend
 
 import com.highcapable.adbrowser.backend.adb.AdbClient
 import com.highcapable.adbrowser.backend.adb.AdbClientImpl
@@ -37,8 +37,11 @@ import com.highcapable.adbrowser.backend.shell.ShellCommandExecutor
 
 /**
  * Stores singleton-like service instances for application bootstrap.
- */
-object AppServices {
+ *
+ * - Note: This instance must be initialized before any service is accessed
+ *   and should be shared across the entire application lifecycle.
+*/
+class AppServices {
 
     lateinit var logService: LogService
         private set
