@@ -18,7 +18,16 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2025/6/4.
+ * This file is created by fankes on 2026/4/2.
  */
-package com.highcapable.adbrowser.backend.domain
+package com.highcapable.adbrowser.backend.adb.model
 
+/**
+ * Represents a connected Android device discovered by ADB.
+ */
+data class AndroidDevice(
+    val serial: String,
+    val name: String,
+    val model: String,
+    val isOnline: Boolean
+)

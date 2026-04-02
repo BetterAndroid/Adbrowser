@@ -18,7 +18,32 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2025/6/4.
+ * This file is created by fankes on 2026/4/2.
  */
-package com.highcapable.adbrowser.backend.adb
+package com.highcapable.adbrowser.backend.setting
 
+/**
+ * Reads and writes application settings.
+ */
+interface AppSettingsService {
+
+    /**
+     * Current settings in memory.
+     */
+    val current: AppSettings
+
+    /**
+     * Loads settings from local storage.
+     *
+     * Frequently called during app startup and preference reload, so implementations
+     * should keep fallback behavior deterministic.
+     */
+    suspend fun load()
+
+    /**
+     * Persists settings to local storage.
+     *
+     * Usually called after any preference mutation.
+     */
+    suspend fun save()
+}

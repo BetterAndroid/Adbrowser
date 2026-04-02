@@ -18,7 +18,19 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2025/6/4.
+ * This file is created by fankes on 2026/4/2.
  */
-package com.highcapable.adbrowser.backend.fs
+package com.highcapable.adbrowser.backend.shell
 
+import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+
+/**
+ * Defines command execution behavior for device shell file operations.
+ */
+interface ShellCommandExecutor {
+
+    /**
+     * Executes shell command for file operations with the configured privilege strategy.
+     */
+    suspend fun executeFileOperation(device: AndroidDevice, command: String): String
+}

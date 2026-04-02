@@ -23,6 +23,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.slf4j.simple)
     implementation(libs.slf4j.api)
 }
