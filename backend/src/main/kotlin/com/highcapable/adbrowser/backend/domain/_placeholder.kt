@@ -17,28 +17,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
+ *
+ * This file is created by fankes on 2025/6/4.
  */
-package com.highcapable.adbrowser.backend.adb
+package com.highcapable.adbrowser.backend.domain
 
-import com.highcapable.adbrowser.backend.domain.AdbDevice
-
-/**
- * ADB communication abstraction.
- */
-interface AdbService {
-
-    /** Returns the configured adb executable path. */
-    fun getExecutablePath(): String?
-
-    /** Updates adb executable path. */
-    fun setExecutablePath(path: String?)
-
-    /** Validates the configured path or provided path. */
-    fun isExecutableValid(path: String? = getExecutablePath()): Boolean
-
-    /** Lists connected devices. */
-    fun listDevices(): List<AdbDevice>
-
-    /** Returns latest adb logs. */
-    fun recentLogs(limit: Int = 200): List<String>
-}

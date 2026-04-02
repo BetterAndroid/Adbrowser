@@ -17,19 +17,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
+ *
+ * This file is created by fankes on 2025/6/4.
  */
-package com.highcapable.adbrowser.backend.permission
+package com.highcapable.adbrowser.backend.adb
 
-import com.highcapable.adbrowser.backend.domain.FsPermission
-
-/**
- * Permission management abstraction.
- */
-interface PermissionService {
-
-    /** Returns rwx permission for one path. */
-    fun getPermission(deviceId: String, path: String): FsPermission?
-
-    /** Applies rwx permission for one path. */
-    fun updatePermission(deviceId: String, path: String, permission: FsPermission): Boolean
-}

@@ -28,7 +28,6 @@ import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
-import com.highcapable.adbrowser.frontend.ui.window.InitialSetupWindow
 import com.highcapable.adbrowser.frontend.ui.window.MainWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.rememberWindowManager
@@ -55,9 +54,8 @@ private fun RenderWindows() {
     val appState = LocalAppState.current
     val windowManager = LocalWindowManager.current
 
-    if (appState.isInitialSetupRequired) 
-        InitialSetupWindow(onCloseRequest = appState.application::exitApplication)
-    else MainWindow(appState.application::exitApplication)
+    // Keep the main window always open.
+    MainWindow(appState.application::exitApplication)
 
     // Render all registered windows.
     windowRegistries.forEach {

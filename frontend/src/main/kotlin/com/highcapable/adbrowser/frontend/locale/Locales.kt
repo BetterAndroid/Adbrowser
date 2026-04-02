@@ -25,7 +25,6 @@ package com.highcapable.adbrowser.frontend.locale
 import androidx.compose.runtime.Composable
 import cafe.adriel.lyricist.ProvideStrings
 import cafe.adriel.lyricist.rememberStrings
-import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import java.util.*
 
 object Locales {
@@ -35,20 +34,18 @@ object Locales {
 
 @Composable
 fun ProvidedLocales(content: @Composable () -> Unit) {
-    val appState = LocalAppState.current
-    val preferredLanguage = appState.preferences.languageTag.ifBlank {
-        getCurrentLanguageTagFromSystem()
-    }
     val lyricist = rememberStrings(
         defaultLanguageTag = Locales.EN,
-        currentLanguageTag = preferredLanguage
+        currentLanguageTag = getCurrentLanguageTagFromLocalStorage()
     )
 
     ProvideStrings(lyricist, content)
 }
 
-private fun getCurrentLanguageTagFromSystem(): String {
+private fun getCurrentLanguageTagFromLocalStorage(): String {
+    // This function should retrieve the current language tag from local storage.
+    // For now, we return the default language tag.
     val locale = Locale.getDefault()
-    val langRegion = "${locale.language}-${locale.country}"
+    val langRegion = "${locale.language}-${locale.country}" // e.g. "zh-CN"
     return langRegion
 }
