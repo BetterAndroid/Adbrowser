@@ -22,23 +22,12 @@
  */
 package com.highcapable.adbrowser.frontend.ui.window
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
-import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.generated.AdbrowserProperties
 
 @Composable
@@ -54,27 +43,7 @@ fun MainWindow(onCloseRequest: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FrameWindowScope.MainScreen() {
-    Scaffold(topBar = {
-        // You don't have to use TopAppBar, it's just to show a simple top app bar.
-        TopAppBar(title = {
-            Text(AdbrowserProperties.PROJECT_NAME)
-        })
-    }) { innerPaddings ->
-
-        // Want to use the window manager to manage windows.
-        val windowManager = LocalWindowManager.current
-
-        Column(
-            modifier = Modifier
-                .padding(innerPaddings)
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text("WIP")
-        }
-    }
+    // TODO
 }

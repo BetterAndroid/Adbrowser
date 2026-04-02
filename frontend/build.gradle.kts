@@ -41,8 +41,10 @@ dependencies {
     ksp(libs.lyricist.processor)
     implementation(libs.lyricist)
 
-    implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(compose.desktop.currentOs) {
+        exclude(group = "org.jetbrains.compose.material")
+    }
+    implementation(libs.jewel.int.ui.standalone)
 
     implementation(libs.betterandroid.compose.extension.desktop)
 }
