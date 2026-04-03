@@ -22,8 +22,6 @@
  */
 package com.highcapable.adbrowser.backend.domain
 
-import com.highcapable.adbrowser.backend.domain.OperationResult.Companion.failure
-import com.highcapable.adbrowser.backend.domain.OperationResult.Companion.success
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 
@@ -50,11 +48,11 @@ internal class OperationRunner(
         val (data, response) = block()
 
         if (response.isOk)
-            success(data)
-        else failure(response)
+            OperationResult.success(data)
+        else OperationResult.failure(response)
     } catch (t: Throwable) {
         val message = t.message ?: t::class.simpleName ?: "Unknown error"
         logService.log(LogLevel.Error, category, message)
-        failure(message)
+        OperationResult.failure(message)
     }
 }
