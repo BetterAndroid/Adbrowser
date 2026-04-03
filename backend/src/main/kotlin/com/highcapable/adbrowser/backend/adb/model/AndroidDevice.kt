@@ -30,4 +30,7 @@ data class AndroidDevice(
     val name: String,
     val model: String,
     val isOnline: Boolean
-)
+) {
+
+    override fun toString() = "$name ($model) - $serial"
+}

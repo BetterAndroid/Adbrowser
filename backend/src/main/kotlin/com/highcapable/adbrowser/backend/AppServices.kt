@@ -32,8 +32,8 @@ import com.highcapable.adbrowser.backend.permission.PermissionService
 import com.highcapable.adbrowser.backend.permission.PermissionServiceImpl
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
 import com.highcapable.adbrowser.backend.setting.AppSettingsServiceImpl
+import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
 import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutorImpl
-import com.highcapable.adbrowser.backend.shell.ShellCommandExecutor
 
 /**
  * Stores singleton-like service instances for application bootstrap.
@@ -52,7 +52,7 @@ class AppServices {
     lateinit var fileSystemService: FileSystemService
         private set
 
-    lateinit var shellCommandExecutor: ShellCommandExecutor
+    lateinit var shellCommandExecutor: AdbShellCommandExecutor
         private set
 
     lateinit var permissionService: PermissionService
@@ -69,10 +69,7 @@ class AppServices {
         settingsService = AppSettingsServiceImpl(logService)
         settingsService.load()
 
-        adbClient = AdbClientImpl(logService).apply {
-            adbExecPath = settingsService.current.adbExecPath
-        }
-
+        adbClient = AdbClientImpl(logService, settingsService)
         shellCommandExecutor = AdbShellCommandExecutorImpl(adbClient, settingsService, logService)
         fileSystemService = FileSystemServiceImpl(shellCommandExecutor, logService)
         permissionService = PermissionServiceImpl(shellCommandExecutor, logService)

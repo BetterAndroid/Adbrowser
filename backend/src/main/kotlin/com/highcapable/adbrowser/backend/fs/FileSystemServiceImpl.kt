@@ -23,16 +23,18 @@
 package com.highcapable.adbrowser.backend.fs
 
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
-import com.highcapable.adbrowser.backend.domain.OperationResult
+import com.highcapable.adbrowser.backend.domain.OperationRunner
 import com.highcapable.adbrowser.backend.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
-import com.highcapable.adbrowser.backend.shell.ShellCommandExecutor
+import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -40,11 +42,13 @@ import java.util.Locale
  * File-system service using ADB shell abstraction.
  */
 class FileSystemServiceImpl(
-    private val shellCommandExecutor: ShellCommandExecutor,
+    private val shellCommandExecutor: AdbShellCommandExecutor,
     private val logService: LogService
 ) : FileSystemService {
 
     private companion object {
+
+        const val CATEGORY = "FS"
 
         val dateTimePatterns = listOf(
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
@@ -64,73 +68,84 @@ class FileSystemServiceImpl(
             DateTimeFormatter.ofPattern("MMM d yyyy", Locale.US),
             DateTimeFormatter.ofPattern("MMM dd yyyy", Locale.US)
         )
+
+        val statDateTimePattern: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val statTimeRegex = """^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))? ([+-]\d{2}:?\d{2})$""".toRegex()
+
+        val isoDateTokenPattern = "\\d{4}-\\d{2}-\\d{2}".toRegex()
+        val clockTokenPattern = "\\d{2}:\\d{2}(:\\d{2})?".toRegex()
     }
 
-    override suspend fun list(device: AndroidDevice, path: String): List<DeviceFileEntry> {
-        logService.log(LogLevel.Trace, "FS", "List path '$path' for '${device.serial}'.")
+    private val runner = OperationRunner(logService, CATEGORY)
+
+    override suspend fun list(device: AndroidDevice, path: String) = runner.exec<List<DeviceFileEntry>> {
+        logService.log(LogLevel.Trace, CATEGORY, "List path '$path' for '$device'.")
         val listPath = normalizeDirectoryListPath(path)
-        val output = shellCommandExecutor.executeFileOperation(device, "ls -la '${escapeShell(listPath)}'")
-        val entries = parseLsOutput(path, output).toMutableList()
-        resolveSymlinkDirectoryFlags(device, entries)
+        val response = shellCommandExecutor.executeFileOperation(device, "ls -la '${escapeShell(listPath)}'")
 
-        if (entries.isEmpty())
-            logService.log(LogLevel.Warning, "FS", "No entries parsed from '$path'. Raw output: $output")
+        if (response.isOk) {
+            val entries = parseLsOutput(path, response.standardOutput).toMutableList()
+            resolveSymlinkDirectoryFlags(device, entries)
+            enrichEntriesByStat(device, entries)
 
-        return entries
+            if (entries.isEmpty())
+                logService.log(LogLevel.Warning, CATEGORY, "No entries parsed from '$path'. Raw output: ${response.message}")
+
+            entries to response
+        } else null to response
     }
 
-    override suspend fun search(device: AndroidDevice, path: String, keyword: String): List<DeviceFileEntry> {
-        val entries = list(device, path)
-        val result = entries.filter { it.name.contains(keyword, ignoreCase = true) }
-        logService.log(LogLevel.Information, "FS", "Search '$keyword' returned ${result.size} entries.")
-
-        return result
+    override suspend fun search(device: AndroidDevice, path: String, keyword: String) = runner.exec<List<DeviceFileEntry>> {
+        // TODO: Implement search by running `find` command and parsing the output.
+        //       This is more efficient than listing all files and filtering on client side, especially for large directories.
+        TODO()
     }
 
-    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult = runOperation {
+    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String) = runner.exec {
         val parent = escapeShell(parentPath.trimEnd('/'))
         val name = escapeShell(folderName)
-        shellCommandExecutor.executeFileOperation(device, "mkdir -p '$parent/$name'")
-        logService.log(LogLevel.Information, "FS", "Created folder '$folderName' under '$parentPath'.")
+        val response = shellCommandExecutor.executeFileOperation(device, "mkdir -p '$parent/$name'")
+
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$folderName' under '$parentPath'.")
+        null to response
     }
 
-    override suspend fun delete(device: AndroidDevice, path: String): OperationResult = runOperation {
-        shellCommandExecutor.executeFileOperation(device, "rm -rf '${escapeShell(path)}'")
-        logService.log(LogLevel.Warning, "FS", "Deleted path '$path'.")
+    override suspend fun delete(device: AndroidDevice, path: String) = runner.exec {
+        val response = shellCommandExecutor.executeFileOperation(device, "rm -rf '${escapeShell(path)}'")
+
+        if (response.isOk) logService.log(LogLevel.Warning, CATEGORY, "Deleted path '$path'.")
+        null to response
     }
 
-    override suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult = runOperation {
+    override suspend fun rename(device: AndroidDevice, path: String, newName: String) = runner.exec {
         val targetPath = buildTargetPath(path, newName)
-        shellCommandExecutor.executeFileOperation(
+        val response = shellCommandExecutor.executeFileOperation(
             device,
             "mv '${escapeShell(path)}' '${escapeShell(targetPath)}'"
         )
-        logService.log(LogLevel.Information, "FS", "Renamed '$path' to '$targetPath'.")
+
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$path' to '$targetPath'.")
+        null to response
     }
 
-    override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult = runOperation {
-        shellCommandExecutor.executeFileOperation(
+    override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
+        val response = shellCommandExecutor.executeFileOperation(
             device,
             "cp -a '${escapeShell(sourcePath)}' '${escapeShell(targetPath)}'"
         )
-        logService.log(LogLevel.Information, "FS", "Copied '$sourcePath' to '$targetPath'.")
+
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Copied '$sourcePath' to '$targetPath'.")
+        null to response
     }
 
-    override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult = runOperation {
-        shellCommandExecutor.executeFileOperation(
+    override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
+        val response = shellCommandExecutor.executeFileOperation(
             device,
             "mv '${escapeShell(sourcePath)}' '${escapeShell(targetPath)}'"
         )
-        logService.log(LogLevel.Information, "FS", "Moved '$sourcePath' to '$targetPath'.")
-    }
 
-    private suspend fun runOperation(block: suspend () -> Unit) = try {
-        block()
-        OperationResult.success()
-    } catch (t: Throwable) {
-        val message = t.message ?: t::class.simpleName ?: "Unknown error"
-        logService.log(LogLevel.Error, "FS", message)
-        OperationResult.failure(message)
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Moved '$sourcePath' to '$targetPath'.")
+        null to response
     }
 
     private fun escapeShell(value: String): String = value.replace("'", "'\\''")
@@ -172,7 +187,7 @@ class FileSystemServiceImpl(
             if (name.contains(" -> ")) name = name.substringBefore(" -> ")
 
             val isSymlink = permission.first() == 'l'
-            val modifiedTime = parseModifiedTime(tokens, nameStartIndex)
+            val modifiedAt = parseModifiedAt(tokens, nameStartIndex)
 
             result += DeviceFileEntry(
                 path = parentPath,
@@ -180,7 +195,8 @@ class FileSystemServiceImpl(
                 isDirectory = permission.first() == 'd',
                 isSymlink = isSymlink,
                 size = size,
-                modifiedTime = modifiedTime,
+                createdAt = modifiedAt,
+                modifiedAt = modifiedAt,
                 permission = permission.substring(1)
             )
         }
@@ -188,7 +204,7 @@ class FileSystemServiceImpl(
         return result
     }
 
-    private fun parseModifiedTime(tokens: List<String>, nameStartIndex: Int): Instant {
+    private fun parseModifiedAt(tokens: List<String>, nameStartIndex: Int): Instant {
         if (nameStartIndex <= 5) return Instant.now()
 
         val combined = tokens.subList(5, nameStartIndex).joinToString(" ")
@@ -223,11 +239,134 @@ class FileSystemServiceImpl(
         else -> minOf(7, tokens.lastIndex)
     }
 
-    private fun isIsoDateToken(value: String) = Regex("\\d{4}-\\d{2}-\\d{2}").matches(value)
-
-    private fun isClockToken(value: String) = Regex("\\d{2}:\\d{2}(:\\d{2})?").matches(value)
-
+    private fun isIsoDateToken(value: String) = isoDateTokenPattern.matches(value)
+    private fun isClockToken(value: String) = clockTokenPattern.matches(value)
     private fun isMonthToken(value: String) = value.length == 3 && value.all { it.isLetter() }
+
+    /**
+     * Uses `stat` output to enrich timestamps because `ls -la` is not enough for creation time.
+     *
+     * Rule:
+     * - createdAt = Birth
+     * - fallback createdAt = Access (when Birth is unavailable)
+     */
+    private suspend fun enrichEntriesByStat(device: AndroidDevice, entries: MutableList<DeviceFileEntry>) {
+        if (entries.isEmpty()) return
+
+        val chunkSize = 16
+        entries.indices.chunked(chunkSize).forEach { batch ->
+            val command = buildStatBatchCommand(entries, batch)
+            val response = runCatching { shellCommandExecutor.executeFileOperation(device, command) }.getOrNull()
+            if (response == null || !response.isOk) {
+                logService.log(LogLevel.Warning, CATEGORY, "Stat enrich skipped for batch due to command error.")
+                return@forEach
+            }
+
+            applyStatBatchResult(entries, batch, response.standardOutput)
+        }
+    }
+
+    private fun buildStatBatchCommand(entries: List<DeviceFileEntry>, batchIndexes: List<Int>): String {
+        val segments = mutableListOf<String>()
+        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
+            val entry = entries[entryIndex]
+            val fullPath = if (entry.path == "/") "/${entry.name}" else "${entry.path.trimEnd('/')}/${entry.name}"
+            val escaped = escapeShell(fullPath)
+            segments += "echo '__STAT_BEGIN_${localIndex}__'; stat '$escaped' 2>/dev/null || true; echo '__STAT_END_${localIndex}__'"
+        }
+
+        return segments.joinToString("; ")
+    }
+
+    private fun applyStatBatchResult(entries: MutableList<DeviceFileEntry>, batchIndexes: List<Int>, output: String) {
+        val sections = parseStatSections(output)
+        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
+            val section = sections[localIndex] ?: continue
+            val parsed = parseStatTimes(section) ?: continue
+            val original = entries[entryIndex]
+            val createdAt = parsed.birthAt ?: parsed.accessAt ?: original.createdAt
+            val modifiedAt = parsed.modifyAt ?: original.modifiedAt
+            entries[entryIndex] = original.copy(createdAt = createdAt, modifiedAt = modifiedAt)
+        }
+    }
+
+    private fun parseStatSections(output: String): Map<Int, String> {
+        val lines = output.lineSequence().toList()
+        val beginPrefix = "__STAT_BEGIN_"
+        val endPrefix = "__STAT_END_"
+        val sections = mutableMapOf<Int, String>()
+
+        var currentIndex: Int? = null
+        val currentLines = mutableListOf<String>()
+
+        lines.forEach { line ->
+            val begin = line.takeIf { it.startsWith(beginPrefix) && it.endsWith("__") }
+            if (begin != null) {
+                currentIndex = begin.removePrefix(beginPrefix).removeSuffix("__").toIntOrNull()
+                currentLines.clear()
+                return@forEach
+            }
+
+            val end = line.takeIf { it.startsWith(endPrefix) && it.endsWith("__") }
+            if (end != null) {
+                val endIndex = end.removePrefix(endPrefix).removeSuffix("__").toIntOrNull()
+                if (currentIndex != null && endIndex == currentIndex)
+                    sections[currentIndex] = currentLines.joinToString("\n")
+
+                currentIndex = null
+                currentLines.clear()
+                return@forEach
+            }
+
+            if (currentIndex != null) currentLines += line
+        }
+
+        return sections
+    }
+
+    private fun parseStatTimes(section: String): StatTimes? {
+        val accessAt = extractStatTime(section, "Access:")
+        val modifyAt = extractStatTime(section, "Modify:")
+        val birthAt = extractStatTime(section, "Birth:")
+
+        if (accessAt == null && modifyAt == null && birthAt == null) return null
+        return StatTimes(accessAt = accessAt, modifyAt = modifyAt, birthAt = birthAt)
+    }
+
+    private fun extractStatTime(section: String, label: String): Instant? {
+        val line = section.lineSequence()
+            .map { it.trim() }
+            .firstOrNull {
+                it.startsWith(label) &&
+                    !it.startsWith("$label (")
+            } ?: return null
+
+        val dateText = line.removePrefix(label).trim()
+        if (dateText == "-" || dateText.isBlank()) return null
+
+        val match = statTimeRegex.matchEntire(dateText) ?: return null
+        val datePart = match.groupValues[1]
+        val timePart = match.groupValues[2]
+        val fractionPart = match.groupValues[3]
+        val offsetRaw = match.groupValues[4]
+
+        val dateTime = runCatching {
+            LocalDateTime.parse("$datePart $timePart", statDateTimePattern)
+        }.getOrNull() ?: return null
+
+        val nanos = fractionPart
+            .takeIf { it.isNotBlank() }
+            ?.padEnd(9, '0')
+            ?.toIntOrNull()
+            ?: 0
+
+        val normalizedOffset = if (offsetRaw.contains(':'))
+            offsetRaw
+        else "${offsetRaw.take(3)}:${offsetRaw.substring(3)}"
+        val offset = runCatching { ZoneOffset.of(normalizedOffset) }.getOrNull() ?: return null
+
+        return OffsetDateTime.of(dateTime.withNano(nanos), offset).toInstant()
+    }
 
     /**
      * Resolves symlink directory flags in batches to reduce ADB round-trips.
@@ -237,10 +376,15 @@ class FileSystemServiceImpl(
         if (symlinkIndexes.isEmpty()) return
 
         val chunkSize = 32
-        for (batch in symlinkIndexes.chunked(chunkSize)) {
+        symlinkIndexes.chunked(chunkSize).forEach { batch ->
             val command = buildSymlinkDirectoryCheckCommand(entries, batch)
-            val output = shellCommandExecutor.executeFileOperation(device, command)
-            applySymlinkDirectoryCheckResult(entries, batch, output)
+            val response = runCatching { shellCommandExecutor.executeFileOperation(device, command) }.getOrNull()
+            if (response == null || !response.isOk) {
+                logService.log(LogLevel.Warning, CATEGORY, "Symlink directory check skipped for batch due to command error.")
+                return@forEach
+            }
+
+            applySymlinkDirectoryCheckResult(entries, batch, response.standardOutput)
         }
     }
 
@@ -270,4 +414,10 @@ class FileSystemServiceImpl(
             entries[entryIndex] = entries[entryIndex].copy(isDirectory = isDirectory)
         }
     }
+
+    private data class StatTimes(
+        val accessAt: Instant?,
+        val modifyAt: Instant?,
+        val birthAt: Instant?
+    )
 }

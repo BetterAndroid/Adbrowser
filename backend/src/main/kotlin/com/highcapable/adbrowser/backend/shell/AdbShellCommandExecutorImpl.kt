@@ -24,6 +24,7 @@ package com.highcapable.adbrowser.backend.shell
 
 import com.highcapable.adbrowser.backend.adb.AdbClient
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+import com.highcapable.adbrowser.backend.domain.AdbResponse
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
@@ -35,12 +36,17 @@ class AdbShellCommandExecutorImpl(
     private val adbClient: AdbClient,
     private val settingsService: AppSettingsService,
     private val logService: LogService
-) : ShellCommandExecutor {
+) : AdbShellCommandExecutor {
+
+    private companion object {
+
+        const val CATEGORY = "ADB Shell"
+    }
 
     /**
      * Executes command with `su -c` first when superuser mode is enabled, then falls back.
      */
-    override suspend fun executeFileOperation(device: AndroidDevice, command: String): String {
+    override suspend fun executeFileOperation(device: AndroidDevice, command: String): AdbResponse {
         if (!settingsService.current.useSuperuser) return adbClient.executeShell(device, command)
 
         return try {
@@ -49,7 +55,7 @@ class AdbShellCommandExecutorImpl(
         } catch (t: Throwable) {
             logService.log(
                 LogLevel.Warning,
-                "Shell",
+                CATEGORY,
                 "su execution failed: ${t.message ?: t::class.simpleName}. Fallback to normal shell."
             )
             adbClient.executeShell(device, command)

@@ -28,9 +28,10 @@ package com.highcapable.adbrowser.backend.domain
  * This model is intentionally tiny and stable because it is passed frequently between
  * repository/service and ViewModel layers.
  */
-data class OperationResult(
-    val isSuccess: Boolean,
-    val errorMessage: String? = null
+data class OperationResult<T>(
+    val isOk: Boolean,
+    val errorMessage: String? = null,
+    val data: T? = null
 ) {
 
     companion object {
@@ -38,11 +39,31 @@ data class OperationResult(
         /**
          * Creates a successful operation result.
          */
-        fun success() = OperationResult(isSuccess = true)
+        fun ok() = OperationResult<Unit>(isOk = true)
+
+        /**
+         * Creates a successful operation result with data.
+         */
+        fun <T> success(data: T?) = OperationResult(isOk = true, data = data)
 
         /**
          * Creates a failed operation result with a readable error message.
          */
-        fun failure(errorMessage: String) = OperationResult(isSuccess = false, errorMessage = errorMessage)
+        fun error(response: AdbResponse) = OperationResult<Unit>(isOk = false, errorMessage = response.message)
+
+        /**
+         * Creates a failed operation result with a readable error message.
+         */
+        fun error(errorMessage: String) = OperationResult<Unit>(isOk = false, errorMessage = errorMessage)
+
+        /**
+         * Creates a failed operation result with a readable error message with data.
+         */
+        fun <T> failure(response: AdbResponse) = OperationResult<T>(isOk = false, errorMessage = response.message)
+
+        /**
+         * Creates a failed operation result with a readable error message with data.
+         */
+        fun <T> failure(errorMessage: String) = OperationResult<T>(isOk = false, errorMessage = errorMessage)
     }
 }

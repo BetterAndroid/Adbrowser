@@ -18,14 +18,18 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/2.
+ * This file is created by fankes on 2026/4/3.
  */
-package com.highcapable.adbrowser.backend.permission
+package com.highcapable.adbrowser.backend.utils
 
 /**
- * Parsed file permission details from `ls -ld`.
+ * Utility object to determine the current operating system kind.
  */
-data class FilePermissionInfo(
-    val symbolicPermission: String,
-    val numericPermission: Int
-)
+object SystemKind {
+
+    private val osString get() = System.getProperty("os.name")
+
+    val isWindows get() = osString.contains("win", ignoreCase = true)
+    val isMacOS get() = osString.contains("mac", ignoreCase = true)
+    val isLinux get() = osString.contains("linux", ignoreCase = true)
+}

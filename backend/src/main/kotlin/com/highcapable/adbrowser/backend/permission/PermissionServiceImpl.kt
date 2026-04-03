@@ -23,40 +23,48 @@
 package com.highcapable.adbrowser.backend.permission
 
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
-import com.highcapable.adbrowser.backend.domain.OperationResult
+import com.highcapable.adbrowser.backend.domain.OperationRunner
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
-import com.highcapable.adbrowser.backend.shell.ShellCommandExecutor
+import com.highcapable.adbrowser.backend.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
 
 /**
  * Permission service implementation based on ADB shell commands.
  */
 class PermissionServiceImpl(
-    private val shellCommandExecutor: ShellCommandExecutor,
+    private val shellCommandExecutor: AdbShellCommandExecutor,
     private val logService: LogService
 ) : PermissionService {
 
-    override suspend fun getPermission(device: AndroidDevice, path: String): FilePermissionInfo {
-        logService.log(LogLevel.Trace, "Permission", "Reading permission for '$path'.")
-        val output = shellCommandExecutor.executeFileOperation(device, command = "ls -ld '${escapeShell(path)}'")
-        val info = parsePermission(output)
-        logService.log(
-            LogLevel.Trace,
-            "Permission",
-            "Read permission for '$path': ${info.symbolicPermission} (${info.numericPermission})."
-        )
+    private companion object {
 
-        return info
+        const val CATEGORY = "Permission"
     }
 
-    override suspend fun setPermission(device: AndroidDevice, path: String, mode: Int): OperationResult = try {
-        shellCommandExecutor.executeFileOperation(device, "chmod $mode '${escapeShell(path)}'")
-        logService.log(LogLevel.Information, "Permission", "Updated permission for '$path' to $mode.")
-        OperationResult.success()
-    } catch (t: Throwable) {
-        val message = t.message ?: t::class.simpleName ?: "Unknown error"
-        logService.log(LogLevel.Error, "Permission", message)
-        OperationResult.failure(message)
+    private val runner = OperationRunner(logService, CATEGORY)
+
+    override suspend fun getPermission(device: AndroidDevice, path: String) = runner.exec<FilePermissionInfo> {
+        logService.log(LogLevel.Trace, CATEGORY, "Reading permission for '$path'.")
+        val response = shellCommandExecutor.executeFileOperation(device, command = "ls -ld '${escapeShell(path)}'")
+
+        if (response.isOk) {
+            val info = parsePermission(response.standardOutput)
+            logService.log(
+                LogLevel.Trace,
+                CATEGORY,
+                "Read permission for '$path': ${info.symbolicPermission} (${info.numericPermission})."
+            )
+
+            info to response
+        } else null to response
+    }
+
+    override suspend fun setPermission(device: AndroidDevice, path: String, mode: Int) = runner.exec {
+        val response = shellCommandExecutor.executeFileOperation(device, "chmod $mode '${escapeShell(path)}'")
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Updated permission for '$path' to $mode.")
+
+        null to response
     }
 
     private fun escapeShell(value: String) = value.replace("'", "'\\''")

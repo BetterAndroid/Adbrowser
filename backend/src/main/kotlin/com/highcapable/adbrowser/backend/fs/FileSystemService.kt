@@ -34,35 +34,35 @@ interface FileSystemService {
     /**
      * Lists file entries under the specified directory.
      */
-    suspend fun list(device: AndroidDevice, path: String): List<DeviceFileEntry>
+    suspend fun list(device: AndroidDevice, path: String): OperationResult<List<DeviceFileEntry>>
 
     /**
      * Searches entries under the specified path.
      */
-    suspend fun search(device: AndroidDevice, path: String, keyword: String): List<DeviceFileEntry>
+    suspend fun search(device: AndroidDevice, path: String, keyword: String): OperationResult<List<DeviceFileEntry>>
 
     /**
      * Creates a folder on device.
      */
-    suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult
+    suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<Unit>
 
     /**
      * Deletes a file or directory.
      */
-    suspend fun delete(device: AndroidDevice, path: String): OperationResult
+    suspend fun delete(device: AndroidDevice, path: String): OperationResult<Unit>
 
     /**
      * Renames a file or directory.
      */
-    suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult
+    suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<Unit>
 
     /**
      * Copies a file or directory to target path.
      */
-    suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult
+    suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<Unit>
 
     /**
      * Moves a file or directory to target path.
      */
-    suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult
+    suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<Unit>
 }

@@ -30,17 +30,11 @@ import java.util.Collections
  */
 class LogServiceImpl : LogService {
 
-    private val entries = Collections.synchronizedList(mutableListOf<LogEntry>())
+    private val _entries = Collections.synchronizedList(mutableListOf<LogEntry>())
 
-    /**
-     * Inserts logs at index 0 so consumers can directly render newest-first.
-     */
+    override val entries get() = synchronized(_entries) { _entries.toList() }
+
     override fun log(level: LogLevel, category: String, message: String) {
-        entries.add(0, LogEntry(Instant.now(), level, category, message))
+        _entries.add(0, LogEntry(Instant.now(), level, category, message))
     }
-
-    /**
-     * Returns a snapshot copy to avoid exposing mutable internal state.
-     */
-    override fun getEntries() = synchronized(entries) { entries.toList() }
 }

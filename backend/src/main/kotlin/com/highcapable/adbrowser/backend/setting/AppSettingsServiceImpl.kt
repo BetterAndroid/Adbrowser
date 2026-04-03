@@ -40,6 +40,7 @@ class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsSe
 
     private companion object {
 
+        const val CATEGORY = "Settings"
         const val SETTINGS_FILE_NAME = "settings.json"
     }
 
@@ -51,9 +52,6 @@ class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsSe
     override var current: AppSettings = AppSettings()
         private set
 
-    /**
-     * Loads settings file or creates default file if it does not exist.
-     */
     override suspend fun load() = withContext(Dispatchers.IO) {
         val filePath = getSettingsFilePath()
         Files.createDirectories(filePath.parent)
@@ -66,18 +64,15 @@ class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsSe
 
         val content = Files.readString(filePath, StandardCharsets.UTF_8)
         current = runCatching { json.decodeFromString<AppSettings>(content) }.getOrDefault(AppSettings())
-        logService.log(LogLevel.Information, "Settings", "Loaded settings from $filePath")
+        logService.log(LogLevel.Information, CATEGORY, "Loaded settings from $filePath")
     }
 
-    /**
-     * Saves in-memory settings to JSON file.
-     */
     override suspend fun save() = withContext(Dispatchers.IO) {
         val filePath = getSettingsFilePath()
         Files.createDirectories(filePath.parent)
         val encoded = json.encodeToString(current)
         Files.writeString(filePath, encoded, StandardCharsets.UTF_8)
-        logService.log(LogLevel.Trace, "Settings", "Saved settings to $filePath")
+        logService.log(LogLevel.Trace, CATEGORY, "Saved settings to $filePath")
     }
 
     private fun getSettingsFilePath(): Path {

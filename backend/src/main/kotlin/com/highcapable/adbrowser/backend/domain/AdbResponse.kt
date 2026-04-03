@@ -18,31 +18,27 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/2.
+ * This file is created by fankes on 2026/4/3.
  */
-package com.highcapable.adbrowser.backend.adb
-
-import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
-import com.highcapable.adbrowser.backend.domain.AdbResponse
-import com.highcapable.adbrowser.backend.domain.OperationResult
+package com.highcapable.adbrowser.backend.domain
 
 /**
- * Defines ADB communication capabilities used by upper MVVM layers.
+ * Represents the result of an ADB command execution,
+ * including the exit code, standard output, and standard error.
  */
-interface AdbClient {
+data class AdbResponse(
+    val exitCode: Int,
+    val standardOutput: String,
+    val standardError: String
+) {
 
     /**
-     * Verifies whether the configured adb executable path is valid and executable.
+     * Indicates whether the ADB command executed successfully based on the exit code.
      */
-    suspend fun validateAdbExecPath(): OperationResult<Unit>
+    val isOk = exitCode == 0
 
     /**
-     * Lists connected devices and their online states.
+     * Provides a user-friendly message based on the standard error if available, otherwise falls back to standard output.
      */
-    suspend fun listDevices(): OperationResult<List<AndroidDevice>>
-
-    /**
-     * Executes an adb shell command for the target device.
-     */
-    suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse
+    val message = standardError.takeIf { it.isNotBlank() } ?: standardOutput
 }

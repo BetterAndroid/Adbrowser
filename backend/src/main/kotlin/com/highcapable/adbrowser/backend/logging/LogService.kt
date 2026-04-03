@@ -28,15 +28,15 @@ package com.highcapable.adbrowser.backend.logging
 interface LogService {
 
     /**
+     * Returns logs in reverse chronological order.
+     */
+    val entries: List<LogEntry>
+
+    /**
      * Writes a log entry to the in-memory log store.
      *
      * This function is called very frequently by ADB/FS operations, so implementations
      * should keep it lightweight and thread-safe.
      */
     fun log(level: LogLevel, category: String, message: String)
-
-    /**
-     * Returns logs in reverse chronological order.
-     */
-    fun getEntries(): List<LogEntry>
 }

@@ -33,6 +33,7 @@ data class DeviceFileEntry(
     val isDirectory: Boolean,
     val isSymlink: Boolean,
     val size: Long,
-    val modifiedTime: Instant,
+    val createdAt: Instant,
+    val modifiedAt: Instant,
     val permission: String
 )

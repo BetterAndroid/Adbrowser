@@ -23,9 +23,13 @@
 package com.highcapable.adbrowser.backend.adb
 
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+import com.highcapable.adbrowser.backend.domain.AdbResponse
 import com.highcapable.adbrowser.backend.domain.OperationResult
+import com.highcapable.adbrowser.backend.domain.OperationRunner
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
+import com.highcapable.adbrowser.backend.setting.AppSettingsService
+import com.highcapable.adbrowser.backend.utils.SystemKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -38,106 +42,96 @@ import java.nio.file.Path
 /**
  * Basic ADB client implementation for backend bootstrap.
  */
-class AdbClientImpl(private val logService: LogService) : AdbClient {
+class AdbClientImpl(private val logService: LogService, private val settingsService: AppSettingsService) : AdbClient {
 
-    override var adbExecPath = ""
+    private companion object {
 
-    override suspend fun validateAdbExecPath(): OperationResult {
-        val pathValue = this.adbExecPath.trim()
-        if (pathValue.isEmpty())
-            return OperationResult.failure("ADB path is empty.")
+        const val CATEGORY = "ADB"
+    }
+
+    private val runner = OperationRunner(logService, CATEGORY)
+    private val adbExecPath get() = settingsService.current.adbExecPath.trim()
+
+    override suspend fun validateAdbExecPath() = runner.exec {
+        val pathValue = adbExecPath
+        if (pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
 
         val adbExecPath = Path.of(pathValue)
         if (!Files.exists(adbExecPath))
-            return OperationResult.failure("ADB executable was not found.")
+            return OperationResult.error("ADB executable was not found.")
+        if (!SystemKind.isWindows && !Files.isExecutable(adbExecPath))
+            return OperationResult.error("ADB executable is not executable.")
 
-        val isWindows = System.getProperty("os.name").contains("win", ignoreCase = true)
-        if (!isWindows && !Files.isExecutable(adbExecPath))
-            return OperationResult.failure("ADB executable is not executable.")
+        val response = runAdb(listOf("version"))
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $pathValue")
 
-        return try {
-            val response = runAdb(listOf("version"))
-            if (response.exitCode != 0) {
-                val message = response.standardError.takeIf { it.isNotBlank() } ?: response.standardOutput
-                OperationResult.failure("ADB validation failed: ${message.trim()}")
-            } else {
-                logService.log(LogLevel.Information, "ADB", "Validated ADB path: $pathValue")
-                OperationResult.success()
-            }
-        } catch (t: Throwable) {
-            OperationResult.failure("Failed to run adb: ${t.message ?: t::class.simpleName}")
-        }
+        null to response
     }
 
-    override suspend fun listDevices(): List<AndroidDevice> {
-        logService.log(LogLevel.Trace, "ADB", "Listing devices via adb.")
+    override suspend fun listDevices() = runner.exec<List<AndroidDevice>> {
+        logService.log(LogLevel.Trace, CATEGORY, "Listing devices via adb.")
         val response = runAdb(listOf("devices", "-l"))
 
-        if (response.exitCode != 0) {
-            val message = response.standardError.takeIf { it.isNotBlank() } ?: response.standardOutput
-            error("Failed to list devices: ${message.trim()}")
-        }
+        if (response.isOk) {
+            val result = mutableListOf<AndroidDevice>()
+            val lines = response.standardOutput
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toList()
 
-        val result = mutableListOf<AndroidDevice>()
-        val lines = response.standardOutput
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .toList()
+            lines.forEach { line ->
+                if (line.startsWith("List of devices attached", ignoreCase = true) || line.startsWith("*"))
+                    return@forEach
 
-        lines.forEach { line ->
-            if (line.startsWith("List of devices attached", ignoreCase = true) || line.startsWith("*"))
-                return@forEach
+                val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+                if (tokens.size < 2) return@forEach
 
-            val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
-            if (tokens.size < 2) return@forEach
+                val serial = tokens[0]
+                val state = tokens[1]
+                val isOnline = state.equals("device", ignoreCase = true)
+                var model = ""
+                var name = ""
 
-            val serial = tokens[0]
-            val state = tokens[1]
-            val isOnline = state.equals("device", ignoreCase = true)
-            var model = ""
-            var name = ""
+                for (token in tokens.drop(2)) when {
+                    token.startsWith("model:", ignoreCase = true) ->
+                        model = token.substring(6).replace('_', ' ')
+                    token.startsWith("device:", ignoreCase = true) ->
+                        name = token.substring(7).replace('_', ' ')
+                }
 
-            for (token in tokens.drop(2)) when {
-                token.startsWith("model:", ignoreCase = true) ->
-                    model = token.substring(6).replace('_', ' ')
-                token.startsWith("device:", ignoreCase = true) ->
-                    name = token.substring(7).replace('_', ' ')
+                if (name.isBlank()) name = model.ifBlank { serial }
+                if (model.isBlank()) model = name
+
+                result += AndroidDevice(
+                    serial = serial,
+                    name = name,
+                    model = model,
+                    isOnline = isOnline
+                )
             }
 
-            if (name.isBlank()) name = model.ifBlank { serial }
-            if (model.isBlank()) model = name
-
-            result += AndroidDevice(
-                serial = serial,
-                name = name,
-                model = model,
-                isOnline = isOnline
-            )
-        }
-
-        return result
+            result to response
+        } else null to response
     }
 
-    override suspend fun executeShell(device: AndroidDevice, command: String): String {
-        logService.log(LogLevel.Trace, "ADB", "$device $ $command")
+    override suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse {
+        logService.log(LogLevel.Trace, CATEGORY, "$device $ $command")
         val response = runAdb(listOf("-s", device.serial, "shell", command))
-        if (response.exitCode == 0) return response.standardOutput
 
-        val message = response.standardError.takeIf { it.isNotBlank() } ?: response.standardOutput
-        error("ADB shell command failed: ${message.trim()}")
+        return response
     }
 
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
      */
     private suspend fun runAdb(arguments: List<String>) = withContext(Dispatchers.IO) {
-        val executablePath = adbExecPath.trim()
-        require(executablePath.isNotEmpty()) {
+        val pathValue = adbExecPath
+        require(pathValue.isNotEmpty()) {
             "ADB path is not configured."
         }
 
-        val process = ProcessBuilder(mutableListOf(executablePath).apply { addAll(arguments) })
+        val process = ProcessBuilder(mutableListOf(pathValue).apply { addAll(arguments) })
             .redirectErrorStream(false)
             .start()
 
@@ -163,9 +157,3 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
         }
     }
 }
-
-private data class AdbResponse(
-    val exitCode: Int,
-    val standardOutput: String,
-    val standardError: String
-)

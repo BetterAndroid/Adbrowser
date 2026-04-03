@@ -23,14 +23,15 @@
 package com.highcapable.adbrowser.backend.shell
 
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+import com.highcapable.adbrowser.backend.domain.AdbResponse
 
 /**
  * Defines command execution behavior for device shell file operations.
  */
-interface ShellCommandExecutor {
+interface AdbShellCommandExecutor {
 
     /**
      * Executes shell command for file operations with the configured privilege strategy.
      */
-    suspend fun executeFileOperation(device: AndroidDevice, command: String): String
+    suspend fun executeFileOperation(device: AndroidDevice, command: String): AdbResponse
 }
