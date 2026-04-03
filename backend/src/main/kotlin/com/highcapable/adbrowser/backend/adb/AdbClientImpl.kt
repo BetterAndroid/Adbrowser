@@ -36,12 +36,14 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import me.tatarka.inject.annotations.Inject
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
  * Basic ADB client implementation for backend bootstrap.
  */
+@Inject
 class AdbClientImpl(private val logService: LogService, private val settingsService: AppSettingsService) : AdbClient {
 
     private companion object {

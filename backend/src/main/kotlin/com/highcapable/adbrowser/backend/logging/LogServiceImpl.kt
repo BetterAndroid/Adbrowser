@@ -22,12 +22,14 @@
  */
 package com.highcapable.adbrowser.backend.logging
 
+import me.tatarka.inject.annotations.Inject
 import java.time.Instant
 import java.util.Collections
 
 /**
  * Thread-safe in-memory log store implementation.
  */
+@Inject
 class LogServiceImpl : LogService {
 
     private val _entries = Collections.synchronizedList(mutableListOf<LogEntry>())

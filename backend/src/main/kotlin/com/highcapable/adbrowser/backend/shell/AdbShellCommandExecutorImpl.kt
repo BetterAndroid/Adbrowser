@@ -28,10 +28,12 @@ import com.highcapable.adbrowser.backend.domain.AdbResponse
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
+import me.tatarka.inject.annotations.Inject
 
 /**
  * Executes shell commands through adb and applies configured superuser fallback strategy.
  */
+@Inject
 class AdbShellCommandExecutorImpl(
     private val adbClient: AdbClient,
     private val settingsService: AppSettingsService,

@@ -28,6 +28,7 @@ import com.highcapable.adbrowser.generated.AdbrowserProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import me.tatarka.inject.annotations.Inject
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +37,7 @@ import java.nio.file.Paths
 /**
  * App settings service for desktop platforms.
  */
+@Inject
 class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsService {
 
     private companion object {

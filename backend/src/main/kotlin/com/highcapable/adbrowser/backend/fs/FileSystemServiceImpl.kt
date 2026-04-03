@@ -28,6 +28,7 @@ import com.highcapable.adbrowser.backend.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
+import me.tatarka.inject.annotations.Inject
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -41,6 +42,7 @@ import java.util.Locale
 /**
  * File-system service using ADB shell abstraction.
  */
+@Inject
 class FileSystemServiceImpl(
     private val shellCommandExecutor: AdbShellCommandExecutor,
     private val logService: LogService

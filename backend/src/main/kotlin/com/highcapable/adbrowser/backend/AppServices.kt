@@ -22,18 +22,8 @@
  */
 package com.highcapable.adbrowser.backend
 
-import com.highcapable.adbrowser.backend.adb.AdbClient
-import com.highcapable.adbrowser.backend.adb.AdbClientImpl
-import com.highcapable.adbrowser.backend.fs.FileSystemService
-import com.highcapable.adbrowser.backend.fs.FileSystemServiceImpl
-import com.highcapable.adbrowser.backend.logging.LogService
-import com.highcapable.adbrowser.backend.logging.LogServiceImpl
-import com.highcapable.adbrowser.backend.permission.PermissionService
-import com.highcapable.adbrowser.backend.permission.PermissionServiceImpl
-import com.highcapable.adbrowser.backend.setting.AppSettingsService
-import com.highcapable.adbrowser.backend.setting.AppSettingsServiceImpl
-import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
-import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutorImpl
+import com.highcapable.adbrowser.backend.di.AppServicesComponent
+import com.highcapable.adbrowser.backend.di.create
 
 /**
  * Stores singleton-like service instances for application bootstrap.
@@ -43,35 +33,24 @@ import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutorImpl
 */
 class AppServices {
 
-    lateinit var logService: LogService
-        private set
+    private val component = AppServicesComponent::class.create()
 
-    lateinit var adbClient: AdbClient
-        private set
+    val logService get() = component.provideLogService()
 
-    lateinit var fileSystemService: FileSystemService
-        private set
+    val adbClient get() = component.provideAppSettingsService()
 
-    lateinit var shellCommandExecutor: AdbShellCommandExecutor
-        private set
+    val fileSystemService get() = component.provideFileSystemService()
 
-    lateinit var permissionService: PermissionService
-        private set
+    val shellCommandExecutor get() = component.provideAdbShellCommandExecutor()
 
-    lateinit var settingsService: AppSettingsService
-        private set
+    val permissionService get() = component.providePermissionService()
+
+    val settingsService get() = component.provideAppSettingsService()
 
     /**
      * Initializes backend service graph.
      */
     suspend fun initialize() {
-        logService = LogServiceImpl()
-        settingsService = AppSettingsServiceImpl(logService)
         settingsService.load()
-
-        adbClient = AdbClientImpl(logService, settingsService)
-        shellCommandExecutor = AdbShellCommandExecutorImpl(adbClient, settingsService, logService)
-        fileSystemService = FileSystemServiceImpl(shellCommandExecutor, logService)
-        permissionService = PermissionServiceImpl(shellCommandExecutor, logService)
     }
 }

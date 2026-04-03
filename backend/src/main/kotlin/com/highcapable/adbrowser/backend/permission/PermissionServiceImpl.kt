@@ -28,10 +28,12 @@ import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.permission.model.FilePermissionInfo
 import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
+import me.tatarka.inject.annotations.Inject
 
 /**
  * Permission service implementation based on ADB shell commands.
  */
+@Inject
 class PermissionServiceImpl(
     private val shellCommandExecutor: AdbShellCommandExecutor,
     private val logService: LogService
