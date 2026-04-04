@@ -47,4 +47,7 @@ dependencies {
     implementation(libs.jewel.int.ui.standalone)
 
     implementation(libs.betterandroid.compose.extension.desktop)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test.junit)
 }
