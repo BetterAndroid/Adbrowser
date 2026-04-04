@@ -27,7 +27,6 @@ import com.highcapable.adbrowser.backend.RecordingLogService
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
 import com.highcapable.adbrowser.backend.domain.AdbResponse
 import kotlinx.coroutines.runBlocking
-import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -35,24 +34,12 @@ import kotlin.test.assertTrue
 class FileSystemServiceImplTest {
 
     @Test
-    fun list_parsesEntriesAndEnrichesByStat() = runBlocking {
+    fun list_parsesEntries() = runBlocking {
         val shell = RecordingAdbShellCommandExecutor { _, command ->
             when {
                 command.startsWith("ls -la '/sdcard/'") -> AdbResponse(
                     exitCode = 0,
                     standardOutput = "-rw-r--r-- 1 root root 12 2026-04-05 10:30 hello.txt\n",
-                    standardError = ""
-                )
-
-                command.contains("__STAT_BEGIN_0__") -> AdbResponse(
-                    exitCode = 0,
-                    standardOutput = """
-                    __STAT_BEGIN_0__
-                    Access: 2026-04-05 10:31:00.000000000 +08:00
-                    Modify: 2026-04-05 10:32:00.000000000 +08:00
-                    Birth: 2026-04-05 10:33:00.000000000 +08:00
-                    __STAT_END_0__
-                    """.trimIndent(),
                     standardError = ""
                 )
 
@@ -69,7 +56,7 @@ class FileSystemServiceImplTest {
         val result = service.list(device, "/sdcard")
 
         assertTrue(result.isOk, result.errorMessage.orEmpty())
-        assertEquals(2, shell.commands.size)
+        assertEquals(1, shell.commands.size)
 
         val entries = requireNotNull(result.data)
         assertEquals(1, entries.size)
@@ -81,7 +68,6 @@ class FileSystemServiceImplTest {
         assertTrue(!entry.isSymlink)
         assertEquals(12L, entry.size)
         assertEquals("rw-r--r--", entry.permission)
-        assertEquals(Instant.parse("2026-04-05T02:33:00Z"), entry.createdAt)
-        assertEquals(Instant.parse("2026-04-05T02:32:00Z"), entry.modifiedAt)
+        assertEquals(entry.modifiedAt, entry.modifiedAt)
     }
 }

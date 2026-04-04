@@ -33,9 +33,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.OffsetDateTime
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -71,9 +69,6 @@ class FileSystemServiceImpl(
             DateTimeFormatter.ofPattern("MMM dd yyyy", Locale.US)
         )
 
-        val statDateTimePattern: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val statTimeRegex = """^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))? ([+-]\d{2}:?\d{2})$""".toRegex()
-
         val isoDateTokenPattern = "\\d{4}-\\d{2}-\\d{2}".toRegex()
         val clockTokenPattern = "\\d{2}:\\d{2}(:\\d{2})?".toRegex()
     }
@@ -88,7 +83,6 @@ class FileSystemServiceImpl(
         if (response.isOk) {
             val entries = parseLsOutput(path, response.standardOutput).toMutableList()
             resolveSymlinkDirectoryFlags(device, entries)
-            enrichEntriesByStat(device, entries)
 
             if (entries.isEmpty())
                 logService.log(LogLevel.Warning, CATEGORY, "No entries parsed from '$path'. Raw output: ${response.message}")
@@ -197,7 +191,6 @@ class FileSystemServiceImpl(
                 isDirectory = permission.first() == 'd',
                 isSymlink = isSymlink,
                 size = size,
-                createdAt = modifiedAt,
                 modifiedAt = modifiedAt,
                 permission = permission.substring(1)
             )
@@ -246,131 +239,6 @@ class FileSystemServiceImpl(
     private fun isMonthToken(value: String) = value.length == 3 && value.all { it.isLetter() }
 
     /**
-     * Uses `stat` output to enrich timestamps because `ls -la` is not enough for creation time.
-     *
-     * Rule:
-     * - createdAt = Birth
-     * - fallback createdAt = Access (when Birth is unavailable)
-     */
-    private suspend fun enrichEntriesByStat(device: AndroidDevice, entries: MutableList<DeviceFileEntry>) {
-        if (entries.isEmpty()) return
-
-        val chunkSize = 16
-        entries.indices.chunked(chunkSize).forEach { batch ->
-            val command = buildStatBatchCommand(entries, batch)
-            val response = runCatching { shellCommandExecutor.executeFileOperation(device, command) }.getOrNull()
-            if (response == null || !response.isOk) {
-                logService.log(LogLevel.Warning, CATEGORY, "Stat enrich skipped for batch due to command error.")
-                return@forEach
-            }
-
-            applyStatBatchResult(entries, batch, response.standardOutput)
-        }
-    }
-
-    private fun buildStatBatchCommand(entries: List<DeviceFileEntry>, batchIndexes: List<Int>): String {
-        val segments = mutableListOf<String>()
-        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
-            val entry = entries[entryIndex]
-            val fullPath = if (entry.path == "/") "/${entry.name}" else "${entry.path.trimEnd('/')}/${entry.name}"
-            val escaped = escapeShell(fullPath)
-            segments += "echo '__STAT_BEGIN_${localIndex}__'; stat '$escaped' 2>/dev/null || true; echo '__STAT_END_${localIndex}__'"
-        }
-
-        return segments.joinToString("; ")
-    }
-
-    private fun applyStatBatchResult(entries: MutableList<DeviceFileEntry>, batchIndexes: List<Int>, output: String) {
-        val sections = parseStatSections(output)
-        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
-            val section = sections[localIndex] ?: continue
-            val parsed = parseStatTimes(section) ?: continue
-            val original = entries[entryIndex]
-            val createdAt = parsed.birthAt ?: parsed.accessAt ?: original.createdAt
-            val modifiedAt = parsed.modifyAt ?: original.modifiedAt
-            entries[entryIndex] = original.copy(createdAt = createdAt, modifiedAt = modifiedAt)
-        }
-    }
-
-    private fun parseStatSections(output: String): Map<Int, String> {
-        val lines = output.lineSequence().toList()
-        val beginPrefix = "__STAT_BEGIN_"
-        val endPrefix = "__STAT_END_"
-        val sections = mutableMapOf<Int, String>()
-
-        var currentIndex: Int? = null
-        val currentLines = mutableListOf<String>()
-
-        lines.forEach { line ->
-            val begin = line.takeIf { it.startsWith(beginPrefix) && it.endsWith("__") }
-            if (begin != null) {
-                currentIndex = begin.removePrefix(beginPrefix).removeSuffix("__").toIntOrNull()
-                currentLines.clear()
-                return@forEach
-            }
-
-            val end = line.takeIf { it.startsWith(endPrefix) && it.endsWith("__") }
-            if (end != null) {
-                val endIndex = end.removePrefix(endPrefix).removeSuffix("__").toIntOrNull()
-                if (currentIndex != null && endIndex == currentIndex)
-                    sections[currentIndex] = currentLines.joinToString("\n")
-
-                currentIndex = null
-                currentLines.clear()
-                return@forEach
-            }
-
-            if (currentIndex != null) currentLines += line
-        }
-
-        return sections
-    }
-
-    private fun parseStatTimes(section: String): StatTimes? {
-        val accessAt = extractStatTime(section, "Access:")
-        val modifyAt = extractStatTime(section, "Modify:")
-        val birthAt = extractStatTime(section, "Birth:")
-
-        if (accessAt == null && modifyAt == null && birthAt == null) return null
-        return StatTimes(accessAt = accessAt, modifyAt = modifyAt, birthAt = birthAt)
-    }
-
-    private fun extractStatTime(section: String, label: String): Instant? {
-        val line = section.lineSequence()
-            .map { it.trim() }
-            .firstOrNull {
-                it.startsWith(label) &&
-                    !it.startsWith("$label (")
-            } ?: return null
-
-        val dateText = line.removePrefix(label).trim()
-        if (dateText == "-" || dateText.isBlank()) return null
-
-        val match = statTimeRegex.matchEntire(dateText) ?: return null
-        val datePart = match.groupValues[1]
-        val timePart = match.groupValues[2]
-        val fractionPart = match.groupValues[3]
-        val offsetRaw = match.groupValues[4]
-
-        val dateTime = runCatching {
-            LocalDateTime.parse("$datePart $timePart", statDateTimePattern)
-        }.getOrNull() ?: return null
-
-        val nanos = fractionPart
-            .takeIf { it.isNotBlank() }
-            ?.padEnd(9, '0')
-            ?.toIntOrNull()
-            ?: 0
-
-        val normalizedOffset = if (offsetRaw.contains(':'))
-            offsetRaw
-        else "${offsetRaw.take(3)}:${offsetRaw.substring(3)}"
-        val offset = runCatching { ZoneOffset.of(normalizedOffset) }.getOrNull() ?: return null
-
-        return OffsetDateTime.of(dateTime.withNano(nanos), offset).toInstant()
-    }
-
-    /**
      * Resolves symlink directory flags in batches to reduce ADB round-trips.
      */
     private suspend fun resolveSymlinkDirectoryFlags(device: AndroidDevice, entries: MutableList<DeviceFileEntry>) {
@@ -416,10 +284,4 @@ class FileSystemServiceImpl(
             entries[entryIndex] = entries[entryIndex].copy(isDirectory = isDirectory)
         }
     }
-
-    private data class StatTimes(
-        val accessAt: Instant?,
-        val modifyAt: Instant?,
-        val birthAt: Instant?
-    )
 }
