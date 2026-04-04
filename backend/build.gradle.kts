@@ -33,4 +33,6 @@ dependencies {
 
     implementation(libs.slf4j.simple)
     implementation(libs.slf4j.api)
+
+    testImplementation(libs.kotlin.test.junit)
 }
