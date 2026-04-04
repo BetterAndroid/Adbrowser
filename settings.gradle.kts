@@ -14,6 +14,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://packages.jetbrains.team/maven/p/kpm/public/")
+        maven("https://www.jetbrains.com/intellij-repository/releases/")
     }
 }
 

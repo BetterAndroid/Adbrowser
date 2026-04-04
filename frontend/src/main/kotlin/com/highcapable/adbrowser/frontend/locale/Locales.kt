@@ -25,27 +25,74 @@ package com.highcapable.adbrowser.frontend.locale
 import androidx.compose.runtime.Composable
 import cafe.adriel.lyricist.ProvideStrings
 import cafe.adriel.lyricist.rememberStrings
-import java.util.*
+import cafe.adriel.lyricist.strings
+import java.util.Locale
 
 object Locales {
+    const val FOLLOW_SYSTEM = ""
     const val EN = "en"
     const val ZH_CN = "zh-CN"
 }
 
+data class LanguageOption(
+    val tag: String,
+    val displayName: String
+)
+
+private val SupportedLanguageTags = setOf(Locales.EN, Locales.ZH_CN)
+private val SelectableLanguageTags = listOf(
+    Locales.FOLLOW_SYSTEM,
+    Locales.EN,
+    Locales.ZH_CN
+)
+
+fun normalizeStoredLanguageTag(tag: String): String {
+    val normalized = tag.trim()
+    if (normalized.isBlank()) return Locales.FOLLOW_SYSTEM
+
+    return when (normalized.lowercase()) {
+        "en",
+        "en-us" -> Locales.EN
+        "zh-cn",
+        "zh" -> Locales.ZH_CN
+        else -> if (normalized in SupportedLanguageTags) normalized else Locales.FOLLOW_SYSTEM
+    }
+}
+
+fun resolveAppLanguageTag(storedLanguageTag: String, systemLocale: Locale = Locale.getDefault()): String {
+    val normalized = normalizeStoredLanguageTag(storedLanguageTag)
+    if (normalized.isNotBlank()) return normalized
+
+    return resolveSystemLanguageTag(systemLocale)
+}
+
+fun resolveSystemLanguageTag(systemLocale: Locale = Locale.getDefault()) = when (systemLocale.language.lowercase()) {
+    "zh" -> Locales.ZH_CN
+    else -> Locales.EN
+}
+
 @Composable
-fun ProvidedLocales(content: @Composable () -> Unit) {
+fun languageOptions(): List<LanguageOption> = SelectableLanguageTags.map {
+    LanguageOption(
+        tag = it,
+        displayName = languageDisplayName(it)
+    )
+}
+
+@Composable
+fun languageDisplayName(tag: String): String = when (tag) {
+    Locales.FOLLOW_SYSTEM -> strings.preferencesLanguageOptionFollowSystem
+    Locales.EN -> strings.preferencesLanguageOptionEnglish
+    Locales.ZH_CN -> strings.preferencesLanguageOptionZhCN
+    else -> tag
+}
+
+@Composable
+fun ProvidedLocales(settingsLanguageTag: String, content: @Composable () -> Unit) {
     val lyricist = rememberStrings(
         defaultLanguageTag = Locales.EN,
-        currentLanguageTag = getCurrentLanguageTagFromLocalStorage()
+        currentLanguageTag = resolveAppLanguageTag(settingsLanguageTag)
     )
 
     ProvideStrings(lyricist, content)
-}
-
-private fun getCurrentLanguageTagFromLocalStorage(): String {
-    // This function should retrieve the current language tag from local storage.
-    // For now, we return the default language tag.
-    val locale = Locale.getDefault()
-    val langRegion = "${locale.language}-${locale.country}" // e.g. "zh-CN"
-    return langRegion
 }

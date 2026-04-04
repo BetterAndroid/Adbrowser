@@ -23,27 +23,36 @@
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
+import cafe.adriel.lyricist.strings
+import com.highcapable.adbrowser.frontend.cl.LocalAppState
+import com.highcapable.adbrowser.frontend.ui.stage.MainMenuBar
+import com.highcapable.adbrowser.frontend.ui.stage.MainStage
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
-import com.highcapable.adbrowser.generated.AdbrowserProperties
+import com.highcapable.adbrowser.frontend.ui.vm.MainStageModel
 
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
     Window(
         onCloseRequest = onCloseRequest,
-        title = AdbrowserProperties.PROJECT_NAME,
-        state = rememberWindowState(width = 800.dp, height = 600.dp)
+        title = strings.mainTitle,
+        state = rememberWindowState(width = 1300.dp, height = 820.dp)
     ) {
+        val appState = LocalAppState.current
+        val viewModel = remember { MainStageModel(appState) }
+
         AdbrowserTheme {
-            MainScreen()
+            MainMenuBar(
+                viewModel = viewModel,
+                onCloseRequest = onCloseRequest
+            )
+            MainStage(
+                viewModel = viewModel,
+                onCloseRequest = onCloseRequest
+            )
         }
     }
-}
-
-@Composable
-private fun FrameWindowScope.MainScreen() {
-    // TODO
 }

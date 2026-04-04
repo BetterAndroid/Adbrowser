@@ -18,30 +18,27 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2025/6/4.
+ * This file is created by fankes on 2026/4/3.
  */
-package com.highcapable.adbrowser.frontend.cl
+package com.highcapable.adbrowser.frontend.ui.vm
 
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.ApplicationScope
-import com.highcapable.adbrowser.backend.AppServices
+import androidx.compose.runtime.mutableStateListOf
+import com.highcapable.adbrowser.frontend.cl.AppState
+import com.highcapable.adbrowser.frontend.ui.vm.base.ViewModel
 
-data class AppState(
-    val application: ApplicationScope,
-    val appServices: AppServices
-) {
+class LogViewerStageModel(private val appState: AppState) : ViewModel() {
 
-    var languageTag by mutableStateOf(appServices.settingsService.current.language)
-        private set
+    val entries = mutableStateListOf<String>()
 
-    fun sync() {
-        languageTag = appServices.settingsService.current.language
+    init {
+        entries += "[INFO] MVVM architecture connected."
     }
-}
 
-val LocalAppState = compositionLocalOf<AppState> {
-    error("No AppState provided")
+    fun clear() {
+        // TODO: clear backend log cache.
+    }
+
+    fun export() {
+        // TODO: export logs to file.
+    }
 }

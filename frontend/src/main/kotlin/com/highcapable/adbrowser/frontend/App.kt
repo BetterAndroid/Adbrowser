@@ -24,17 +24,22 @@ package com.highcapable.adbrowser.frontend
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.backend.AppServices
+import com.highcapable.adbrowser.backend.utils.OsType
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
 import com.highcapable.adbrowser.frontend.ui.window.MainWindow
+import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
+import com.highcapable.adbrowser.frontend.ui.window.manager.WindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.rememberWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.windowRegistries
 import kotlinx.coroutines.runBlocking
+import java.awt.Desktop
 
 fun main() {
     // Initialize all backend services before the UI event loop starts.
@@ -53,9 +58,30 @@ private fun runApp(services: AppServices) = application {
         LocalAppState provides appState,
         LocalWindowManager provides windowManager
     ) {
-        ProvidedLocales {
+        RegisterMacOSAppMenu(windowManager)
+        ProvidedLocales(
+            settingsLanguageTag = appState.languageTag
+        ) {
             RenderWindows()
         }
+    }
+}
+
+@Composable
+private fun RegisterMacOSAppMenu(windowManager: WindowManager) {
+    if (!OsType.isMacOS || !Desktop.isDesktopSupported()) return
+
+    DisposableEffect(windowManager) {
+        runCatching {
+            Desktop.getDesktop().takeIf {
+                it.isSupported(Desktop.Action.APP_PREFERENCES)
+            }?.setPreferencesHandler {
+                windowManager.open(AppWindow.Preferences)
+            }
+        }
+
+        // No cleanup needed, the handler will be automatically garbage collected when the app exits.
+        onDispose {}
     }
 }
 

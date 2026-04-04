@@ -18,30 +18,16 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2025/6/4.
+ * This file is created by fankes on 2026/4/3.
  */
-package com.highcapable.adbrowser.frontend.cl
+package com.highcapable.adbrowser.frontend.ui.vm.model
 
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.window.ApplicationScope
-import com.highcapable.adbrowser.backend.AppServices
-
-data class AppState(
-    val application: ApplicationScope,
-    val appServices: AppServices
-) {
-
-    var languageTag by mutableStateOf(appServices.settingsService.current.language)
-        private set
-
-    fun sync() {
-        languageTag = appServices.settingsService.current.language
-    }
-}
-
-val LocalAppState = compositionLocalOf<AppState> {
-    error("No AppState provided")
-}
+data class DeviceFileItem(
+    val name: String,
+    val path: String,
+    val size: String,
+    val modified: String,
+    val permission: String,
+    val isDirectory: Boolean,
+    val isSymbolicLink: Boolean = false
+)

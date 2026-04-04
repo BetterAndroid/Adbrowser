@@ -23,28 +23,32 @@
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
+import com.highcapable.adbrowser.frontend.cl.LocalAppState
+import com.highcapable.adbrowser.frontend.ui.stage.LogViewerStage
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
+import com.highcapable.adbrowser.frontend.ui.vm.LogViewerStageModel
 
 @Composable
 fun LogViewerWindow(onCloseRequest: () -> Unit) {
     Window(
         onCloseRequest = onCloseRequest,
-        title = strings.logViewer,
+        title = strings.menuAppLogs,
         resizable = false,
         state = rememberWindowState(width = 450.dp, height = 600.dp)
     ) {
+        val appState = LocalAppState.current
+        val viewModel = remember { LogViewerStageModel(appState) }
+
         AdbrowserTheme {
-            LogViewerScreen()
+            LogViewerStage(
+                viewModel = viewModel,
+                onCloseRequest = onCloseRequest
+            )
         }
     }
-}
-
-@Composable
-private fun FrameWindowScope.LogViewerScreen() {
-    // TODO
 }

@@ -38,6 +38,9 @@ compose.desktop {
 dependencies {
     implementation(projects.backend)
 
+    implementation(libs.jna)
+    implementation(libs.jna.platform)
+
     ksp(libs.lyricist.processor)
     implementation(libs.lyricist)
 
@@ -45,6 +48,7 @@ dependencies {
         exclude(group = "org.jetbrains.compose.material")
     }
     implementation(libs.jewel.int.ui.standalone)
+    implementation(libs.intellij.platform.icons)
 
     implementation(libs.betterandroid.compose.extension.desktop)
 
