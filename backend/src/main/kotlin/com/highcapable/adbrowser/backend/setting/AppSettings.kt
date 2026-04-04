@@ -29,7 +29,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class AppSettings(
-    var language: String = "en-US",
+    var language: String = "",
     var adbExecPath: String = "",
     var rememberLastDevice: Boolean = true,
     var rememberDevicePath: Boolean = true,

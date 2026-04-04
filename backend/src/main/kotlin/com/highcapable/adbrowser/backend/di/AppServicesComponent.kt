@@ -41,6 +41,7 @@ import me.tatarka.inject.annotations.Provides
  * Internal component for providing application services.
  * This component is used for dependency injection.
  */
+@AppScope
 @Component
 internal abstract class AppServicesComponent {
 
@@ -51,21 +52,27 @@ internal abstract class AppServicesComponent {
     abstract fun provideFileSystemService(): FileSystemService
     abstract fun providePermissionService(): PermissionService
 
+    @AppScope
     @Provides
     fun provideLogService(impl: LogServiceImpl): LogService = impl
 
+    @AppScope
     @Provides
     fun provideAppSettingsService(impl: AppSettingsServiceImpl): AppSettingsService = impl
 
+    @AppScope
     @Provides
     fun provideAdbClient(impl: AdbClientImpl): AdbClient = impl
 
+    @AppScope
     @Provides
     fun provideAdbShellCommandExecutor(impl: AdbShellCommandExecutorImpl): AdbShellCommandExecutor = impl
 
+    @AppScope
     @Provides
     fun provideFileSystemService(impl: FileSystemServiceImpl): FileSystemService = impl
 
+    @AppScope
     @Provides
     fun providePermissionService(impl: PermissionServiceImpl): PermissionService = impl
 }

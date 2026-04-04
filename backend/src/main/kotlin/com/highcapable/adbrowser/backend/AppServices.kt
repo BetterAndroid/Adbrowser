@@ -35,17 +35,17 @@ class AppServices {
 
     private val component = AppServicesComponent::class.create()
 
-    val logService get() = component.provideLogService()
+    val logService by lazy { component.provideLogService() }
 
-    val adbClient get() = component.provideAppSettingsService()
+    val adbClient by lazy { component.provideAdbClient() }
 
-    val fileSystemService get() = component.provideFileSystemService()
+    val fileSystemService by lazy { component.provideFileSystemService() }
 
-    val shellCommandExecutor get() = component.provideAdbShellCommandExecutor()
+    val shellCommandExecutor by lazy { component.provideAdbShellCommandExecutor() }
 
-    val permissionService get() = component.providePermissionService()
+    val permissionService by lazy { component.providePermissionService() }
 
-    val settingsService get() = component.provideAppSettingsService()
+    val settingsService by lazy { component.provideAppSettingsService() }
 
     /**
      * Initializes backend service graph.
