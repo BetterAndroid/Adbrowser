@@ -23,9 +23,9 @@
 package com.highcapable.adbrowser.backend.utils
 
 /**
- * Utility object to determine the current operating system kind.
+ * Utility object to determine the operating system type.
  */
-object SystemKind {
+object OsType {
 
     private val osString get() = System.getProperty("os.name")
 

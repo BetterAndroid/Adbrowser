@@ -29,7 +29,7 @@ import com.highcapable.adbrowser.backend.domain.OperationRunner
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
-import com.highcapable.adbrowser.backend.utils.SystemKind
+import com.highcapable.adbrowser.backend.utils.OsType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -61,7 +61,7 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         val adbExecPath = Path.of(pathValue)
         if (!Files.exists(adbExecPath))
             return OperationResult.error("ADB executable was not found.")
-        if (!SystemKind.isWindows && !Files.isExecutable(adbExecPath))
+        if (!OsType.isWindows && !Files.isExecutable(adbExecPath))
             return OperationResult.error("ADB executable is not executable.")
 
         val response = runAdb(listOf("version"))
