@@ -29,7 +29,7 @@ import com.highcapable.adbrowser.backend.domain.OperationRunner
 import com.highcapable.adbrowser.backend.logging.LogLevel
 import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
-import com.highcapable.adbrowser.backend.utils.OsType
+import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async

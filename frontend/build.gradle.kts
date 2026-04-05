@@ -37,6 +37,7 @@ compose.desktop {
 
 dependencies {
     implementation(projects.backend)
+    implementation(projects.shared)
 
     implementation(libs.jna)
     implementation(libs.jna.platform)

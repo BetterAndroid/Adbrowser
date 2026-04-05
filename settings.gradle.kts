@@ -43,4 +43,4 @@ gropify {
 
 rootProject.name = "Adbrowser"
 
-include(":frontend", ":backend")
+include(":frontend", ":backend", ":shared")

@@ -94,7 +94,6 @@ import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.zIndex
 import cafe.adriel.lyricist.strings
-import com.highcapable.adbrowser.backend.utils.OsType
 import com.highcapable.adbrowser.frontend.ui.assets.AppIcons
 import com.highcapable.adbrowser.frontend.ui.component.ContentIcon
 import com.highcapable.adbrowser.frontend.ui.component.ContentIconButton
@@ -110,6 +109,7 @@ import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
 import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
+import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.Dropdown
 import org.jetbrains.jewel.ui.component.Text

@@ -20,7 +20,7 @@
  *
  * This file is created by fankes on 2026/4/3.
  */
-package com.highcapable.adbrowser.backend.utils
+package com.highcapable.adbrowser.shared.utils
 
 /**
  * Utility object to determine the operating system type.

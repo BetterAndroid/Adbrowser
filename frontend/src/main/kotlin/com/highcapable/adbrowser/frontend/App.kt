@@ -28,7 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.backend.AppServices
-import com.highcapable.adbrowser.backend.utils.OsType
+import com.highcapable.adbrowser.shared.utils.OsType
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
