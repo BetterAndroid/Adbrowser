@@ -26,22 +26,23 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.intui.standalone.styling.Default
 import org.jetbrains.jewel.intui.standalone.styling.Editor
 import org.jetbrains.jewel.intui.standalone.theme.IntUiTheme
+import org.jetbrains.jewel.intui.standalone.theme.createDefaultTextStyle
 import org.jetbrains.jewel.intui.standalone.theme.dark
 import org.jetbrains.jewel.intui.standalone.theme.darkThemeDefinition
 import org.jetbrains.jewel.intui.standalone.theme.light
 import org.jetbrains.jewel.intui.standalone.theme.lightThemeDefinition
 import org.jetbrains.jewel.ui.ComponentStyling
+import org.jetbrains.jewel.ui.LocalTypography
 import org.jetbrains.jewel.ui.component.styling.ButtonColors
 import org.jetbrains.jewel.ui.component.styling.ButtonMetrics
 import org.jetbrains.jewel.ui.component.styling.ButtonStyle
@@ -55,50 +56,6 @@ import org.jetbrains.jewel.ui.theme.defaultButtonStyle
 import org.jetbrains.jewel.ui.theme.defaultTabStyle
 import org.jetbrains.jewel.ui.theme.dividerStyle
 import org.jetbrains.jewel.ui.theme.outlinedButtonStyle
-
-@Immutable
-data class AdbrowserColorScheme(
-    val mainBackground: Color,
-    val panelBackground: Color,
-    val panelBorder: Color,
-    val primaryAccent: Color,
-    val primaryAccentHover: Color,
-    val primaryAccentPressed: Color,
-    val hintBackground: Color,
-    val hintBorder: Color,
-    val subtleControlBackground: Color,
-    val pathBreadcrumbForeground: Color,
-)
-
-private val LightColors = AdbrowserColorScheme(
-    mainBackground = Color(0xFFF3F4F6),
-    panelBackground = Color(0xFFFFFFFF),
-    panelBorder = Color(0xFFD6D9DE),
-    primaryAccent = Color(0xFF3574F0),
-    primaryAccentHover = Color(0xFF3369D6),
-    primaryAccentPressed = Color(0xFF315FBD),
-    hintBackground = Color(0xFFF8FAFC),
-    hintBorder = Color(0xFFE3E3E3),
-    subtleControlBackground = Color(0xFFF7F8FB),
-    pathBreadcrumbForeground = Color(0xFF6B7280)
-)
-
-private val DarkColors = AdbrowserColorScheme(
-    mainBackground = Color(0xFF161A20),
-    panelBackground = Color(0xFF242B35),
-    panelBorder = Color(0xFF3A4453),
-    primaryAccent = Color(0xFF3574F0),
-    primaryAccentHover = Color(0xFF366ACE),
-    primaryAccentPressed = Color(0xFF375FAD),
-    hintBackground = Color(0xFF1E293B),
-    hintBorder = Color(0xFF334155),
-    subtleControlBackground = Color(0xFF2A3240),
-    pathBreadcrumbForeground = Color(0xFF9CA3AF)
-)
-
-private val LocalColors = staticCompositionLocalOf<AdbrowserColorScheme> {
-    error("No AdbrowserColorScheme provided.")
-}
 
 object AdbrowserTheme {
 
@@ -179,8 +136,27 @@ fun AdbrowserTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
-    val themeDefinition = remember(darkTheme) {
-        if (darkTheme) JewelTheme.darkThemeDefinition() else JewelTheme.lightThemeDefinition()
+
+    val fontFamily = remember { createFontFamilyOrNull() }
+    val defaultTextStyle = remember(fontFamily) {
+        if (fontFamily != null) 
+            JewelTheme.createDefaultTextStyle(
+                fontFamily = fontFamily,
+                fontSynthesis = FontSynthesis.All
+            )
+        else 
+            JewelTheme.createDefaultTextStyle(
+                fontSynthesis = FontSynthesis.All
+            )
+    }
+    val typography = remember(fontFamily) {
+        AdbrowserTypography()
+    }
+
+    val themeDefinition = remember(darkTheme, defaultTextStyle) {
+        if (darkTheme)
+            JewelTheme.darkThemeDefinition(defaultTextStyle = defaultTextStyle)
+        else JewelTheme.lightThemeDefinition(defaultTextStyle = defaultTextStyle)
     }
     val styling = remember(
         darkTheme,
@@ -246,6 +222,7 @@ fun AdbrowserTheme(
     ) {
         CompositionLocalProvider(
             LocalColors provides colors,
+            LocalTypography provides typography,
             LocalDefaultButtonStyle provides AdbrowserTheme.defaultButtonStyle(),
             LocalOutlinedButtonStyle provides AdbrowserTheme.outlineButtonStyle()
         ) {

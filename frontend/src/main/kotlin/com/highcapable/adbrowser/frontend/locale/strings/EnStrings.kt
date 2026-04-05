@@ -108,7 +108,6 @@ val EnStrings = Strings(
     dialogPropertiesFieldSize = "Size",
     dialogPropertiesFieldModified = "Modified",
     dialogPropertiesFieldPermission = "Permission",
-    dialogPropertiesFieldPermissionBits = "Permission Bits",
     dialogPropertiesOwner = "Owner",
     dialogPropertiesGroup = "Group",
     dialogPropertiesOther = "Other",

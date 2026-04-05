@@ -108,7 +108,6 @@ val ZhCNStrings = Strings(
     dialogPropertiesFieldSize = "大小",
     dialogPropertiesFieldModified = "修改时间",
     dialogPropertiesFieldPermission = "权限",
-    dialogPropertiesFieldPermissionBits = "权限位",
     dialogPropertiesOwner = "所有者",
     dialogPropertiesGroup = "所属组",
     dialogPropertiesOther = "其他用户",

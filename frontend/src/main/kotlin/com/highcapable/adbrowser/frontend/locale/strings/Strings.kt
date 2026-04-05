@@ -104,7 +104,6 @@ data class Strings(
     val dialogPropertiesFieldSize: String,
     val dialogPropertiesFieldModified: String,
     val dialogPropertiesFieldPermission: String,
-    val dialogPropertiesFieldPermissionBits: String,
     val dialogPropertiesOwner: String,
     val dialogPropertiesGroup: String,
     val dialogPropertiesOther: String,
