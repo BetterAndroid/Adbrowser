@@ -26,15 +26,21 @@ import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
 
 data class AndroidDeviceItem(
     val name: String,
+    val brand: String,
     val model: String,
     val serial: String,
+    val systemVersion: String,
     val isOnline: Boolean
 ) {
+
+    val brandModel = "$brand $model".trim().ifBlank { "Unknown" }
 
     fun toDomain() = AndroidDevice(
         serial = serial,
         name = name,
+        brand = brand,
         model = model,
+        systemVersion = systemVersion,
         isOnline = isOnline
     )
 
@@ -42,8 +48,10 @@ data class AndroidDeviceItem(
 
         fun from(device: AndroidDevice) = AndroidDeviceItem(
             name = device.name,
+            brand = device.brand,
             model = device.model,
             serial = device.serial,
+            systemVersion = device.systemVersion,
             isOnline = device.isOnline
         )
     }

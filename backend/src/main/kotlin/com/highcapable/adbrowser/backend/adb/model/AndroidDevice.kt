@@ -26,11 +26,13 @@ package com.highcapable.adbrowser.backend.adb.model
  * Represents a connected Android device discovered by ADB.
  */
 data class AndroidDevice(
-    val serial: String,
     val name: String,
+    val brand: String,
     val model: String,
+    val systemVersion: String,
+    val serial: String,
     val isOnline: Boolean
 ) {
 
-    override fun toString() = "$name ($model) - $serial"
+    override fun toString() = "$name ($brand $model) - $serial"
 }

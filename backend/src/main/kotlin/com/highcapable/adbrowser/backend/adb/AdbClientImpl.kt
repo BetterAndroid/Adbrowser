@@ -49,6 +49,25 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
     private companion object {
 
         const val CATEGORY = "ADB"
+        const val DEVICE_PROPS_COMMAND = "getprop ro.product.brand; getprop ro.build.version.release; getprop ro.build.version.sdk"
+    }
+
+    private data class ParsedDevice(
+        val serial: String,
+        val name: String,
+        val model: String,
+        val isOnline: Boolean
+    )
+
+    private data class DeviceExtra(
+        val brand: String,
+        val systemVersion: String
+    ) {
+
+        companion object {
+
+            val Empty = DeviceExtra(brand = "", systemVersion = "")
+        }
     }
 
     private val runner = OperationRunner(logService, CATEGORY)
@@ -75,42 +94,34 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         val response = runAdb(listOf("devices", "-l"))
 
         if (response.isOk) {
-            val result = mutableListOf<AndroidDevice>()
             val lines = response.standardOutput
                 .lineSequence()
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
                 .toList()
 
-            lines.forEach { line ->
-                if (line.startsWith("List of devices attached", ignoreCase = true) || line.startsWith("*"))
-                    return@forEach
+            val parsedDevices = lines.mapNotNull(::parseDeviceLine)
+            val result = coroutineScope {
+                parsedDevices.map { parsed ->
+                    async {
+                        val extra = if (parsed.isOnline)
+                            fetchDeviceExtra(parsed.serial)
+                        else DeviceExtra.Empty
 
-                val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
-                if (tokens.size < 2) return@forEach
-
-                val serial = tokens[0]
-                val state = tokens[1]
-                val isOnline = state.equals("device", ignoreCase = true)
-                var model = ""
-                var name = ""
-
-                for (token in tokens.drop(2)) when {
-                    token.startsWith("model:", ignoreCase = true) ->
-                        model = token.substring(6).replace('_', ' ')
-                    token.startsWith("device:", ignoreCase = true) ->
-                        name = token.substring(7).replace('_', ' ')
-                }
-
-                if (name.isBlank()) name = model.ifBlank { serial }
-                if (model.isBlank()) model = name
-
-                result += AndroidDevice(
-                    serial = serial,
-                    name = name,
-                    model = model,
-                    isOnline = isOnline
-                )
+                        AndroidDevice(
+                            name = parsed.name,
+                            model = parsed.model,
+                            brand = extra.brand,
+                            systemVersion = extra.systemVersion,
+                            serial = parsed.serial,
+                            isOnline = parsed.isOnline
+                        )
+                    }
+                }.awaitAll()
+                    .toMutableList()
+                    // Prioritize online devices in the list,
+                    // while preserving relative order among online and offline devices.
+                    .sortedByDescending { it.isOnline }
             }
 
             result to response
@@ -156,6 +167,94 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
                 standardOutput = stdout,
                 standardError = stderr
             )
+        }
+    }
+
+    private fun parseDeviceLine(line: String): ParsedDevice? {
+        if (line.startsWith("List of devices attached", ignoreCase = true) || line.startsWith("*"))
+            return null
+
+        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.size < 2) return null
+
+        val serial = tokens[0]
+        val state = tokens[1]
+        var name = ""
+        var model = ""
+        val isOnline = state.equals("device", ignoreCase = true)
+
+        tokens.drop(2).forEach { token ->
+            when {
+                token.startsWith("model:", ignoreCase = true) ->
+                    model = token.substring(6).replace('_', ' ')
+                token.startsWith("device:", ignoreCase = true) ->
+                    name = token.substring(7).replace('_', ' ')
+            }
+        }
+
+        if (name.isBlank()) name = model.ifBlank { serial }
+        if (model.isBlank()) model = name
+
+        return ParsedDevice(
+            serial = serial,
+            name = name,
+            model = model,
+            isOnline = isOnline
+        )
+    }
+
+    private suspend fun fetchDeviceExtra(serial: String): DeviceExtra {
+        val response = runAdb(listOf("-s", serial, "shell", DEVICE_PROPS_COMMAND))
+        if (!response.isOk) {
+            logService.log(
+                LogLevel.Warning,
+                CATEGORY,
+                "Failed to query device extra info for $serial: ${response.standardError.trim()}"
+            )
+            return DeviceExtra.Empty
+        }
+
+        val lines = response.standardOutput
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+
+        val brand = normalizeBrand(lines.getOrNull(0).orEmpty())
+        val systemVersion = buildSystemVersion(
+            release = lines.getOrNull(1).orEmpty(),
+            sdk = lines.getOrNull(2).orEmpty()
+        )
+
+        return DeviceExtra(brand, systemVersion)
+    }
+
+    private fun normalizeBrand(raw: String): String {
+        val normalized = raw.replace('_', ' ').trim()
+        if (normalized.isBlank()) return ""
+
+        return normalized.split(Regex("\\s+")).joinToString(" ") { token ->
+            val lower = token.lowercase()
+            lower.replaceFirstChar { char ->
+                if (char.isLowerCase()) char.titlecase() else char.toString()
+            }
+        }
+    }
+
+    private fun buildSystemVersion(release: String, sdk: String): String {
+        val normalizedRelease = release.trim()
+        val normalizedSdk = sdk.trim()
+        val releaseText = when {
+            normalizedRelease.isBlank() -> ""
+            normalizedRelease.startsWith("Android", ignoreCase = true) -> normalizedRelease
+            else -> "Android $normalizedRelease"
+        }
+
+        return when {
+            releaseText.isNotBlank() && normalizedSdk.isNotBlank() -> "$releaseText ($normalizedSdk)"
+            releaseText.isNotBlank() -> releaseText
+            normalizedSdk.isNotBlank() -> "Android ($normalizedSdk)"
+            else -> ""
         }
     }
 }

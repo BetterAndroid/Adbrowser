@@ -46,7 +46,14 @@ class AdbShellCommandExecutorImplTest {
         )
         val logService = RecordingLogService()
         val executor = AdbShellCommandExecutorImpl(adbClient, settingsService, logService)
-        val device = AndroidDevice(serial = "serial-1", name = "Phone", model = "Phone", isOnline = true)
+        val device = AndroidDevice(
+            name = "2cb1e5f",
+            brand = "Google",
+            model = "Pixel 8",
+            serial = "serial",
+            systemVersion = "Android 15 (35)",
+            isOnline = true
+        )
 
         val response = executor.executeFileOperation(device, "ls /data/local/tmp")
 

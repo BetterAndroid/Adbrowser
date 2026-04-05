@@ -51,7 +51,14 @@ class FileSystemServiceImplTest {
             }
         }
         val service = FileSystemServiceImpl(shell, RecordingLogService())
-        val device = AndroidDevice(serial = "serial", name = "device", model = "device", isOnline = true)
+        val device = AndroidDevice(
+            name = "2cb1e5f",
+            brand = "Google",
+            model = "Pixel 8",
+            serial = "serial",
+            systemVersion = "Android 15 (35)",
+            isOnline = true
+        )
 
         val result = service.list(device, "/sdcard")
 

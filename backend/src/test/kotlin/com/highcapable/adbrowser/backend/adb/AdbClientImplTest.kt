@@ -51,6 +51,12 @@ class AdbClientImplTest {
               echo "offline-123 offline transport_id:2"
               exit 0
             fi
+            if [ "$1" = "-s" ] && [ "$3" = "shell" ] && [ "$2" = "emulator-5554" ] && [ "$4" = "getprop ro.product.brand; getprop ro.build.version.release; getprop ro.build.version.sdk" ]; then
+              echo "google"
+              echo "16"
+              echo "36"
+              exit 0
+            fi
             if [ "$1" = "-s" ]; then
               echo "shell-ok"
               exit 0
@@ -79,11 +85,15 @@ class AdbClientImplTest {
         assertEquals("emulator-5554", devices[0].serial)
         assertEquals("pixel 8", devices[0].name)
         assertEquals("Pixel 8", devices[0].model)
+        assertEquals("Google", devices[0].brand)
+        assertEquals("Android 16 (36)", devices[0].systemVersion)
         assertTrue(devices[0].isOnline)
 
         assertEquals("offline-123", devices[1].serial)
         assertEquals("offline-123", devices[1].name)
         assertEquals("offline-123", devices[1].model)
+        assertEquals("", devices[1].brand)
+        assertEquals("", devices[1].systemVersion)
         assertTrue(!devices[1].isOnline)
     }
 }
