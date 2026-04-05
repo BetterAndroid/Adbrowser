@@ -125,6 +125,7 @@ val ZhCNStrings = Strings(
     preferencesGeneral = "通用",
     preferencesFiles = "文件",
     preferencesDevice = "设备",
+    preferencesAppearanceAndInterface = "外观与界面",
     preferencesLanguage = "语言",
     preferencesLanguageOptionFollowSystem = "跟随系统",
     preferencesLanguageOptionEnglish = "英语",

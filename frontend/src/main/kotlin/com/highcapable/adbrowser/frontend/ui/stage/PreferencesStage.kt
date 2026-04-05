@@ -210,8 +210,14 @@ private fun PreferencesTabs(viewModel: PreferencesStageModel) {
 private fun GeneralTab(viewModel: PreferencesStageModel) {
     PanelSurface {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(strings.preferencesLanguage, fontWeight = FontWeight.SemiBold)
-            LanguageDropdown(viewModel)
+            Text(strings.preferencesAppearanceAndInterface, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    strings.preferencesLanguage,
+                    modifier = Modifier.padding(end = 12.dp)
+                ) 
+                LanguageDropdown(viewModel)
+            }
         }
     }
     PanelSurface {

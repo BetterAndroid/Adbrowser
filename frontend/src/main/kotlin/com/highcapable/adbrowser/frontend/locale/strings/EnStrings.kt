@@ -125,6 +125,7 @@ val EnStrings = Strings(
     preferencesGeneral = "General",
     preferencesFiles = "Files",
     preferencesDevice = "Device",
+    preferencesAppearanceAndInterface = "Appearance & Interface",
     preferencesLanguage = "Language",
     preferencesLanguageOptionFollowSystem = "Follow System",
     preferencesLanguageOptionEnglish = "English",
