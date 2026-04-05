@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -351,11 +352,11 @@ private fun DevicePane(
                 .fillMaxSize()
                 .border(1.dp, colors.panelBorder, RoundedCornerShape(8.dp))
                 .clip(RoundedCornerShape(8.dp))
-                .padding(2.dp)
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(viewModel.devices) { device ->
@@ -721,7 +722,8 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize().padding(2.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(viewModel.entriesOf(serial)) { entry ->
