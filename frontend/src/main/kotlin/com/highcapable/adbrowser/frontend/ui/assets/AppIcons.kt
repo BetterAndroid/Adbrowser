@@ -22,30 +22,26 @@
  */
 package com.highcapable.adbrowser.frontend.ui.assets
 
-import org.jetbrains.jewel.ui.icon.PathIconKey
+import com.highcapable.adbrowser.frontend.ui.assets.base.AppAssets
 
 /**
- * App Resource paths.
+ * App icons used in the application.
  */
-object AppIcons {
+object AppIcons : AppAssets("icons") {
 
-    private val iconsClass = this::class.java
-
-    private const val ROOT = "assets/icons"
-
-    val Folder = PathIconKey("$ROOT/Folder.svg", iconsClass)
-    val ArrowLeft = PathIconKey("$ROOT/ArrowLeft.svg", iconsClass)
-    val ArrowUp = PathIconKey("$ROOT/ArrowUp.svg", iconsClass)
-    val LinkedFile = PathIconKey("$ROOT/LinkedFile.svg", iconsClass)
-    val LinkedFolder = PathIconKey("$ROOT/LinkedFolder.svg", iconsClass)
-    val DeletedFolder = PathIconKey("$ROOT/DeletedFolder.svg", iconsClass)
-    val BlockedFolder = PathIconKey("$ROOT/BlockedFolder.svg", iconsClass)
-    val ErrorFolder = PathIconKey("$ROOT/ErrorFolder.svg", iconsClass)
-    val Refresh = PathIconKey("$ROOT/Refresh.svg", iconsClass)
-    val Device = PathIconKey("$ROOT/Device.svg", iconsClass)
-    val Devices = PathIconKey("$ROOT/Devices.svg", iconsClass)
-    val ArrowRight = PathIconKey("$ROOT/ArrowRight.svg", iconsClass)
-    val FilePathArrow = PathIconKey("$ROOT/FilePathArrow.svg", iconsClass)
-    val File = PathIconKey("$ROOT/File.svg", iconsClass)
-    val Home = PathIconKey("$ROOT/Home.svg", iconsClass)
+    val Folder = createSvg("Folder")
+    val ArrowLeft = createSvg("ArrowLeft")
+    val ArrowUp = createSvg("ArrowUp")
+    val LinkedFile = createSvg("LinkedFile")
+    val LinkedFolder = createSvg("LinkedFolder")
+    val DeletedFolder = createSvg("DeletedFolder")
+    val BlockedFolder = createSvg("BlockedFolder")
+    val ErrorFolder = createSvg("ErrorFolder")
+    val Refresh = createSvg("Refresh")
+    val Device = createSvg("Device")
+    val Devices = createSvg("Devices")
+    val ArrowRight = createSvg("ArrowRight")
+    val FilePathArrow = createSvg("FilePathArrow")
+    val File = createSvg("File")
+    val Home = createSvg("Home")
 }
