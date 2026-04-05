@@ -18,12 +18,20 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/3.
+ * This file is created by fankes on 2026/4/5.
  */
 package com.highcapable.adbrowser.frontend.ui.vm.model
 
-data class PathBreadcrumbSegment(
-    val displayName: String,
+import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+import java.time.Instant
+
+data class FileEntrySnapshot(
+    val device: AndroidDevice,
+    val name: String,
     val fullPath: String,
-    val showLeadingArrow: Boolean
+    val isDirectory: Boolean,
+    val isSymlink: Boolean,
+    val sizeBytes: Long,
+    val modifiedAt: Instant,
+    val symbolicPermission: String
 )

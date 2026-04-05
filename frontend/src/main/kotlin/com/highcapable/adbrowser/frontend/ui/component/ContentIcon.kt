@@ -48,6 +48,6 @@ fun ContentIcon(
         contentDescription = contentDescription,
         modifier = modifier.componentState(enabled),
         iconClass = iconClass,
-        tint = tint.orNull() ?: if (selected) Color.White else contentColor
+        tint = if (selected) Color.White else tint.orNull() ?: contentColor
     )
 }

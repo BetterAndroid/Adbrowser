@@ -74,24 +74,34 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         restoreFromSettings()
     }
 
-    fun resetSidebarSpacing() = runPersistAction(
-        successStatus = Status.SidebarSpacingReset
-    ) {
-        settingsService.current.devicePaneWidth = DEFAULT_DEVICE_PANE_WIDTH
-        settingsService.save()
+    fun resetSidebarSpacing() {
+        val success = runPersistAction(
+            successStatus = Status.SidebarSpacingReset
+        ) {
+            settingsService.current.devicePaneWidth = DEFAULT_DEVICE_PANE_WIDTH
+            settingsService.save()
+        }
+        if (success) appState.sync()
     }
 
-    fun resetFileColumnWidths() = runPersistAction(
-        successStatus = Status.FileColumnWidthsReset
-    ) {
-        settingsService.current.fileColumnWidthName = DEFAULT_FILE_COLUMN_WIDTH_NAME
-        settingsService.current.fileColumnWidthSize = DEFAULT_FILE_COLUMN_WIDTH_SIZE
-        settingsService.current.fileColumnWidthModified = DEFAULT_FILE_COLUMN_WIDTH_MODIFIED
-        settingsService.current.fileColumnWidthPermission = DEFAULT_FILE_COLUMN_WIDTH_PERMISSION
-        settingsService.save()
+    fun resetFileColumnWidths() {
+        val success = runPersistAction(
+            successStatus = Status.FileColumnWidthsReset
+        ) {
+            settingsService.current.fileColumnWidthName = DEFAULT_FILE_COLUMN_WIDTH_NAME
+            settingsService.current.fileColumnWidthSize = DEFAULT_FILE_COLUMN_WIDTH_SIZE
+            settingsService.current.fileColumnWidthModified = DEFAULT_FILE_COLUMN_WIDTH_MODIFIED
+            settingsService.current.fileColumnWidthPermission = DEFAULT_FILE_COLUMN_WIDTH_PERMISSION
+            settingsService.save()
+        }
+        if (success) appState.sync()
     }
 
     fun save(onSuccess: () -> Unit = {}) {
+        val current = settingsService.current
+        val shouldRefreshFileList = current.showHiddenFiles != showHiddenFiles ||
+            current.foldersFirst != foldersFirst ||
+            current.rememberLastDisplayStyle != rememberLastDisplayStyle
         val saved = runPersistAction(
             successStatus = Status.PreferencesSaved
         ) {
@@ -108,7 +118,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         }
 
         if (saved) {
-            appState.sync()
+            appState.sync(refreshFileList = shouldRefreshFileList)
             onSuccess()
         }
     }

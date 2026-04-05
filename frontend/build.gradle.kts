@@ -44,6 +44,8 @@ dependencies {
     ksp(libs.lyricist.processor)
     implementation(libs.lyricist)
 
+    implementation(libs.kotlinx.coroutines.swing)
+
     implementation(compose.desktop.currentOs) {
         exclude(group = "org.jetbrains.compose.material")
     }

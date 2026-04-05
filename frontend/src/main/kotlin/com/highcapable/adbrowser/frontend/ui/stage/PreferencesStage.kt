@@ -218,10 +218,10 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesResetOptions, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = viewModel::resetSidebarSpacing) {
+                DefaultButton(onClick = viewModel::resetSidebarSpacing) {
                     Text(strings.preferencesResetSidebarSpacing)
                 }
-                OutlinedButton(onClick = viewModel::resetFileColumnWidths) {
+                DefaultButton(onClick = viewModel::resetFileColumnWidths) {
                     Text(strings.preferencesResetFileColumnWidths)
                 }
             }

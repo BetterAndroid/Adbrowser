@@ -27,44 +27,179 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+import com.highcapable.adbrowser.backend.domain.OperationResult
+import com.highcapable.adbrowser.backend.fs.model.DeviceFileEntry
+import com.highcapable.adbrowser.backend.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.backend.setting.AppSettings
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.frontend.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
+import com.highcapable.adbrowser.frontend.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
 import com.highcapable.adbrowser.frontend.ui.vm.model.SelectionOption
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 class MainStageModel(private val appState: AppState) : ViewModel() {
 
+    companion object {
+
+        const val INVALID_PERMISSION_TOKEN = "__invalid_permission__"
+        const val UNKNOWN_ERROR_TOKEN = "__unknown_error__"
+
+        private const val DEVICE_PANE_MIN_WIDTH = 240f
+
+        private const val FILE_COLUMN_MIN_WIDTH_NAME = 180f
+        private const val FILE_COLUMN_MIN_WIDTH_SIZE = 90f
+        private const val FILE_COLUMN_MIN_WIDTH_MODIFIED = 150f
+        private const val FILE_COLUMN_MIN_WIDTH_PERMISSION = 110f
+    }
+
+    sealed interface DialogState {
+        data object None : DialogState
+        data object NewFolder : DialogState
+        data class Rename(val initialName: String) : DialogState
+        data class DeleteConfirm(val entryName: String) : DialogState
+        data class Properties(val snapshot: FileEntrySnapshot) : DialogState
+    }
+
+    sealed interface StatusMessage {
+        data object None : StatusMessage
+        data class Res(val key: Key, val args: List<String> = emptyList()) : StatusMessage
+        data class Raw(val message: String) : StatusMessage
+
+        enum class Key {
+            CommonUnknownError,
+            DevicesUpdated,
+            SelectDeviceFirst,
+            InvalidFolderName,
+            FolderCreated,
+            SelectEntryFirst,
+            InvalidName,
+            Renamed,
+            EntryDeleted,
+            Copied,
+            Cut,
+            ClipboardEmpty,
+            CrossDevicePasteNotSupported,
+            Pasted,
+            DialogPropertiesInvalidPermission,
+            DialogPropertiesPermissionUpdated
+        }
+    }
+
+    enum class FileListHint {
+        None,
+        EmptyFolder,
+        DeviceNotFound,
+        PathNotFound,
+        PermissionDenied,
+        LoadFailed
+    }
+
+    private data class ClipboardEntrySnapshot(
+        val deviceSerial: String,
+        val name: String,
+        val fullPath: String,
+        val isCut: Boolean
+    )
+
+    class DeviceWorkspaceState internal constructor(val serial: String) {
+        var currentPath by mutableStateOf("/")
+        val pathInput = TextFieldState("/")
+        val currentEntries = mutableStateListOf<DeviceFileItem>()
+        var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
+        val pathBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
+        val navigationHistory = mutableStateListOf("/")
+        var navigationIndex by mutableStateOf(0)
+        var fileListHint by mutableStateOf(FileListHint.None)
+        var directoryChangeVersion by mutableStateOf(0)
+        var listScrollIndex by mutableStateOf(0)
+        var listScrollOffset by mutableStateOf(0)
+        var listHorizontalScrollOffset by mutableStateOf(0)
+        var iconScrollRowIndex by mutableStateOf(0)
+        var iconScrollRowOffset by mutableStateOf(0)
+        var prebuilt by mutableStateOf(false)
+    }
+
+    private val adbClient get() = appState.appServices.adbClient
+    private val fileSystemService get() = appState.appServices.fileSystemService
+    private val permissionService get() = appState.appServices.permissionService
+    private val settingsService get() = appState.appServices.settingsService
+    private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private var clipboardEntry: ClipboardEntrySnapshot? = null
+    private var initialized = false
+    private var busyCount = 0
+    private val workspaceBySerial = mutableMapOf<String, DeviceWorkspaceState>()
+    private val fallbackPathInput = TextFieldState("/")
+    private val emptyEntries = mutableStateListOf<DeviceFileItem>()
+    private val emptyBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
+    private val activeWorkspace get() = selectedDevice?.serial?.let { workspaceBySerial[it] }
+
     val devices = mutableStateListOf<AndroidDeviceItem>()
-    val currentEntries = mutableStateListOf<DeviceFileItem>()
+    
+    val deviceWorkspaces = mutableStateListOf<DeviceWorkspaceState>()
     val viewModes = mutableStateListOf<SelectionOption>()
     val sortModes = mutableStateListOf<SelectionOption>()
-    val pathBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
 
     var selectedDevice by mutableStateOf<AndroidDeviceItem?>(null)
-    var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
-
-    var currentPath by mutableStateOf("/")
         private set
-    val pathInput = TextFieldState("/")
-    var searchKeyword by mutableStateOf("")
-    var statusMessage by mutableStateOf("")
+    var selectedEntry: DeviceFileItem?
+        get() = activeWorkspace?.selectedEntry
+        set(value) {
+            activeWorkspace?.selectedEntry = value
+        }
+
+    val currentPath: String
+        get() = activeWorkspace?.currentPath ?: "/"
+
+    val pathInput: TextFieldState
+        get() = activeWorkspace?.pathInput ?: fallbackPathInput
+
+    val currentEntries: List<DeviceFileItem>
+        get() = activeWorkspace?.currentEntries ?: emptyEntries
+
+    val pathBreadcrumbSegments: List<PathBreadcrumbSegment>
+        get() = activeWorkspace?.pathBreadcrumbSegments ?: emptyBreadcrumbSegments
+
+    val fileListHint: FileListHint
+        get() = activeWorkspace?.fileListHint ?: FileListHint.None
+    var statusMessage by mutableStateOf<StatusMessage>(StatusMessage.None)
+        private set
     var isBusy by mutableStateOf(false)
     var isStatusBarVisible by mutableStateOf(true)
-    var fileListHintMessage by mutableStateOf("")
 
     var selectedViewMode by mutableStateOf<SelectionOption?>(null)
+        private set
     var selectedSortMode by mutableStateOf<SelectionOption?>(null)
+        private set
 
-    private val navigationHistory = mutableStateListOf("/")
-    private var navigationIndex by mutableStateOf(0)
+    var dialogState by mutableStateOf<DialogState>(DialogState.None)
+        private set
 
     val isListViewMode get() = selectedViewMode?.key == "list"
     val isIconViewMode get() = selectedViewMode?.key == "icons"
-    val canNavigateBack get() = navigationIndex > 0
-    val canNavigateForward get() = navigationIndex < navigationHistory.size - 1
+    val canNavigateBack get() = (activeWorkspace?.navigationIndex ?: 0) > 0
+    val canNavigateForward get() = activeWorkspace?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     val canNavigateUp get() = currentPath != "/"
+
+    var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
+        private set
+
+    var fileColumnWidthNamePx by mutableStateOf(settingsService.current.fileColumnWidthName.toFloat())
+        private set
+    var fileColumnWidthSizePx by mutableStateOf(settingsService.current.fileColumnWidthSize.toFloat())
+        private set
+    var fileColumnWidthModifiedPx by mutableStateOf(settingsService.current.fileColumnWidthModified.toFloat())
+        private set
+    var fileColumnWidthPermissionPx by mutableStateOf(settingsService.current.fileColumnWidthPermission.toFloat())
+        private set
 
     init {
         viewModes += SelectionOption("list", "List")
@@ -73,99 +208,371 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         sortModes += SelectionOption("size", "Size")
         sortModes += SelectionOption("modified", "Modified")
 
-        selectedViewMode = viewModes.firstOrNull()
         selectedSortMode = sortModes.firstOrNull()
+        applyDisplayStylePreference()
+        normalizeFileColumnWidths()
+    }
+
+    fun workspace(serial: String) = workspaceBySerial[serial]
+    fun isSelectedWorkspace(serial: String) = selectedDevice?.serial == serial
+
+    fun setDevicePaneWidth(widthDp: Float) {
+        devicePaneWidthDp = widthDp.coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
+    }
+
+    fun persistDevicePaneWidth() {
+        settingsService.current.devicePaneWidth = devicePaneWidthDp.toDouble()
+        saveSettingsAsync()
+    }
+
+    fun onExternalSettingsChanged(refreshFileList: Boolean = false) {
+        val settings = settingsService.current
+        devicePaneWidthDp = settings.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
+        fileColumnWidthNamePx = settings.fileColumnWidthName.toFloat()
+        fileColumnWidthSizePx = settings.fileColumnWidthSize.toFloat()
+        fileColumnWidthModifiedPx = settings.fileColumnWidthModified.toFloat()
+        fileColumnWidthPermissionPx = settings.fileColumnWidthPermission.toFloat()
+        normalizeFileColumnWidths()
+        applyDisplayStylePreference()
+        if (refreshFileList)
+            selectedDevice?.serial?.let { refreshEntriesAsync(serial = it, requestedPath = currentPath) }
+    }
+
+    fun resizeNameAndSizeColumns(deltaDp: Float) {
+        fileColumnWidthNamePx = (fileColumnWidthNamePx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_NAME)
+    }
+
+    fun resizeSizeAndModifiedColumns(deltaDp: Float) {
+        fileColumnWidthSizePx = (fileColumnWidthSizePx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_SIZE)
+    }
+
+    fun resizeModifiedAndPermissionColumns(deltaDp: Float) {
+        fileColumnWidthModifiedPx = (fileColumnWidthModifiedPx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_MODIFIED)
+    }
+
+    fun persistFileColumnWidths() {
+        settingsService.current.fileColumnWidthName = fileColumnWidthNamePx.toDouble()
+        settingsService.current.fileColumnWidthSize = fileColumnWidthSizePx.toDouble()
+        settingsService.current.fileColumnWidthModified = fileColumnWidthModifiedPx.toDouble()
+        settingsService.current.fileColumnWidthPermission = fileColumnWidthPermissionPx.toDouble()
+        saveSettingsAsync()
+    }
+
+    fun initialize() {
+        if (initialized) return
+
+        initialized = true
+        refreshDevices()
+    }
+
+    fun selectDevice(device: AndroidDeviceItem) {
+        if (selectedDevice == device) return
+
+        selectedDevice = device
+        settingsService.current.lastDeviceSerial = device.serial
+        saveSettingsAsync()
+
+        val state = ensureWorkspace(device.serial)
+        if (state.prebuilt) return
+
+        refreshEntriesAsync(
+            serial = device.serial,
+            useRememberedPathWhenRequestedPathIsNull = true
+        ) { success ->
+            if (success) setHistoryToCurrentPath(state)
+            state.prebuilt = success
+        }
     }
 
     fun refreshDevices() {
-        // TODO: implement with backend adb service.
+        launchBusyAction {
+            val result = adbClient.listDevices()
+            if (!result.isOk) {
+                setErrorStatus(result.errorMessage)
+                return@launchBusyAction
+            }
+
+            devices.clear()
+            devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
+            reconcileWorkspaces()
+
+            val targetDevice = selectDefaultDevice()
+            setStatus(StatusMessage.Key.DevicesUpdated)
+
+            if (targetDevice == null) {
+                selectedDevice = null
+                return@launchBusyAction
+            }
+
+            selectedDevice = targetDevice
+            val selectedState = ensureWorkspace(targetDevice.serial)
+            if (!selectedState.prebuilt) {
+                if (refreshEntriesInternal(selectedState, targetDevice.toDomain(), useRememberedPathWhenRequestedPathIsNull = true)) {
+                    setHistoryToCurrentPath(selectedState)
+                    selectedState.prebuilt = true
+                }
+            }
+
+            prebuildWorkspacesInBackground(skipSerial = targetDevice.serial)
+        }
     }
 
     fun refreshEntries() {
-        // TODO: implement with backend file-system service.
+        val serial = selectedDevice?.serial ?: return
+        refreshEntriesAsync(serial = serial, requestedPath = currentPath)
     }
 
     fun createNewFolder() {
-        // TODO: implement create folder flow.
+        if (!ensureDeviceSelected()) return
+
+        dialogState = DialogState.NewFolder
+    }
+
+    fun confirmCreateFolder(folderName: String): Boolean {
+        val device = selectedDevice?.toDomain() ?: return false
+        val name = folderName.trim()
+        if (name.isBlank()) {
+            setStatus(StatusMessage.Key.InvalidFolderName)
+            return false
+        }
+
+        val result = runBlocking { fileSystemService.createFolder(device, currentPath, name) }
+        if (!result.isOk) {
+            setErrorStatus(result.errorMessage)
+            return false
+        }
+
+        setStatus(StatusMessage.Key.FolderCreated, name)
+        selectedDevice?.serial?.let { refreshEntriesAsync(serial = it, requestedPath = currentPath) }
+
+        return true
     }
 
     fun renameSelectedEntry() {
-        // TODO: implement rename flow.
+        val entry = selectedEntry
+        if (entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return
+        }
+
+        dialogState = DialogState.Rename(initialName = entry.name)
+    }
+
+    fun confirmRenameSelectedEntry(newName: String): Boolean {
+        val device = selectedDevice?.toDomain() ?: return false
+        val entry = selectedEntry
+        if (entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return false
+        }
+
+        val targetName = newName.trim()
+        if (targetName.isBlank()) {
+            setStatus(StatusMessage.Key.InvalidName)
+            return false
+        }
+
+        val sourcePath = buildEntryFullPath(entry)
+        val result = runBlocking { fileSystemService.rename(device, sourcePath, targetName) }
+        if (!result.isOk) {
+            setErrorStatus(result.errorMessage)
+            return false
+        }
+
+        setStatus(StatusMessage.Key.Renamed, entry.name, targetName)
+        selectedDevice?.serial?.let { refreshEntriesAsync(serial = it, requestedPath = currentPath) }
+
+        return true
     }
 
     fun deleteSelectedEntry() {
-        // TODO: implement delete flow.
+        val entry = selectedEntry
+        if (entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return
+        }
+
+        dialogState = DialogState.DeleteConfirm(entryName = entry.name)
+    }
+
+    fun confirmDeleteSelectedEntry(): Boolean {
+        val device = selectedDevice?.toDomain() ?: return false
+        val entry = selectedEntry
+        if (entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return false
+        }
+
+        val path = buildEntryFullPath(entry)
+        val result = runBlocking { fileSystemService.delete(device, path) }
+        if (!result.isOk) {
+            setErrorStatus(result.errorMessage)
+            return false
+        }
+
+        setStatus(StatusMessage.Key.EntryDeleted, entry.name)
+        selectedDevice?.serial?.let { refreshEntriesAsync(serial = it, requestedPath = currentPath) }
+
+        return true
     }
 
     fun showSelectedEntryProperties() {
-        // TODO: implement properties dialog flow.
+        val snapshot = buildSelectedEntrySnapshot()
+        if (snapshot == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return
+        }
+
+        dialogState = DialogState.Properties(snapshot)
     }
 
-    fun cutSelectedEntry() {
-        // TODO: implement cut flow.
+    fun dismissDialog() {
+        dialogState = DialogState.None
     }
 
     fun copySelectedEntry() {
-        // TODO: implement copy flow.
+        val device = selectedDevice
+        val entry = selectedEntry
+        if (device == null || entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return
+        }
+
+        clipboardEntry = ClipboardEntrySnapshot(
+            deviceSerial = device.serial,
+            name = entry.name,
+            fullPath = buildEntryFullPath(entry),
+            isCut = false
+        )
+        setStatus(StatusMessage.Key.Copied, entry.name)
+    }
+
+    fun cutSelectedEntry() {
+        val device = selectedDevice
+        val entry = selectedEntry
+        if (device == null || entry == null) {
+            setStatus(StatusMessage.Key.SelectEntryFirst)
+            return
+        }
+
+        clipboardEntry = ClipboardEntrySnapshot(
+            deviceSerial = device.serial,
+            name = entry.name,
+            fullPath = buildEntryFullPath(entry),
+            isCut = true
+        )
+        setStatus(StatusMessage.Key.Cut, entry.name)
     }
 
     fun pasteToCurrentPath() {
-        // TODO: implement paste flow.
+        val device = selectedDevice
+        if (device == null) {
+            setStatus(StatusMessage.Key.SelectDeviceFirst)
+            return
+        }
+
+        val clipboard = clipboardEntry
+        if (clipboard == null) {
+            setStatus(StatusMessage.Key.ClipboardEmpty)
+            return
+        }
+
+        if (clipboard.deviceSerial != device.serial) {
+            setStatus(StatusMessage.Key.CrossDevicePasteNotSupported)
+            return
+        }
+
+        val targetPath = if (currentPath == "/")
+            "/${clipboard.name}"
+        else "${currentPath.trimEnd('/')}/${clipboard.name}"
+
+        launchBusyAction {
+            val result = if (clipboard.isCut) {
+                fileSystemService.move(device.toDomain(), clipboard.fullPath, targetPath)
+            } else {
+                fileSystemService.copy(device.toDomain(), clipboard.fullPath, targetPath)
+            }
+
+            if (!result.isOk) {
+                setErrorStatus(result.errorMessage)
+                return@launchBusyAction
+            }
+
+            if (clipboard.isCut) clipboardEntry = null
+            setStatus(StatusMessage.Key.Pasted, clipboard.name)
+            selectedDevice?.let { selected ->
+                val workspace = ensureWorkspace(selected.serial)
+                refreshEntriesInternal(workspace, selected.toDomain(), requestedPath = workspace.currentPath)
+            }
+        }
     }
 
     fun selectAllEntries() {
-        // TODO: implement select-all in list/grid.
+        selectedEntry = currentEntries.firstOrNull()
     }
 
     fun inverseSelectEntries() {
-        // TODO: implement inverse selection in list/grid.
+        selectedEntry = if (selectedEntry == null) currentEntries.firstOrNull() else null
     }
 
     fun openViewModeMenu() {
-        // Handled inline via Dropdown in MainScreen.
+        // Handled inline via Dropdown.
     }
 
     fun openSortModeMenu() {
-        // Handled inline via Dropdown in MainScreen.
+        // Handled inline via Dropdown.
+    }
+
+    fun onViewModeSelected(option: SelectionOption) {
+        selectedViewMode = option
+        if (settingsService.current.rememberLastDisplayStyle) {
+            settingsService.current.lastFileViewMode = if (option.key == "icons")
+                AppSettings.FileViewMode.Grid
+            else AppSettings.FileViewMode.List
+            saveSettingsAsync()
+        }
+    }
+
+    fun onSortModeSelected(option: SelectionOption) {
+        selectedSortMode = option
+        deviceWorkspaces.forEach { applySort(it) }
     }
 
     fun navigateBack() {
-        if (!canNavigateBack) return
-
-        navigationIndex--
-        val target = navigationHistory[navigationIndex]
-        applyPath(target)
-        // TODO: load entries from backend.
+        selectedDevice?.serial?.let { navigateBack(it) }
     }
 
     fun navigateForward() {
-        if (!canNavigateForward) return
-
-        navigationIndex++
-        val target = navigationHistory[navigationIndex]
-        applyPath(target)
-        // TODO: load entries from backend.
+        selectedDevice?.serial?.let { navigateForward(it) }
     }
 
     fun navigateUp() {
-        if (currentPath == "/") return
-
-        val index = currentPath.lastIndexOf('/')
-        val parent = if (index <= 0) "/" else currentPath.substring(0, index)
-        navigateTo(parent)
+        selectedDevice?.serial?.let { navigateUp(it) }
     }
 
     fun navigateHome() {
-        // TODO: navigate to device home path from settings.
-        navigateTo("/")
+        val device = selectedDevice ?: return
+        val remembered = settingsService.current.deviceHomePaths[device.serial]
+        if (remembered.isNullOrBlank()) {
+            navigateTo(device.serial, "/")
+            return
+        }
+
+        navigateTo(device.serial, remembered)
+    }
+
+    fun navigateHome(serial: String) {
+        val remembered = settingsService.current.deviceHomePaths[serial]
+        if (remembered.isNullOrBlank()) {
+            navigateTo(serial, "/")
+            return
+        }
+
+        navigateTo(serial, remembered)
     }
 
     fun navigateRoot() {
-        navigateTo("/")
-    }
-
-    fun searchInCurrentPath() {
-        // TODO: implement search action.
+        selectedDevice?.serial?.let { navigateTo(it, "/") }
     }
 
     fun toggleStatusBar() {
@@ -173,61 +580,477 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun openPathFromInput() {
-        val path = normalizePath(pathInput.text.toString())
-        navigateTo(path)
+        selectedDevice?.serial?.let { openPathFromInput(it) }
     }
 
     fun navigateToBreadcrumb(fullPath: String) {
-        if (fullPath == currentPath) return
-
-        navigateTo(fullPath)
+        selectedDevice?.serial?.let { navigateToBreadcrumb(it, fullPath) }
     }
 
     fun openEntry(entry: DeviceFileItem) {
+        selectedDevice?.serial?.let { openEntry(it, entry) }
+    }
+
+    fun navigateBack(serial: String) {
+        val state = workspace(serial) ?: return
+        if (state.navigationIndex <= 0) return
+
+        val targetIndex = state.navigationIndex - 1
+        val targetPath = state.navigationHistory[targetIndex]
+
+        refreshEntriesAsync(
+            serial = serial,
+            requestedPath = targetPath,
+            useRememberedPathWhenRequestedPathIsNull = false
+        ) { success ->
+            if (success) state.navigationIndex = targetIndex
+        }
+    }
+
+    fun navigateForward(serial: String) {
+        val state = workspace(serial) ?: return
+        if (state.navigationIndex >= state.navigationHistory.size - 1) return
+
+        val targetIndex = state.navigationIndex + 1
+        val targetPath = state.navigationHistory[targetIndex]
+
+        refreshEntriesAsync(
+            serial = serial,
+            requestedPath = targetPath,
+            useRememberedPathWhenRequestedPathIsNull = false
+        ) { success ->
+            if (success) state.navigationIndex = targetIndex
+        }
+    }
+
+    fun navigateUp(serial: String) {
+        val state = workspace(serial) ?: return
+        if (state.currentPath == "/") return
+
+        val index = state.currentPath.lastIndexOf('/')
+        val parent = if (index <= 0) "/" else state.currentPath.substring(0, index)
+        navigateTo(serial, parent)
+    }
+
+    fun openPathFromInput(serial: String) {
+        val state = workspace(serial) ?: return
+        val path = normalizePath(state.pathInput.text.toString())
+        navigateTo(serial, path)
+    }
+
+    fun navigateToBreadcrumb(serial: String, fullPath: String) {
+        val state = workspace(serial) ?: return
+        val normalized = normalizePath(fullPath)
+        if (normalized == state.currentPath) return
+
+        navigateTo(serial, normalized)
+    }
+
+    fun openEntry(serial: String, entry: DeviceFileItem) {
+        val state = workspace(serial) ?: return
         if (!entry.isDirectory) return
 
-        val next = if (currentPath == "/") "/${entry.name}" else "${currentPath.trimEnd('/')}/${entry.name}"
-        navigateTo(next)
+        val next = if (state.currentPath == "/") "/${entry.name}" else "${state.currentPath.trimEnd('/')}/${entry.name}"
+        navigateTo(serial, next)
     }
 
-    private fun navigateTo(path: String) {
+    fun setSelectedEntry(serial: String, entry: DeviceFileItem?) {
+        workspace(serial)?.selectedEntry = entry
+    }
+
+    fun selectedEntryOf(serial: String) = workspace(serial)?.selectedEntry
+    fun entriesOf(serial: String) = workspace(serial)?.currentEntries ?: emptyEntries
+    fun directoryChangeVersionOf(serial: String) = workspace(serial)?.directoryChangeVersion ?: 0
+    fun listScrollIndexOf(serial: String) = workspace(serial)?.listScrollIndex ?: 0
+    fun listScrollOffsetOf(serial: String) = workspace(serial)?.listScrollOffset ?: 0
+    fun listHorizontalScrollOffsetOf(serial: String) = workspace(serial)?.listHorizontalScrollOffset ?: 0
+    fun iconScrollRowIndexOf(serial: String) = workspace(serial)?.iconScrollRowIndex ?: 0
+    fun iconScrollRowOffsetOf(serial: String) = workspace(serial)?.iconScrollRowOffset ?: 0
+
+    fun updateListScrollState(serial: String, index: Int, offset: Int) {
+        workspace(serial)?.let {
+            it.listScrollIndex = index.coerceAtLeast(0)
+            it.listScrollOffset = offset.coerceAtLeast(0)
+        }
+    }
+
+    fun updateListHorizontalScrollState(serial: String, offset: Int) {
+        workspace(serial)?.listHorizontalScrollOffset = offset.coerceAtLeast(0)
+    }
+
+    fun updateIconScrollState(serial: String, rowIndex: Int, rowOffset: Int) {
+        workspace(serial)?.let {
+            it.iconScrollRowIndex = rowIndex.coerceAtLeast(0)
+            it.iconScrollRowOffset = rowOffset.coerceAtLeast(0)
+        }
+    }
+
+    fun pathInputOf(serial: String) = workspace(serial)?.pathInput ?: fallbackPathInput
+    fun breadcrumbsOf(serial: String) = workspace(serial)?.pathBreadcrumbSegments ?: emptyBreadcrumbSegments
+    fun fileListHintOf(serial: String) = workspace(serial)?.fileListHint ?: FileListHint.None
+    fun canNavigateBack(serial: String) = (workspace(serial)?.navigationIndex ?: 0) > 0
+    fun canNavigateForward(serial: String) = workspace(serial)?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
+    fun canNavigateUp(serial: String) = workspace(serial)?.currentPath?.let { it != "/" } ?: false
+
+    fun loadPermission(snapshot: FileEntrySnapshot) = runBlocking {
+        permissionService.getPermission(snapshot.device, snapshot.fullPath)
+    }
+
+    fun applyPermission(
+        snapshot: FileEntrySnapshot,
+        modeText: String,
+        reportStatus: Boolean = true
+    ): OperationResult<FilePermissionInfo> {
+        val mode = parsePermissionMode(modeText)
+        if (mode == null) {
+            if (reportStatus) setStatus(StatusMessage.Key.DialogPropertiesInvalidPermission)
+            return OperationResult.failure(INVALID_PERMISSION_TOKEN)
+        }
+
+        val setResult = runBlocking { permissionService.setPermission(snapshot.device, snapshot.fullPath, mode) }
+        if (!setResult.isOk) {
+            if (reportStatus) setErrorStatus(setResult.errorMessage)
+            return OperationResult.failure(setResult.errorMessage.orUnknownErrorToken())
+        }
+
+        val getResult = runBlocking { permissionService.getPermission(snapshot.device, snapshot.fullPath) }
+        val info = getResult.data
+        if (!getResult.isOk || info == null) {
+            if (reportStatus) setErrorStatus(getResult.errorMessage)
+            return OperationResult.failure(getResult.errorMessage.orUnknownErrorToken())
+        }
+
+        if (reportStatus) setStatus(StatusMessage.Key.DialogPropertiesPermissionUpdated)
+        updateEntryPermission(snapshot.fullPath, info.symbolicPermission)
+
+        return OperationResult.success(info)
+    }
+
+    private fun navigateTo(serial: String, path: String) {
+        val state = workspace(serial) ?: return
         val normalized = normalizePath(path)
-        pushHistory(normalized)
-        applyPath(normalized)
-        // TODO: load entries from backend.
+
+        refreshEntriesAsync(
+            serial = serial,
+            requestedPath = normalized,
+            useRememberedPathWhenRequestedPathIsNull = false
+        ) { success ->
+            if (!success) return@refreshEntriesAsync
+            pushHistory(state, state.currentPath)
+        }
     }
 
-    private fun applyPath(path: String) {
-        currentPath = path
-        if (pathInput.text.toString() != path)
-            pathInput.edit { replace(0, length, path) }
-
-        rebuildBreadcrumb(path)
-    }
-
-    private fun pushHistory(path: String) {
-        if (navigationIndex < navigationHistory.size - 1)
-            repeat(navigationHistory.size - 1 - navigationIndex) {
-                navigationHistory.removeAt(navigationHistory.lastIndex)
+    private fun refreshEntriesAsync(
+        serial: String,
+        requestedPath: String? = null,
+        useRememberedPathWhenRequestedPathIsNull: Boolean = false,
+        onCompleted: (Boolean) -> Unit = {}
+    ) {
+        launchBusyAction {
+            val selected = devices.firstOrNull { it.serial == serial } ?: run {
+                onCompleted(false)
+                return@launchBusyAction
             }
 
-        if (navigationHistory.isNotEmpty() && navigationHistory.last() == path) return
-
-        navigationHistory += path
-        navigationIndex = navigationHistory.lastIndex
+            val state = ensureWorkspace(serial)
+            val success = refreshEntriesInternal(
+                state = state,
+                device = selected.toDomain(),
+                requestedPath = requestedPath,
+                useRememberedPathWhenRequestedPathIsNull = useRememberedPathWhenRequestedPathIsNull
+            )
+            onCompleted(success)
+        }
     }
 
-    private fun rebuildBreadcrumb(path: String) {
-        pathBreadcrumbSegments.clear()
+    private suspend fun refreshEntriesInternal(
+        state: DeviceWorkspaceState,
+        device: AndroidDevice,
+        requestedPath: String? = null,
+        useRememberedPathWhenRequestedPathIsNull: Boolean = false
+    ): Boolean {
+        val serial = device.serial
+        val targetPath = resolveTargetPath(state, serial, requestedPath, useRememberedPathWhenRequestedPathIsNull)
+        val previousPath = state.currentPath
+        val result = fileSystemService.list(device, targetPath)
+
+        applyPath(state, targetPath)
+
+        if (result.isOk) {
+            fillEntries(state, result.data.orEmpty())
+            state.fileListHint = if (state.currentEntries.isEmpty()) FileListHint.EmptyFolder else FileListHint.None
+            if (state.currentPath != previousPath)
+                state.directoryChangeVersion += 1
+            persistCurrentPath(state, serial)
+        } else {
+            fillEntries(state, emptyList())
+            state.fileListHint = resolveFailureHint(result.errorMessage)
+            setErrorStatus(result.errorMessage)
+        }
+
+        return true
+    }
+
+    private fun resolveTargetPath(
+        state: DeviceWorkspaceState,
+        deviceSerial: String,
+        requestedPath: String?,
+        useRememberedPathWhenRequestedPathIsNull: Boolean
+    ): String {
+        if (!requestedPath.isNullOrBlank()) return normalizePath(requestedPath)
+
+        if (useRememberedPathWhenRequestedPathIsNull &&
+            settingsService.current.rememberDevicePath &&
+            settingsService.current.deviceLastPaths[deviceSerial].isNullOrBlank().not()) {
+            return normalizePath(settingsService.current.deviceLastPaths[deviceSerial].orEmpty())
+        }
+
+        return normalizePath(state.currentPath)
+    }
+
+    private fun buildSelectedEntrySnapshot(): FileEntrySnapshot? {
+        val device = selectedDevice?.toDomain() ?: return null
+        val entry = selectedEntry ?: return null
+
+        return FileEntrySnapshot(
+            device = device,
+            name = entry.name,
+            fullPath = buildEntryFullPath(entry),
+            isDirectory = entry.isDirectory,
+            isSymlink = entry.isSymbolicLink,
+            sizeBytes = entry.sizeBytes,
+            modifiedAt = entry.modifiedAt,
+            symbolicPermission = entry.permission
+        )
+    }
+
+    private fun updateEntryPermission(fullPath: String, symbolicPermission: String) {
+        if (fullPath.isBlank() || symbolicPermission.isBlank()) return
+
+        val state = activeWorkspace ?: return
+        val index = state.currentEntries.indexOfFirst { buildEntryFullPath(it) == fullPath }
+        if (index < 0) return
+
+        val old = state.currentEntries[index]
+        state.currentEntries[index] = old.copy(permission = symbolicPermission)
+
+        if (state.selectedEntry == old) state.selectedEntry = state.currentEntries[index]
+    }
+
+    private fun fillEntries(state: DeviceWorkspaceState, entries: List<DeviceFileEntry>) {
+        val showHidden = settingsService.current.showHiddenFiles
+        val selectedPath = state.selectedEntry?.let { buildEntryFullPath(it) }
+
+        state.currentEntries.clear()
+        state.currentEntries += entries
+            .asSequence()
+            .filter { showHidden || !isHiddenEntryName(it.name) }
+            .map { DeviceFileItem.from(it) }
+            .toList()
+
+        applySort(state)
+
+        state.selectedEntry = selectedPath?.let { path ->
+            state.currentEntries.firstOrNull { buildEntryFullPath(it) == path }
+        }
+    }
+
+    private fun applySort(state: DeviceWorkspaceState) {
+        val sortMode = selectedSortMode?.key ?: "name"
+        val foldersFirst = settingsService.current.foldersFirst
+
+        val sorted = if (foldersFirst) when (sortMode) {
+            "size" -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.isDirectory }
+                    .thenByDescending { it.sizeBytes }
+                    .thenBy { it.name.lowercase() }
+            )
+            "modified" -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.isDirectory }
+                    .thenByDescending { it.modifiedAt }
+                    .thenBy { it.name.lowercase() }
+            )
+            else -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.isDirectory }
+                    .thenBy { it.name.lowercase() }
+            )
+        } else when (sortMode) {
+            "size" -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.sizeBytes }
+                    .thenBy { it.name.lowercase() }
+            )
+            "modified" -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.modifiedAt }
+                    .thenBy { it.name.lowercase() }
+            )
+            else -> state.currentEntries.sortedBy { it.name.lowercase() }
+        }
+
+        state.currentEntries.clear()
+        state.currentEntries += sorted
+    }
+
+    private fun ensureWorkspace(serial: String): DeviceWorkspaceState {
+        val existing = workspaceBySerial[serial]
+        if (existing != null) return existing
+
+        val created = DeviceWorkspaceState(serial)
+        workspaceBySerial[serial] = created
+        deviceWorkspaces += created
+
+        return created
+    }
+
+    private fun reconcileWorkspaces() {
+        val serials = devices.map { it.serial }.toSet()
+
+        val removedSerials = workspaceBySerial.keys.filter { it !in serials }
+        removedSerials.forEach { workspaceBySerial.remove(it) }
+
+        val ordered = mutableListOf<DeviceWorkspaceState>()
+        devices.forEach { device ->
+            ordered += ensureWorkspace(device.serial)
+        }
+
+        deviceWorkspaces.clear()
+        deviceWorkspaces += ordered
+    }
+
+    private fun prebuildWorkspacesInBackground(skipSerial: String? = null) {
+        modelScope.launch {
+            val deviceMap = devices.associateBy { it.serial }
+            deviceWorkspaces.forEach { workspace ->
+                if (workspace.serial == skipSerial) return@forEach
+                if (workspace.prebuilt) return@forEach
+
+                val device = deviceMap[workspace.serial] ?: return@forEach
+                runCatching {
+                    val success = refreshEntriesInternal(
+                        state = workspace,
+                        device = device.toDomain(),
+                        useRememberedPathWhenRequestedPathIsNull = true
+                    )
+                    workspace.prebuilt = success
+                    if (success) setHistoryToCurrentPath(workspace)
+                }
+            }
+        }
+    }
+
+    private fun selectDefaultDevice(): AndroidDeviceItem? {
+        val rememberedSerial = settingsService.current.lastDeviceSerial
+
+        return if (settingsService.current.rememberLastDevice && rememberedSerial.isNotBlank())
+            devices.firstOrNull { it.serial == rememberedSerial } ?: devices.firstOrNull()
+        else devices.firstOrNull()
+    }
+
+    private fun applyDisplayStylePreference() {
+        val target = if (settingsService.current.rememberLastDisplayStyle)
+            settingsService.current.lastFileViewMode
+        else AppSettings.FileViewMode.List
+
+        selectedViewMode = when (target) {
+            AppSettings.FileViewMode.Grid -> viewModes.firstOrNull { it.key == "icons" }
+            AppSettings.FileViewMode.List -> viewModes.firstOrNull { it.key == "list" }
+        } ?: viewModes.first()
+    }
+
+    private fun normalizeFileColumnWidths() {
+        devicePaneWidthDp = devicePaneWidthDp.coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
+        fileColumnWidthNamePx = fileColumnWidthNamePx.coerceAtLeast(FILE_COLUMN_MIN_WIDTH_NAME)
+        fileColumnWidthSizePx = fileColumnWidthSizePx.coerceAtLeast(FILE_COLUMN_MIN_WIDTH_SIZE)
+        fileColumnWidthModifiedPx = fileColumnWidthModifiedPx.coerceAtLeast(FILE_COLUMN_MIN_WIDTH_MODIFIED)
+        fileColumnWidthPermissionPx = fileColumnWidthPermissionPx.coerceAtLeast(FILE_COLUMN_MIN_WIDTH_PERMISSION)
+    }
+
+    private fun launchBusyAction(block: suspend () -> Unit) {
+        modelScope.launch {
+            beginBusy()
+            try {
+                block()
+            } catch (t: Throwable) {
+                setErrorStatus(t.message)
+            } finally {
+                endBusy()
+            }
+        }
+    }
+
+    private fun saveSettingsAsync() {
+        modelScope.launch {
+            runCatching { settingsService.save() }
+        }
+    }
+
+    private fun beginBusy() {
+        busyCount++
+        isBusy = busyCount > 0
+    }
+
+    private fun endBusy() {
+        busyCount = (busyCount - 1).coerceAtLeast(0)
+        isBusy = busyCount > 0
+    }
+
+    private fun pushHistory(state: DeviceWorkspaceState, path: String) {
+        if (state.navigationIndex < state.navigationHistory.size - 1)
+            repeat(state.navigationHistory.size - 1 - state.navigationIndex) {
+                state.navigationHistory.removeAt(state.navigationHistory.lastIndex)
+            }
+
+        if (state.navigationHistory.isNotEmpty() && state.navigationHistory.last() == path) return
+
+        state.navigationHistory += path
+        state.navigationIndex = state.navigationHistory.lastIndex
+    }
+
+    private fun setHistoryToCurrentPath(state: DeviceWorkspaceState) {
+        clearHistory(state)
+        state.navigationHistory += state.currentPath
+        state.navigationIndex = state.navigationHistory.lastIndex
+    }
+
+    private fun clearHistory(state: DeviceWorkspaceState) {
+        state.navigationHistory.clear()
+        state.navigationHistory += "/"
+        state.navigationIndex = 0
+    }
+
+    private fun persistCurrentPath(state: DeviceWorkspaceState, serial: String) {
+        if (!settingsService.current.rememberDevicePath) return
+
+        settingsService.current.deviceLastPaths[serial] = state.currentPath
+        saveSettingsAsync()
+    }
+
+    private fun applyPath(state: DeviceWorkspaceState, path: String) {
+        state.currentPath = normalizePath(path)
+        if (state.pathInput.text.toString() != state.currentPath)
+            state.pathInput.edit { replace(0, length, state.currentPath) }
+
+        rebuildBreadcrumb(state, state.currentPath)
+    }
+
+    private fun rebuildBreadcrumb(state: DeviceWorkspaceState, path: String) {
+        state.pathBreadcrumbSegments.clear()
         if (path.isBlank() || path == "/") return
 
-        val segments = path.split("/").filter { it.isNotEmpty() }
+        val segments = path.split("/").filter { it.isNotBlank() }
         var current = ""
         segments.forEachIndexed { index, segment ->
             current = "$current/$segment"
-            pathBreadcrumbSegments += PathBreadcrumbSegment(segment, current, index > 0)
+            state.pathBreadcrumbSegments += PathBreadcrumbSegment(
+                displayName = segment,
+                fullPath = current,
+                showLeadingArrow = index > 0
+            )
         }
     }
+
+    private fun buildEntryFullPath(entry: DeviceFileItem): String = if (entry.path == "/") 
+        "/${entry.name}"
+    else "${entry.path.trimEnd('/')}/${entry.name}"
 
     private fun normalizePath(path: String): String {
         if (path.isBlank()) return "/"
@@ -235,6 +1058,60 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         var normalized = path.trim()
         if (!normalized.startsWith('/')) normalized = "/$normalized"
 
-        return normalized.replace("//", "/")
+        while (normalized.contains("//")) normalized = normalized.replace("//", "/")
+
+        return normalized
     }
+
+    private fun resolveFailureHint(errorMessage: String?): FileListHint {
+        val message = errorMessage.orEmpty().lowercase()
+
+        return when {
+            ("device '" in message && "' not found" in message) ||
+                ("device" in message && "not found" in message && "error:" in message) -> FileListHint.DeviceNotFound
+            "no such file or directory" in message || "not found" in message -> FileListHint.PathNotFound
+            "permission denied" in message ||
+                "operation not permitted" in message || 
+                "not permitted" in message -> FileListHint.PermissionDenied
+            else -> FileListHint.LoadFailed
+        }
+    }
+
+    @Suppress("KotlinConstantConditions")
+    private fun parsePermissionMode(modeText: String): Int? {
+        val value = modeText.trim()
+        val parsed = value.toIntOrNull() ?: return null
+        if (parsed !in 0..777) return null
+
+        val owner = parsed / 100
+        val group = (parsed / 10) % 10
+        val other = parsed % 10
+        if (owner > 7 || group > 7 || other > 7) return null
+
+        return parsed
+    }
+
+    private fun ensureDeviceSelected(): Boolean {
+        if (selectedDevice != null) return true
+
+        setStatus(StatusMessage.Key.SelectDeviceFirst)
+        return false
+    }
+
+    private fun isHiddenEntryName(name: String): Boolean =
+        name.isNotBlank() && name.startsWith('.')
+
+    private fun setStatus(key: StatusMessage.Key, vararg args: String) {
+        statusMessage = StatusMessage.Res(key = key, args = args.toList())
+    }
+
+    private fun setErrorStatus(message: String?) {
+        statusMessage = message
+            ?.takeIf { it.isNotBlank() }
+            ?.let { StatusMessage.Raw(it) }
+            ?: StatusMessage.Res(StatusMessage.Key.CommonUnknownError)
+    }
+
+    private fun String?.orUnknownErrorToken(): String =
+        this?.takeIf { it.isNotBlank() } ?: UNKNOWN_ERROR_TOKEN
 }

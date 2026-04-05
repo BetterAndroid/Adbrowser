@@ -23,7 +23,11 @@
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
@@ -34,6 +38,7 @@ import com.highcapable.adbrowser.frontend.ui.stage.MainStage
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.MainStageModel
 
+@Suppress("AssignedValueIsNeverRead")
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
     Window(
@@ -43,6 +48,14 @@ fun MainWindow(onCloseRequest: () -> Unit) {
     ) {
         val appState = LocalAppState.current
         val viewModel = remember { MainStageModel(appState) }
+        var handledFileListRefreshVersion by remember { mutableStateOf(appState.fileListRefreshVersion) }
+
+        LaunchedEffect(viewModel) { viewModel.initialize() }
+        LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
+            val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
+            if (refreshFileList) handledFileListRefreshVersion = appState.fileListRefreshVersion
+            viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
+        }
 
         AdbrowserTheme {
             MainMenuBar(

@@ -36,9 +36,15 @@ data class AppState(
 
     var languageTag by mutableStateOf(appServices.settingsService.current.language)
         private set
+    var settingsSyncVersion by mutableStateOf(0L)
+        private set
+    var fileListRefreshVersion by mutableStateOf(0L)
+        private set
 
-    fun sync() {
+    fun sync(refreshFileList: Boolean = false) {
         languageTag = appServices.settingsService.current.language
+        settingsSyncVersion++
+        if (refreshFileList) fileListRefreshVersion++
     }
 }
 

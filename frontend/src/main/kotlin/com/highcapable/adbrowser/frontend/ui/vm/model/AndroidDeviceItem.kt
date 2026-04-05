@@ -22,9 +22,29 @@
  */
 package com.highcapable.adbrowser.frontend.ui.vm.model
 
+import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
+
 data class AndroidDeviceItem(
     val name: String,
     val model: String,
     val serial: String,
     val isOnline: Boolean
-)
+) {
+
+    fun toDomain() = AndroidDevice(
+        serial = serial,
+        name = name,
+        model = model,
+        isOnline = isOnline
+    )
+
+    companion object {
+
+        fun from(device: AndroidDevice) = AndroidDeviceItem(
+            name = device.name,
+            model = device.model,
+            serial = device.serial,
+            isOnline = device.isOnline
+        )
+    }
+}

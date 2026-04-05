@@ -22,12 +22,39 @@
  */
 package com.highcapable.adbrowser.frontend.ui.vm.model
 
+import com.highcapable.adbrowser.backend.fs.model.DeviceFileEntry
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
 data class DeviceFileItem(
     val name: String,
     val path: String,
-    val size: String,
-    val modified: String,
+    val sizeBytes: Long,
+    val modifiedAt: Instant,
     val permission: String,
     val isDirectory: Boolean,
     val isSymbolicLink: Boolean = false
-)
+) {
+
+    val sizeText: String
+        get() = if (isDirectory) "-" else "%,d".format(sizeBytes)
+
+    val modifiedText: String
+        get() = DateFormatter.format(modifiedAt.atZone(ZoneId.systemDefault()))
+
+    companion object {
+
+        private val DateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+        fun from(entry: DeviceFileEntry) = DeviceFileItem(
+            name = entry.name,
+            path = entry.path,
+            sizeBytes = entry.size,
+            modifiedAt = entry.modifiedAt,
+            permission = entry.permission,
+            isDirectory = entry.isDirectory,
+            isSymbolicLink = entry.isSymlink
+        )
+    }
+}
