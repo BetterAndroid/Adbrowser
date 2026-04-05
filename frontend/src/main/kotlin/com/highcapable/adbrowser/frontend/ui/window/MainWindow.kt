@@ -44,7 +44,7 @@ fun MainWindow(onCloseRequest: () -> Unit) {
     Window(
         onCloseRequest = onCloseRequest,
         title = strings.mainTitle,
-        state = rememberWindowState(width = 1300.dp, height = 820.dp)
+        state = rememberWindowState(width = 1220.dp, height = 820.dp)
     ) {
         val appState = LocalAppState.current
         val viewModel = remember { MainStageModel(appState) }

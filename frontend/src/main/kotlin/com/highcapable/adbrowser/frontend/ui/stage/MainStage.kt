@@ -334,11 +334,25 @@ private fun DevicePane(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = strings.mainDevicesTitle,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = strings.mainDevicesTitle,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (viewModel.devices.isNotEmpty()) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "(${viewModel.devices.size})",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
             ContentIconButton(
                 key = AppIcons.Refresh,
                 outlined = true,
