@@ -57,8 +57,7 @@ data class AdbrowserColorScheme(
     val hintBackground: Color,
     val hintBorder: Color,
     val subtleControlBackground: Color,
-    val pathBreadcrumbForeground: Color,
-    val fileHintForeground: Color
+    val pathBreadcrumbForeground: Color
 )
 
 private val LightColors = AdbrowserColorScheme(
@@ -71,8 +70,7 @@ private val LightColors = AdbrowserColorScheme(
     hintBackground = Color(0xFFF8FAFC),
     hintBorder = Color(0xFFE3E3E3),
     subtleControlBackground = Color(0xFFF7F8FB),
-    pathBreadcrumbForeground = Color(0xFF6B7280),
-    fileHintForeground = Color(0xFF97B6E9)
+    pathBreadcrumbForeground = Color(0xFF6B7280)
 )
 
 private val DarkColors = AdbrowserColorScheme(
@@ -85,8 +83,7 @@ private val DarkColors = AdbrowserColorScheme(
     hintBackground = Color(0xFF1E293B),
     hintBorder = Color(0xFF334155),
     subtleControlBackground = Color(0xFF2A3240),
-    pathBreadcrumbForeground = Color(0xFF9CA3AF),
-    fileHintForeground = Color(0xFF27487B)
+    pathBreadcrumbForeground = Color(0xFF9CA3AF)
 )
 
 private val LocalColors = staticCompositionLocalOf { LightColors }

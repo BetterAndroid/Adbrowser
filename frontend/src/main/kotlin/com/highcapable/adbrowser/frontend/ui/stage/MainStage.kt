@@ -371,6 +371,11 @@ private fun DevicePane(
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
             )
+            if (viewModel.devices.isEmpty())
+                DeviceListHint(
+                    message = strings.mainDeviceListHintNoDevice,
+                    modifier = Modifier.align(Alignment.Center)
+                )
         }
     }
 }
@@ -1070,19 +1075,45 @@ private fun FileListHint(
     val colors = AdbrowserTheme.colors
 
     Column(
-        modifier = modifier,
+        modifier = modifier.alpha(0.5f),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ContentIcon(
             key = AppIcons.Folder,
             contentDescription = message,
-            modifier = Modifier.size(80.dp),
-            tint = colors.fileHintForeground
+            modifier = Modifier.size(60.dp),
+            tint = colors.primaryAccent
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
             text = message,
-            color = colors.fileHintForeground,
+            color = colors.primaryAccent,
+            fontSize = 16.sp
+        )
+    }
+}
+
+@Composable
+private fun DeviceListHint(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = AdbrowserTheme.colors
+
+    Column(
+        modifier = modifier.alpha(0.5f),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        ContentIcon(
+            key = AppIcons.Devices,
+            contentDescription = message,
+            modifier = Modifier.size(60.dp),
+            tint = colors.primaryAccent
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = message,
+            color = colors.primaryAccent,
             fontSize = 16.sp
         )
     }

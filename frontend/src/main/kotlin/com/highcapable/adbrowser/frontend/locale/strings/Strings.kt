@@ -42,6 +42,7 @@ data class Strings(
     val mainSortModeName: String,
     val mainSortModeSize: String,
     val mainSortModeModified: String,
+    val mainDeviceListHintNoDevice: String,
     val mainFileListHintEmptyFolder: String,
     val mainFileListHintDeviceNotFound: String,
     val mainFileListHintPathNotFound: String,

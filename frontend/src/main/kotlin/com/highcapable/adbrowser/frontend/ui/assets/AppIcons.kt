@@ -39,6 +39,8 @@ object AppIcons {
     val LinkedFile = PathIconKey("$ROOT/LinkedFile.svg", iconsClass)
     val LinkedFolder = PathIconKey("$ROOT/LinkedFolder.svg", iconsClass)
     val Refresh = PathIconKey("$ROOT/Refresh.svg", iconsClass)
+    val Device = PathIconKey("$ROOT/Device.svg", iconsClass)
+    val Devices = PathIconKey("$ROOT/Devices.svg", iconsClass)
     val ArrowRight = PathIconKey("$ROOT/ArrowRight.svg", iconsClass)
     val FilePathArrow = PathIconKey("$ROOT/FilePathArrow.svg", iconsClass)
     val File = PathIconKey("$ROOT/File.svg", iconsClass)

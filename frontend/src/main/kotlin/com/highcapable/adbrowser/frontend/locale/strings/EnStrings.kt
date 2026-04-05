@@ -46,6 +46,7 @@ val EnStrings = Strings(
     mainSortModeName = "Name",
     mainSortModeSize = "Size",
     mainSortModeModified = "Modified",
+    mainDeviceListHintNoDevice = "No available devices found",
     mainFileListHintEmptyFolder = "Empty folder",
     mainFileListHintDeviceNotFound = "Target device does not exist",
     mainFileListHintPathNotFound = "No file or folder found",

@@ -46,6 +46,7 @@ val ZhCNStrings = Strings(
     mainSortModeName = "名称",
     mainSortModeSize = "大小",
     mainSortModeModified = "修改时间",
+    mainDeviceListHintNoDevice = "未发现可用设备",
     mainFileListHintEmptyFolder = "文件夹为空",
     mainFileListHintDeviceNotFound = "目标设备不存在",
     mainFileListHintPathNotFound = "文件或文件夹路径不存在",
