@@ -23,7 +23,11 @@
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
@@ -32,14 +36,33 @@ import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.ui.stage.PreferencesStage
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.PreferencesStageModel
+import java.awt.KeyboardFocusManager
+import java.beans.PropertyChangeListener
 
 @Composable
 fun PreferencesWindow(onCloseRequest: () -> Unit) {
+    var appHasActiveWindow by remember { 
+        mutableStateOf(KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow != null)
+    }
+
+    DisposableEffect(Unit) {
+        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+        val listener = PropertyChangeListener {
+            appHasActiveWindow = focusManager.activeWindow != null
+        }
+        focusManager.addPropertyChangeListener("activeWindow", listener)
+
+        onDispose {
+            focusManager.removePropertyChangeListener("activeWindow", listener)
+        }
+    }
+
     Window(
         onCloseRequest = onCloseRequest,
         title = strings.menuPreferences,
-        resizable = true,
-        state = rememberWindowState(width = 760.dp, height = 560.dp)
+        resizable = false,
+        alwaysOnTop = appHasActiveWindow,
+        state = rememberWindowState(width = 400.dp, height = 550.dp)
     ) {
         val appState = LocalAppState.current
         val viewModel = remember { PreferencesStageModel(appState) }

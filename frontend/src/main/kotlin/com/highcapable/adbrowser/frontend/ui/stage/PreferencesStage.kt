@@ -210,7 +210,7 @@ private fun PreferencesTabs(viewModel: PreferencesStageModel) {
 private fun GeneralTab(viewModel: PreferencesStageModel) {
     PanelSurface {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(strings.preferencesAppearanceAndInterface, fontWeight = FontWeight.SemiBold)
+            Text(strings.preferencesUserInterface, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     strings.preferencesLanguage,
@@ -223,7 +223,7 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
     PanelSurface {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesResetOptions, fontWeight = FontWeight.SemiBold)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DefaultButton(onClick = viewModel::resetSidebarSpacing) {
                     Text(strings.preferencesResetSidebarSpacing)
                 }

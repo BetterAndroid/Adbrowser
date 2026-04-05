@@ -120,7 +120,7 @@ data class Strings(
     val preferencesGeneral: String,
     val preferencesFiles: String,
     val preferencesDevice: String,
-    val preferencesAppearanceAndInterface: String,
+    val preferencesUserInterface: String,
     val preferencesLanguage: String,
     val preferencesLanguageOptionFollowSystem: String,
     val preferencesLanguageOptionEnglish: String,
