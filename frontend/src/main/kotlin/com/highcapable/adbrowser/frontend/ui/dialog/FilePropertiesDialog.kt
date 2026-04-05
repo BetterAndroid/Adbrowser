@@ -23,11 +23,11 @@
 package com.highcapable.adbrowser.frontend.ui.dialog
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -123,18 +123,22 @@ fun FilePropertiesDialog(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = strings.dialogPropertiesFieldPermission,
-                modifier = Modifier.width(140.dp)
+                modifier = Modifier.width(140.dp),
+                fontWeight = FontWeight.SemiBold
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = viewModel.symbolicPermission,
                     modifier = Modifier
                         .padding(top = 6.dp)
-                        .width(70.dp)
+                        .width(80.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 TextField(
                     state = viewModel.modeState,
@@ -154,33 +158,21 @@ fun FilePropertiesDialog(
             }
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = strings.dialogPropertiesFieldPermissionBits,
-                modifier = Modifier.width(140.dp),
-                fontWeight = FontWeight.SemiBold
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                PermissionBitsColumn(
-                    title = strings.dialogPropertiesOwner,
-                    scope = PermissionScope.Owner,
-                    viewModel = viewModel
-                )
-                PermissionBitsColumn(
-                    title = strings.dialogPropertiesGroup,
-                    scope = PermissionScope.Group,
-                    viewModel = viewModel
-                )
-                PermissionBitsColumn(
-                    title = strings.dialogPropertiesOther,
-                    scope = PermissionScope.Other,
-                    viewModel = viewModel
-                )
-            }
-        }
+        PermissionBitsRow(
+            title = strings.dialogPropertiesOwner,
+            scope = PermissionScope.Owner,
+            viewModel = viewModel
+        )
+        PermissionBitsRow(
+            title = strings.dialogPropertiesGroup,
+            scope = PermissionScope.Group,
+            viewModel = viewModel
+        )
+        PermissionBitsRow(
+            title = strings.dialogPropertiesOther,
+            scope = PermissionScope.Other,
+            viewModel = viewModel
+        )
 
         val errorText = viewModel.errorMessageRaw?.let(resolveDialogErrorText).orEmpty()
         Row(
@@ -212,7 +204,8 @@ private fun PropertyRow(label: String, value: String, valueWrap: Boolean = false
     ) {
         Text(
             text = label,
-            modifier = Modifier.width(140.dp)
+            modifier = Modifier.width(140.dp),
+            fontWeight = FontWeight.SemiBold
         )
         Text(
             text = value,
@@ -223,25 +216,37 @@ private fun PropertyRow(label: String, value: String, valueWrap: Boolean = false
 }
 
 @Composable
-private fun PermissionBitsColumn(
+private fun PermissionBitsRow(
     title: String,
     scope: PermissionScope,
     viewModel: FilePropertiesDialogModel
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 3.dp))
-        CheckboxRow(
-            checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Read),
-            onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Read, it) }
-        ) { Text(strings.dialogPropertiesRead) }
-        CheckboxRow(
-            checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Write),
-            onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Write, it) }
-        ) { Text(strings.dialogPropertiesWrite) }
-        CheckboxRow(
-            checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Execute),
-            onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Execute, it) }
-        ) { Text(strings.dialogPropertiesExecute) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.width(140.dp),
+            fontWeight = FontWeight.SemiBold
+        )
+        Row(
+            modifier = Modifier.offset(x = (-4).dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            CheckboxRow(
+                checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Read),
+                onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Read, it) }
+            ) { Text(strings.dialogPropertiesRead) }
+            CheckboxRow(
+                checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Write),
+                onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Write, it) }
+            ) { Text(strings.dialogPropertiesWrite) }
+            CheckboxRow(
+                checked = viewModel.isPermissionBitChecked(scope, PermissionAccess.Execute),
+                onCheckedChange = { viewModel.onPermissionBitChanged(scope, PermissionAccess.Execute, it) }
+            ) { Text(strings.dialogPropertiesExecute) }
+        }
     }
 }
 
