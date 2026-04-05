@@ -96,6 +96,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     enum class FileListHint {
         None,
         EmptyFolder,
+        DeviceOffline,
         DeviceNotFound,
         PathNotFound,
         PermissionDenied,
@@ -1067,6 +1068,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val message = errorMessage.orEmpty().lowercase()
 
         return when {
+            "device offline" in message -> FileListHint.DeviceOffline
             ("device '" in message && "' not found" in message) ||
                 ("device" in message && "not found" in message && "error:" in message) -> FileListHint.DeviceNotFound
             "no such file or directory" in message || "not found" in message -> FileListHint.PathNotFound

@@ -113,6 +113,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.Dropdown
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import org.jetbrains.jewel.ui.icon.IconKey
 
 @Composable
 fun FrameWindowScope.MainMenuBar(
@@ -398,9 +399,9 @@ private fun DeviceRow(
         pressed = pressed
     )
     val foreground = if (selected) Color.White else Color.Unspecified
-    val statusColor = if (item.isOnline) Color(0xFF2DB455) else Color(0xFFE46868)
+    val statusColor = if (item.isOnline) OnlineStatusColor else OfflineStatusColor
 
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
@@ -416,7 +417,8 @@ private fun DeviceRow(
                     }
                 )
             }
-            .padding(10.dp)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -426,11 +428,57 @@ private fun DeviceRow(
                     .background(statusColor)
             )
             Spacer(Modifier.width(8.dp))
-            Text(item.name, color = foreground, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            ContentIcon(
+                key = AppIcons.Device,
+                selected = selected,
+                contentDescription = "Device Icon",
+                tint = colors.primaryAccent
+            )
         }
-        Spacer(Modifier.height(2.dp))
-        Text(item.model, color = foreground, fontSize = 12.sp)
-        Text(item.serial, color = foreground, fontSize = 11.sp)
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.brandModel,
+                color = foreground,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(
+                modifier = Modifier.alpha(0.75f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (item.systemVersion.isNotBlank()) {
+                    Text(
+                        text = item.systemVersion,
+                        color = foreground,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "|",
+                        color = foreground,
+                        fontSize = 8.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .alpha(0.75f)
+                            .padding(horizontal = 3.dp)
+                    )
+                }
+                Text(
+                    text = item.serial,
+                    color = foreground,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -605,10 +653,14 @@ private fun FileListArea(
         if (viewModel.isListViewMode) 
             FileListView(viewModel = viewModel, serial = serial)
         else FileIconView(viewModel = viewModel, serial = serial)
- 
-        val hintMessage = fileListHintMessage(viewModel.fileListHintOf(serial))
-        if (hintMessage.isNotBlank())
+
+        val hint = viewModel.fileListHintOf(serial)
+        val hintIcon = fileListHintIcon(hint)
+        val hintMessage = fileListHintMessage(hint)
+
+        if (hintIcon != null && hintMessage.isNotBlank())
             FileListHint(
+                iconKey = hintIcon,
                 message = hintMessage,
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -1069,6 +1121,7 @@ private fun resolveListItemBackground(
 
 @Composable
 private fun FileListHint(
+    iconKey: IconKey,
     message: String,
     modifier: Modifier = Modifier
 ) {
@@ -1079,7 +1132,7 @@ private fun FileListHint(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         ContentIcon(
-            key = AppIcons.Folder,
+            key = iconKey,
             contentDescription = message,
             modifier = Modifier.size(60.dp),
             tint = colors.primaryAccent
@@ -1339,9 +1392,21 @@ private fun formatWithArgs(template: String, args: List<String>): String {
 }
 
 @Composable
-private fun fileListHintMessage(hint: MainStageModel.FileListHint): String = when (hint) {
+private fun fileListHintIcon(hint: MainStageModel.FileListHint) = when (hint) {
+    MainStageModel.FileListHint.None -> null
+    MainStageModel.FileListHint.EmptyFolder -> AppIcons.Folder
+    MainStageModel.FileListHint.DeviceOffline,
+    MainStageModel.FileListHint.DeviceNotFound -> AppIcons.DeletedFolder
+    MainStageModel.FileListHint.PermissionDenied -> AppIcons.BlockedFolder
+    MainStageModel.FileListHint.PathNotFound,
+    MainStageModel.FileListHint.LoadFailed -> AppIcons.ErrorFolder
+}
+
+@Composable
+private fun fileListHintMessage(hint: MainStageModel.FileListHint) = when (hint) {
     MainStageModel.FileListHint.None -> ""
     MainStageModel.FileListHint.EmptyFolder -> strings.mainFileListHintEmptyFolder
+    MainStageModel.FileListHint.DeviceOffline -> strings.mainFileListHintDeviceOffline
     MainStageModel.FileListHint.DeviceNotFound -> strings.mainFileListHintDeviceNotFound
     MainStageModel.FileListHint.PathNotFound -> strings.mainFileListHintPathNotFound
     MainStageModel.FileListHint.PermissionDenied -> strings.mainFileListHintPermissionDenied
@@ -1391,3 +1456,6 @@ private fun MainStageDialogs(viewModel: MainStageModel) {
             )
     }
 }
+
+private val OnlineStatusColor = Color(0xFF2DB455) 
+private val OfflineStatusColor = Color(0xFFE46868)

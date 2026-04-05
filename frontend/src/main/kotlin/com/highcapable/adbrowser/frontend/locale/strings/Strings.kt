@@ -44,6 +44,7 @@ data class Strings(
     val mainSortModeModified: String,
     val mainDeviceListHintNoDevice: String,
     val mainFileListHintEmptyFolder: String,
+    val mainFileListHintDeviceOffline: String,
     val mainFileListHintDeviceNotFound: String,
     val mainFileListHintPathNotFound: String,
     val mainFileListHintPermissionDenied: String,
