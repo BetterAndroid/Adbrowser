@@ -28,11 +28,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ApplicationScope
 import com.highcapable.adbrowser.backend.AppServices
+import com.highcapable.adbrowser.frontend.ui.utils.SystemAppearance
 
 data class AppState(
     val application: ApplicationScope,
     val appServices: AppServices
 ) {
+
+    var isDarkTheme by mutableStateOf(SystemAppearance.isDarkMode)
+        private set
 
     var languageTag by mutableStateOf(appServices.settingsService.current.language)
         private set
@@ -46,8 +50,13 @@ data class AppState(
         settingsSyncVersion++
         if (refreshFileList) fileListRefreshVersion++
     }
+
+    fun syncTheme(isDarkMode: Boolean) {
+        if (isDarkTheme == isDarkMode) return
+        isDarkTheme = isDarkMode
+    }
 }
 
 val LocalAppState = compositionLocalOf<AppState> {
-    error("No AppState provided")
+    error("No AppState provided.")
 }

@@ -44,7 +44,7 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
         val appState = LocalAppState.current
         val viewModel = remember { PreferencesStageModel(appState) }
 
-        AdbrowserTheme {
+        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             PreferencesStage(
                 viewModel = viewModel,
                 onCloseRequest = onCloseRequest

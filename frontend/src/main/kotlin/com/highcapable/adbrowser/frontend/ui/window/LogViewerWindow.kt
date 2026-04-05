@@ -44,7 +44,7 @@ fun LogViewerWindow(onCloseRequest: () -> Unit) {
         val appState = LocalAppState.current
         val viewModel = remember { LogViewerStageModel(appState) }
 
-        AdbrowserTheme {
+        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             LogViewerStage(
                 viewModel = viewModel,
                 onCloseRequest = onCloseRequest

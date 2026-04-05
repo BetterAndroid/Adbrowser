@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
+import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
@@ -55,7 +56,9 @@ fun DialogScaffold(
         resizable = false,
         state = rememberDialogState(width = width, height = height)
     ) {
-        AdbrowserTheme {
+        val appState = LocalAppState.current
+
+        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()

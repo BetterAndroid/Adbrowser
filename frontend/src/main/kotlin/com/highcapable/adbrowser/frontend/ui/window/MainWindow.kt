@@ -57,7 +57,7 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
         }
 
-        AdbrowserTheme {
+        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             MainMenuBar(
                 viewModel = viewModel,
                 onCloseRequest = onCloseRequest

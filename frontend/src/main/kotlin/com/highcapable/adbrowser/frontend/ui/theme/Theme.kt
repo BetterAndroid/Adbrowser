@@ -27,12 +27,22 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.jewel.foundation.theme.JewelTheme
+import org.jetbrains.jewel.intui.standalone.styling.Default
+import org.jetbrains.jewel.intui.standalone.styling.Editor
 import org.jetbrains.jewel.intui.standalone.theme.IntUiTheme
+import org.jetbrains.jewel.intui.standalone.theme.dark
+import org.jetbrains.jewel.intui.standalone.theme.darkThemeDefinition
+import org.jetbrains.jewel.intui.standalone.theme.light
+import org.jetbrains.jewel.intui.standalone.theme.lightThemeDefinition
+import org.jetbrains.jewel.ui.ComponentStyling
+import org.jetbrains.jewel.ui.component.styling.ButtonColors
 import org.jetbrains.jewel.ui.component.styling.ButtonMetrics
 import org.jetbrains.jewel.ui.component.styling.ButtonStyle
 import org.jetbrains.jewel.ui.component.styling.DividerMetrics
@@ -87,7 +97,7 @@ private val DarkColors = AdbrowserColorScheme(
 )
 
 private val LocalColors = staticCompositionLocalOf<AdbrowserColorScheme> {
-    error("AdbrowserTheme colors not provided.")
+    error("No AdbrowserColorScheme provided.")
 }
 
 object AdbrowserTheme {
@@ -169,8 +179,71 @@ fun AdbrowserTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
+    val themeDefinition = remember(darkTheme) {
+        if (darkTheme) JewelTheme.darkThemeDefinition() else JewelTheme.lightThemeDefinition()
+    }
+    val styling = remember(
+        darkTheme,
+        colors.primaryAccent,
+        colors.primaryAccentHover,
+        colors.primaryAccentPressed
+    ) {
+        if (darkTheme) 
+            ComponentStyling.dark(
+                defaultButtonStyle = ButtonStyle.Default.dark(
+                    colors = ButtonColors.Default.dark(
+                        background = SolidColor(colors.primaryAccent),
+                        backgroundFocused = SolidColor(colors.primaryAccent),
+                        backgroundPressed = SolidColor(colors.primaryAccentPressed),
+                        backgroundHovered = SolidColor(colors.primaryAccentHover),
+                        border = SolidColor(colors.primaryAccent),
+                        borderFocused = SolidColor(colors.primaryAccent),
+                        borderPressed = SolidColor(colors.primaryAccent),
+                        borderHovered = SolidColor(colors.primaryAccent)
+                    )
+                ),
+                defaultTabStyle = TabStyle.Default.dark(
+                    colors = TabColors.Default.dark(
+                        underlineSelected = colors.primaryAccent
+                    )
+                ),
+                editorTabStyle = TabStyle.Editor.dark(
+                    colors = TabColors.Editor.dark(
+                        underlineSelected = colors.primaryAccent
+                    )
+                )
+            )
+        else 
+            ComponentStyling.light(
+                defaultButtonStyle = ButtonStyle.Default.light(
+                    colors = ButtonColors.Default.light(
+                        background = SolidColor(colors.primaryAccent),
+                        backgroundFocused = SolidColor(colors.primaryAccent),
+                        backgroundPressed = SolidColor(colors.primaryAccentPressed),
+                        backgroundHovered = SolidColor(colors.primaryAccentHover),
+                        border = SolidColor(colors.primaryAccent),
+                        borderFocused = SolidColor(colors.primaryAccent),
+                        borderPressed = SolidColor(colors.primaryAccent),
+                        borderHovered = SolidColor(colors.primaryAccent)
+                    )
+                ),
+                defaultTabStyle = TabStyle.Default.light(
+                    colors = TabColors.Default.light(
+                        underlineSelected = colors.primaryAccent
+                    )
+                ),
+                editorTabStyle = TabStyle.Editor.light(
+                    colors = TabColors.Editor.light(
+                        underlineSelected = colors.primaryAccent
+                    )
+                )
+            )
+    }
 
-    IntUiTheme(isDark = darkTheme) {
+    IntUiTheme(
+        theme = themeDefinition,
+        styling = styling
+    ) {
         CompositionLocalProvider(
             LocalColors provides colors,
             LocalDefaultButtonStyle provides AdbrowserTheme.defaultButtonStyle(),

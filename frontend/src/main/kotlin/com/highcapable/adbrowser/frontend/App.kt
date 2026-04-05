@@ -25,23 +25,27 @@ package com.highcapable.adbrowser.frontend
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.backend.AppServices
-import com.highcapable.adbrowser.shared.utils.OsType
 import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
+import com.highcapable.adbrowser.frontend.ui.utils.SystemAppearance
 import com.highcapable.adbrowser.frontend.ui.window.MainWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.WindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.rememberWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.windowRegistries
+import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.runBlocking
 import java.awt.Desktop
 
 fun main() {
+    SystemAppearance.initialize()
+
     // Initialize all backend services before the UI event loop starts.
     // initialize() only does disk IO (load settings) and object construction,
     // so blocking the main thread here is safe and avoids any Window lifecycle issues.
@@ -58,12 +62,21 @@ private fun runApp(services: AppServices) = application {
         LocalAppState provides appState,
         LocalWindowManager provides windowManager
     ) {
+        SyncSystemAppearance(appState)
         RegisterMacOSAppMenu(windowManager)
+
         ProvidedLocales(
             settingsLanguageTag = appState.languageTag
         ) {
             RenderWindows()
         }
+    }
+}
+
+@Composable
+private fun SyncSystemAppearance(appState: AppState) {
+    LaunchedEffect(appState) {
+        SystemAppearance.startListening(appState)
     }
 }
 
