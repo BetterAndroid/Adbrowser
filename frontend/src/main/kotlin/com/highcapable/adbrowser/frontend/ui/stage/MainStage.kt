@@ -40,7 +40,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -54,6 +53,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -115,6 +118,7 @@ import org.jetbrains.jewel.ui.component.Dropdown
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 import org.jetbrains.jewel.ui.icon.IconKey
+import androidx.compose.foundation.lazy.grid.items as gridItems
 
 @Composable
 fun FrameWindowScope.MainMenuBar(
@@ -122,7 +126,7 @@ fun FrameWindowScope.MainMenuBar(
     onCloseRequest: () -> Unit
 ) {
     val windowManager = LocalWindowManager.current
-    val toggleStatusBarText = if (viewModel.isStatusBarVisible) 
+    val toggleStatusBarText = if (viewModel.isStatusBarVisible)
         strings.menuHideStatusBar
     else strings.menuShowStatusBar
     val openPreferences = { windowManager.open(AppWindow.Preferences) }
@@ -162,7 +166,7 @@ fun FrameWindowScope.MainMenuBar(
                     text = strings.menuExit,
                     onClick = onCloseRequest,
                     shortcut = createShortcut(Key.Q)
-                ) 
+                )
             }
         }
         Menu(strings.menuEdit) {
@@ -665,7 +669,7 @@ private fun FileListArea(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
-        if (viewModel.isListViewMode) 
+        if (viewModel.isListViewMode)
             FileListView(viewModel = viewModel, serial = serial)
         else FileIconView(viewModel = viewModel, serial = serial)
 
@@ -981,73 +985,64 @@ private fun FileColumnSplitter(
 @Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileIconView(viewModel: MainStageModel, serial: String) {
-    val listState = rememberLazyListState(
+    val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(serial),
         initialFirstVisibleItemScrollOffset = viewModel.iconScrollRowOffsetOf(serial)
     )
-    val itemWidth = 120.dp
+    val itemMinWidth = 120.dp
     val directoryChangeVersion = viewModel.directoryChangeVersionOf(serial)
     var handledDirectoryChangeVersion by remember(serial) { mutableStateOf(directoryChangeVersion) }
+    val entries = viewModel.entriesOf(serial)
+    val selectedEntry = viewModel.selectedEntryOf(serial)
 
     LaunchedEffect(serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
-        listState.scrollToItem(0)
+        gridState.scrollToItem(0)
     }
 
-    LaunchedEffect(serial, listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+    LaunchedEffect(serial, gridState) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) ->
                 viewModel.updateIconScrollState(serial, index, offset)
             }
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val columns = (maxWidth / itemWidth).toInt().coerceAtLeast(1)
-        val entries = viewModel.entriesOf(serial)
-        val selectedEntry = viewModel.selectedEntryOf(serial)
-        val chunked = entries.chunked(columns)
+    LaunchedEffect(serial) {
+        val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
+        if (selectedIndex < 0) return@LaunchedEffect
 
-        LaunchedEffect(serial) {
-            val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
-            if (selectedIndex < 0) return@LaunchedEffect
+        repeat(2) { withFrameNanos { } }
+        if (!isLazyGridIndexVisible(gridState, selectedIndex))
+            gridState.scrollToItem(selectedIndex)
+    }
 
-            val targetRow = selectedIndex / columns
-            repeat(2) { withFrameNanos { } }
-            if (!isLazyListIndexVisible(listState, targetRow))
-                listState.scrollToItem(targetRow)
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(chunked) { rowItems ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        rowItems.forEach { entry ->
-                            FileIconItem(
-                                item = entry,
-                                selected = viewModel.selectedEntryOf(serial) == entry,
-                                onClick = { viewModel.setSelectedEntry(serial, entry) },
-                                onDoubleClick = { viewModel.openEntry(serial, entry) },
-                                modifier = Modifier
-                                    .width(itemWidth)
-                                    .height(104.dp)
-                                    .padding(4.dp)
-                            )
-                        }
-                    }
-                }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = itemMinWidth),
+            state = gridState,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            gridItems(entries) { entry ->
+                FileIconItem(
+                    item = entry,
+                    selected = viewModel.selectedEntryOf(serial) == entry,
+                    onClick = { viewModel.setSelectedEntry(serial, entry) },
+                    onDoubleClick = { viewModel.openEntry(serial, entry) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(104.dp)
+                        .padding(4.dp)
+                )
             }
-            VerticalScrollbar(
-                adapter = rememberScrollbarAdapter(listState),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-            )
         }
+        VerticalScrollbar(
+            adapter = rememberScrollbarAdapter(gridState),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+        )
     }
 }
 
@@ -1117,6 +1112,11 @@ private fun FileIconItem(
 }
 
 private fun isLazyListIndexVisible(state: LazyListState, index: Int): Boolean {
+    if (index < 0) return false
+    return state.layoutInfo.visibleItemsInfo.any { it.index == index }
+}
+
+private fun isLazyGridIndexVisible(state: LazyGridState, index: Int): Boolean {
     if (index < 0) return false
     return state.layoutInfo.visibleItemsInfo.any { it.index == index }
 }
@@ -1473,5 +1473,5 @@ private fun MainStageDialogs(viewModel: MainStageModel) {
     }
 }
 
-private val OnlineStatusColor = Color(0xFF2DB455) 
+private val OnlineStatusColor = Color(0xFF2DB455)
 private val OfflineStatusColor = Color(0xFFE46868)
