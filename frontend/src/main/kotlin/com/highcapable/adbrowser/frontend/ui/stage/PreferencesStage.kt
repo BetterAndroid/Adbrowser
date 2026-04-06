@@ -69,6 +69,7 @@ fun FrameWindowScope.PreferencesStage(
 ) {
     val colors = AdbrowserTheme.colors
     val scrollState = rememberScrollState()
+    val selectAdbExecutableText = strings.setupSelectAdbExecutable
 
     Column(
         modifier = modifier
@@ -93,13 +94,15 @@ fun FrameWindowScope.PreferencesStage(
                 when (viewModel.currentTab) {
                     PreferencesStageModel.Tab.General -> GeneralTab(viewModel)
                     PreferencesStageModel.Tab.Files -> FilesTab(viewModel)
-                    PreferencesStageModel.Tab.Device -> DeviceTab(viewModel)
+                    PreferencesStageModel.Tab.Device -> DeviceTab(
+                        viewModel = viewModel,
+                        parentWindow = window,
+                        browseDialogTitle = selectAdbExecutableText
+                    )
                 }
             }
         }
-
         Spacer(Modifier.height(12.dp))
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -116,6 +119,7 @@ fun FrameWindowScope.PreferencesStage(
                     .weight(1f)
             )
             OutlinedButton(
+                enabled = !viewModel.isSaving,
                 onClick = {
                     viewModel.cancel()
                     onCloseRequest()
@@ -126,6 +130,7 @@ fun FrameWindowScope.PreferencesStage(
             }
             Spacer(Modifier.width(12.dp))
             DefaultButton(
+                enabled = !viewModel.isSaving,
                 onClick = {
                     viewModel.save(onSuccess = onCloseRequest)
                 },
@@ -257,7 +262,11 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
 }
 
 @Composable
-private fun DeviceTab(viewModel: PreferencesStageModel) {
+private fun DeviceTab(
+    viewModel: PreferencesStageModel,
+    parentWindow: java.awt.Window?,
+    browseDialogTitle: String
+) {
     PanelSurface {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesEnvironment, fontWeight = FontWeight.SemiBold)
@@ -273,6 +282,13 @@ private fun DeviceTab(viewModel: PreferencesStageModel) {
                         .height(AdbrowserTheme.DefaultTextFieldHeight),
                     placeholder = { Text(strings.preferencesAdbPathPlaceholder) }
                 )
+                Spacer(Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = { viewModel.browseAdbPath(parentWindow, browseDialogTitle) },
+                    modifier = Modifier.height(AdbrowserTheme.DefaultTextFieldHeight)
+                ) {
+                    Text(strings.preferencesBrowse)
+                }
             }
         }
     }
@@ -333,6 +349,9 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
     PreferencesStageModel.Status.FileColumnWidthsReset -> strings.preferencesStatusFileColumnWidthsReset
     PreferencesStageModel.Status.PreferencesSaved -> strings.statusPreferencesSaved
     PreferencesStageModel.Status.Cancelled -> strings.preferencesStatusCancelled
+    PreferencesStageModel.Status.AdbPathNotFound -> strings.preferencesStatusAdbPathNotFound
+    PreferencesStageModel.Status.AdbExecutableInvalid -> strings.preferencesStatusAdbExecutableInvalid
+    PreferencesStageModel.Status.AdbPathEmpty -> strings.preferencesStatusAdbPathEmpty
     is PreferencesStageModel.Status.Failed -> {
         val reason = status.reason?.takeIf { it.isNotBlank() } ?: strings.commonUnknownError
         "${strings.preferencesStatusFailedPrefix}$reason"

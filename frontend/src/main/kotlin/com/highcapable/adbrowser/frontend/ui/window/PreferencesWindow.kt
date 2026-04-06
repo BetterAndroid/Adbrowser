@@ -41,6 +41,8 @@ import java.beans.PropertyChangeListener
 
 @Composable
 fun PreferencesWindow(onCloseRequest: () -> Unit) {
+    val appState = LocalAppState.current
+    val viewModel = remember { PreferencesStageModel(appState) }
     var appHasActiveWindow by remember { 
         mutableStateOf(KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow != null)
     }
@@ -57,16 +59,20 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
         }
     }
 
+    DisposableEffect(viewModel) {
+        onDispose { viewModel.dispose() }
+    }
+
     Window(
-        onCloseRequest = onCloseRequest,
+        onCloseRequest = {
+            if (viewModel.isSaving) return@Window
+            onCloseRequest()
+        },
         title = strings.menuPreferences,
         resizable = false,
         alwaysOnTop = appHasActiveWindow,
         state = rememberWindowState(width = 400.dp, height = 550.dp)
     ) {
-        val appState = LocalAppState.current
-        val viewModel = remember { PreferencesStageModel(appState) }
-
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             PreferencesStage(
                 viewModel = viewModel,
