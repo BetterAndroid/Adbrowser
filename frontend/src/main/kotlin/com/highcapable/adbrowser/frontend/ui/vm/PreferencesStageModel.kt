@@ -38,7 +38,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     private companion object {
 
         const val DEFAULT_DEVICE_PANE_WIDTH = 300.0
-        const val DEFAULT_FILE_COLUMN_WIDTH_NAME = 360.0
+        const val DEFAULT_FILE_COLUMN_WIDTH_NAME = 260.0
         const val DEFAULT_FILE_COLUMN_WIDTH_SIZE = 140.0
         const val DEFAULT_FILE_COLUMN_WIDTH_MODIFIED = 240.0
         const val DEFAULT_FILE_COLUMN_WIDTH_PERMISSION = 150.0
