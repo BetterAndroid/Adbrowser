@@ -75,7 +75,7 @@ class RecordingAdbClient(
 
     val commands = mutableListOf<String>()
 
-    override suspend fun validateAdbExecPath(): OperationResult<Unit> = OperationResult.ok()
+    override suspend fun validateAdbExecPath(pathValue: String?): OperationResult<Unit> = OperationResult.ok()
 
     override suspend fun listDevices(): OperationResult<List<AndroidDevice>> = OperationResult.success(emptyList())
 

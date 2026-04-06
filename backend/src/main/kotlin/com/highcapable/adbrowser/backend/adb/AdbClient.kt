@@ -34,8 +34,9 @@ interface AdbClient {
 
     /**
      * Verifies whether the configured adb executable path is valid and executable.
+     * @param pathValue the adb executable path to validate, or null to validate the currently configured path.
      */
-    suspend fun validateAdbExecPath(): OperationResult<Unit>
+    suspend fun validateAdbExecPath(pathValue: String? = null): OperationResult<Unit>
 
     /**
      * Lists connected devices and their online states.

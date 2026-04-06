@@ -20,6 +20,8 @@
  *
  * This file is created by fankes on 2026/4/2.
  */
+@file:Suppress("LocalVariableName")
+
 package com.highcapable.adbrowser.backend.adb
 
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
@@ -80,18 +82,18 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
     private val runner = OperationRunner(logService, CATEGORY)
     private val adbExecPath get() = settingsService.current.adbExecPath.trim()
 
-    override suspend fun validateAdbExecPath() = runner.exec {
-        val pathValue = adbExecPath
-        if (pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
+    override suspend fun validateAdbExecPath(pathValue: String?) = runner.exec {
+        val _pathValue = pathValue ?: adbExecPath
+        if (_pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
 
-        val adbExecPath = Path.of(pathValue)
+        val adbExecPath = Path.of(_pathValue)
         if (!Files.exists(adbExecPath))
             return OperationResult.error("ADB executable was not found.")
         if (!OsType.isWindows && !Files.isExecutable(adbExecPath))
             return OperationResult.error("ADB executable is not executable.")
 
         val response = runAdb(listOf("version"))
-        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $pathValue")
+        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
 
         null to response
     }
