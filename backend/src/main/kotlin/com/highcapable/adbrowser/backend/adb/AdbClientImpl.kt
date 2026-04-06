@@ -45,6 +45,7 @@ import kotlinx.coroutines.withContext
 import me.tatarka.inject.annotations.Inject
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit
 
 /**
  * Basic ADB client implementation for backend bootstrap.
@@ -59,6 +60,7 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
             "getprop ro.build.version.release; " +
             "getprop ro.build.version.sdk"
         const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
+        const val ADB_VALIDATE_TIMEOUT_MS = 5000L
     }
 
     private data class ParsedDevice(
@@ -92,7 +94,11 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         if (!OsType.isWindows && !Files.isExecutable(adbExecPath))
             return OperationResult.error("ADB executable is not executable.")
 
-        val response = runAdb(listOf("version"))
+        val response = runAdb(
+            arguments = listOf("version"),
+            pathValue = _pathValue,
+            timeoutMs = ADB_VALIDATE_TIMEOUT_MS
+        )
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
 
         null to response
@@ -181,13 +187,17 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
      */
-    private suspend fun runAdb(arguments: List<String>) = withContext(Dispatchers.IO) {
-        val pathValue = adbExecPath
-        require(pathValue.isNotEmpty()) {
+    private suspend fun runAdb(
+        arguments: List<String>,
+        pathValue: String? = null,
+        timeoutMs: Long? = null
+    ) = withContext(Dispatchers.IO) {
+        val _pathValue = pathValue?.trim().orEmpty().ifBlank { adbExecPath }
+        require(_pathValue.isNotEmpty()) {
             "ADB path is not configured."
         }
 
-        val process = ProcessBuilder(mutableListOf(pathValue).apply { addAll(arguments) })
+        val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(arguments) })
             .redirectErrorStream(false)
             .start()
 
@@ -202,13 +212,31 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
             val stderrTask = async(Dispatchers.IO) {
                 process.errorStream.bufferedReader().use { it.readText() }
             }
-            val exitCode = withContext(Dispatchers.IO) { process.waitFor() }
+            val finished = timeoutMs?.let { waitMs ->
+                withContext(Dispatchers.IO) { process.waitFor(waitMs, TimeUnit.MILLISECONDS) }
+            } ?: withContext(Dispatchers.IO) {
+                process.waitFor()
+                true
+            }
+
+            if (!finished && process.isAlive) {
+                process.destroyForcibly()
+                withContext(Dispatchers.IO) { process.waitFor() }
+            }
+
+            val exitCode = if (finished)
+                process.exitValue()
+            else -1
+
             val (stdout, stderr) = awaitAll(stdoutTask, stderrTask)
+            val timeoutError = if (!finished && stderr.isBlank())
+                "ADB command timed out after ${timeoutMs}ms."
+            else ""
 
             AdbResponse(
                 exitCode = exitCode,
                 standardOutput = stdout,
-                standardError = stderr
+                standardError = timeoutError.ifBlank { stderr }
             )
         }
     }
