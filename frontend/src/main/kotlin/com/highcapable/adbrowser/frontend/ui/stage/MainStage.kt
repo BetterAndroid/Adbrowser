@@ -112,6 +112,7 @@ import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
 import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
+import com.highcapable.adbrowser.shared.utils.BuildVersion
 import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.Dropdown
@@ -1308,9 +1309,8 @@ private fun StatusBar(viewModel: MainStageModel) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        // TODO: replace with actual commit id from build info.
         Text(
-            text = "Build: TODO",
+            text = BuildVersion.TEXT,
             color = colors.pathBreadcrumbForeground,
             fontSize = 12.sp
         )
