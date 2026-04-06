@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,9 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
             if (refreshFileList) handledFileListRefreshVersion = appState.fileListRefreshVersion
             viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
+        }
+        DisposableEffect(viewModel) {
+            onDispose { viewModel.dispose() }
         }
 
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {

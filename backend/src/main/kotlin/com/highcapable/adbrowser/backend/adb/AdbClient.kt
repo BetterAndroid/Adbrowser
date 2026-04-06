@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.backend.adb
 import com.highcapable.adbrowser.backend.adb.model.AndroidDevice
 import com.highcapable.adbrowser.backend.domain.AdbResponse
 import com.highcapable.adbrowser.backend.domain.OperationResult
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Defines ADB communication capabilities used by upper MVVM layers.
@@ -40,6 +41,13 @@ interface AdbClient {
      * Lists connected devices and their online states.
      */
     suspend fun listDevices(): OperationResult<List<AndroidDevice>>
+
+    /**
+     * Observes device list changes and emits the newest snapshot when changed.
+     *
+     * - `pollIntervalMillis` controls backend-side polling cadence for change detection.
+     */
+    fun observeDevices(pollIntervalMillis: Long = 1500L): Flow<OperationResult<List<AndroidDevice>>>
 
     /**
      * Executes an adb shell command for the target device.

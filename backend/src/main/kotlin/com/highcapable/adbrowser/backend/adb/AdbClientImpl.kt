@@ -35,6 +35,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import me.tatarka.inject.annotations.Inject
 import java.nio.file.Files
@@ -49,7 +53,10 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
     private companion object {
 
         const val CATEGORY = "ADB"
-        const val DEVICE_PROPS_COMMAND = "getprop ro.product.brand; getprop ro.build.version.release; getprop ro.build.version.sdk"
+        const val DEVICE_PROPS_COMMAND = "getprop ro.product.brand; " +
+            "getprop ro.build.version.release; " +
+            "getprop ro.build.version.sdk"
+        const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
     }
 
     private data class ParsedDevice(
@@ -91,7 +98,7 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
 
     override suspend fun listDevices() = runner.exec<List<AndroidDevice>> {
         logService.log(LogLevel.Trace, CATEGORY, "Listing devices via adb.")
-        val response = runAdb(listOf("devices", "-l"))
+        val response = obtainListDevices()
 
         if (response.isOk) {
             val lines = response.standardOutput
@@ -128,12 +135,46 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         } else null to response
     }
 
+    override fun observeDevices(pollIntervalMillis: Long) = flow {
+        val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_DEVICE_OBSERVER_INTERVAL_MS)
+        var lastSnapshot = snapshotDeviceStates().data
+        var lastError: String? = null
+
+        while (currentCoroutineContext().isActive) {
+            delay(intervalMillis)
+
+            val snapshotResult = snapshotDeviceStates()
+            if (!snapshotResult.isOk) {
+                val message = snapshotResult.errorMessage.orEmpty().ifBlank { "Failed to observe devices." }
+                if (message != lastError) {
+                    lastError = message
+                    emit(OperationResult.failure(message))
+                }
+
+                continue
+            }
+
+            val currentSnapshot = snapshotResult.data.orEmpty()
+            if (currentSnapshot == lastSnapshot) continue
+
+            lastSnapshot = currentSnapshot
+            lastError = null
+
+            emit(listDevices())
+        }
+    }
+
     override suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse {
         logService.log(LogLevel.Trace, CATEGORY, "$device $ $command")
         val response = runAdb(listOf("-s", device.serial, "shell", command))
 
         return response
     }
+
+    /**
+     * Executes "adb devices -l" and captures the output for device parsing.
+     */
+    private suspend fun obtainListDevices() = runAdb(listOf("devices", "-l"))
 
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
@@ -227,6 +268,38 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         )
 
         return DeviceExtra(brand, systemVersion)
+    }
+
+    /**
+     * Creates a lightweight device signature used for change detection.
+     */
+    private suspend fun snapshotDeviceStates(): OperationResult<List<String>> {
+        val response = obtainListDevices()
+        if (!response.isOk) return OperationResult.failure(response)
+
+        val states = response.standardOutput
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .mapNotNull(::parseDeviceStateToken)
+            .sorted()
+            .toList()
+
+        return OperationResult.success(states)
+    }
+
+    private fun parseDeviceStateToken(line: String): String? {
+        if (line.startsWith("List of devices attached", ignoreCase = true) ||
+            line.startsWith("*")
+        ) return null
+
+        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (tokens.size < 2) return null
+
+        val serial = tokens[0]
+        val state = tokens[1].lowercase()
+
+        return "$serial:$state"
     }
 
     private fun normalizeBrand(raw: String): String {

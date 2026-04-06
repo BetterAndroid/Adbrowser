@@ -39,9 +39,12 @@ import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
 import com.highcapable.adbrowser.frontend.ui.vm.model.SelectionOption
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -132,7 +135,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private val fileSystemService get() = appState.appServices.fileSystemService
     private val permissionService get() = appState.appServices.permissionService
     private val settingsService get() = appState.appServices.settingsService
-    private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    private val modelJob = SupervisorJob()
+    private val modelScope = CoroutineScope(modelJob + Dispatchers.Main.immediate)
+    private var deviceObserverJob: Job? = null
 
     private var clipboardEntry: ClipboardEntrySnapshot? = null
     private var initialized = false
@@ -263,7 +269,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         if (initialized) return
 
         initialized = true
-        refreshDevices()
+        refreshDevices(showStatus = false)
+        startObserveDevices()
+    }
+
+    fun dispose() {
+        deviceObserverJob?.cancel()
+        modelScope.cancel()
     }
 
     fun selectDevice(device: AndroidDeviceItem) {
@@ -285,37 +297,65 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
-    fun refreshDevices() {
-        launchBusyAction {
-            val result = adbClient.listDevices()
-            if (!result.isOk) {
-                setErrorStatus(result.errorMessage)
-                return@launchBusyAction
-            }
+    fun refreshDevices(showStatus: Boolean = true) = launchBusyAction {
+        consumeDeviceListResult(
+            result = adbClient.listDevices(),
+            showStatus = showStatus
+        )
+    }
 
-            devices.clear()
-            devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
-            reconcileWorkspaces()
+    private fun startObserveDevices() {
+        if (deviceObserverJob?.isActive == true) return
 
-            val targetDevice = selectDefaultDevice()
-            setStatus(StatusMessage.Key.DevicesUpdated)
-
-            if (targetDevice == null) {
-                selectedDevice = null
-                return@launchBusyAction
-            }
-
-            selectedDevice = targetDevice
-            val selectedState = ensureWorkspace(targetDevice.serial)
-            if (!selectedState.prebuilt) {
-                if (refreshEntriesInternal(selectedState, targetDevice.toDomain(), useRememberedPathWhenRequestedPathIsNull = true)) {
-                    setHistoryToCurrentPath(selectedState)
-                    selectedState.prebuilt = true
+        deviceObserverJob = modelScope.launch {
+            try {
+                adbClient.observeDevices().collect { result ->
+                    consumeDeviceListResult(
+                        result = result,
+                        showStatus = false
+                    )
                 }
+            } catch (_: CancellationException) {
+                // Ignore cancellation when window/app is closing.
+            } catch (t: Throwable) {
+                setErrorStatus(t.message)
             }
-
-            prebuildWorkspacesInBackground(skipSerial = targetDevice.serial)
         }
+    }
+
+    private suspend fun consumeDeviceListResult(result: OperationResult<List<AndroidDevice>>, showStatus: Boolean) {
+        if (!result.isOk) {
+            setErrorStatus(result.errorMessage)
+            return
+        }
+
+        val previousSelectedSerial = selectedDevice?.serial
+
+        devices.clear()
+        devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
+        reconcileWorkspaces()
+
+        val targetDevice = previousSelectedSerial
+            ?.let { serial -> devices.firstOrNull { it.serial == serial } }
+            ?: selectDefaultDevice()
+
+        if (showStatus) setStatus(StatusMessage.Key.DevicesUpdated)
+
+        if (targetDevice == null) {
+            selectedDevice = null
+            return
+        }
+
+        selectedDevice = targetDevice
+        val selectedState = ensureWorkspace(targetDevice.serial)
+        if (!selectedState.prebuilt) {
+            if (refreshEntriesInternal(selectedState, targetDevice.toDomain(), useRememberedPathWhenRequestedPathIsNull = true)) {
+                setHistoryToCurrentPath(selectedState)
+                selectedState.prebuilt = true
+            }
+        }
+
+        prebuildWorkspacesInBackground(skipSerial = targetDevice.serial)
     }
 
     fun refreshEntries() {

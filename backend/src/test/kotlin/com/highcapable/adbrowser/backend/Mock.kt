@@ -32,6 +32,8 @@ import com.highcapable.adbrowser.backend.logging.LogService
 import com.highcapable.adbrowser.backend.setting.AppSettings
 import com.highcapable.adbrowser.backend.setting.AppSettingsService
 import com.highcapable.adbrowser.backend.shell.AdbShellCommandExecutor
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import java.time.Instant
 
 class RecordingLogService : LogService {
@@ -76,6 +78,8 @@ class RecordingAdbClient(
     override suspend fun validateAdbExecPath(): OperationResult<Unit> = OperationResult.ok()
 
     override suspend fun listDevices(): OperationResult<List<AndroidDevice>> = OperationResult.success(emptyList())
+
+    override fun observeDevices(pollIntervalMillis: Long): Flow<OperationResult<List<AndroidDevice>>> = emptyFlow()
 
     override suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse {
         commands += command
