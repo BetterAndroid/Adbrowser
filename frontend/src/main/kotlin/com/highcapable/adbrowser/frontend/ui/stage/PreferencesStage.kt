@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,6 +61,7 @@ import org.jetbrains.jewel.ui.component.TabData
 import org.jetbrains.jewel.ui.component.TabStrip
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import java.awt.Window
 
 @Composable
 fun FrameWindowScope.PreferencesStage(
@@ -111,9 +113,14 @@ fun FrameWindowScope.PreferencesStage(
             verticalAlignment = Alignment.Bottom
         ) {
             val statusMessage = preferencesStatusMessage(viewModel.status)
+            val statusColor = when (viewModel.statusCategory) {
+                PreferencesStageModel.StatusCategory.Normal -> colors.pathBreadcrumbForeground
+                PreferencesStageModel.StatusCategory.Error -> StatusErrorColor
+            }
+
             Text(
                 text = statusMessage,
-                color = colors.pathBreadcrumbForeground,
+                color = statusColor,
                 modifier = Modifier
                     .padding(end = 10.dp)
                     .weight(1f)
@@ -264,7 +271,7 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
 @Composable
 private fun DeviceTab(
     viewModel: PreferencesStageModel,
-    parentWindow: java.awt.Window?,
+    parentWindow: Window?,
     browseDialogTitle: String
 ) {
     PanelSurface {
@@ -339,9 +346,6 @@ private fun PanelSurface(content: @Composable () -> Unit) {
     }
 }
 
-private val TabLabelFontSize = 20.sp
-private val TabLabelFontWeight = FontWeight.Normal
-
 @Composable
 private fun preferencesStatusMessage(status: PreferencesStageModel.Status): String = when (status) {
     PreferencesStageModel.Status.None -> ""
@@ -357,3 +361,8 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
         "${strings.preferencesStatusFailedPrefix}$reason"
     }
 }
+
+private val TabLabelFontSize = 20.sp
+private val TabLabelFontWeight = FontWeight.Normal
+
+private val StatusErrorColor = Color(0xFFB94747)

@@ -60,6 +60,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     enum class Tab { General, Files, Device }
+    enum class StatusCategory { Normal, Error }
 
     sealed interface Status {
         data object None : Status
@@ -87,6 +88,18 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     var status by mutableStateOf<Status>(Status.None)
     var isSaving by mutableStateOf(false)
         private set
+
+    val statusCategory get() = when (status) {
+        is Status.None,
+        is Status.SidebarSpacingReset,
+        is Status.FileColumnWidthsReset,
+        is Status.PreferencesSaved,
+        is Status.Cancelled -> StatusCategory.Normal
+        is Status.AdbPathNotFound,
+        is Status.AdbExecutableInvalid,
+        is Status.AdbPathEmpty,
+        is Status.Failed -> StatusCategory.Error
+    }
 
     init {
         restoreFromSettings()
@@ -225,10 +238,12 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
             ?: return ValidationResult.PathNotFound
         if (!Files.exists(parsedPath)) return ValidationResult.PathNotFound
 
-        val result = withTimeoutOrNull(ADB_VALIDATE_TIMEOUT_MS) {
-            runCatching {
-                appState.appServices.adbClient.validateAdbExecPath(path)
-            }.getOrNull()
+        val result = withContext(Dispatchers.IO) {
+            withTimeoutOrNull(ADB_VALIDATE_TIMEOUT_MS) {
+                runCatching {
+                    appState.appServices.adbClient.validateAdbExecPath(path)
+                }.getOrNull()
+            }
         }
 
         if (result?.isOk != true) return ValidationResult.ExecutableInvalid
