@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.frontend.locale.strings
 data class Strings(
     val commonUnknownError: String,
     val setupTitle: String,
+    val setupHeaderTitle: String,
     val setupDescription: String,
     val setupAdbPath: String,
     val setupSelectAdbExecutable: String,

@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.frontend.ui.window.manager
 
 enum class AppWindow {
+    InitialSetup,
     Preferences,
     LogViewer
 }

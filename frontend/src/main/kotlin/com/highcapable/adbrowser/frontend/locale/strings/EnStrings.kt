@@ -28,9 +28,11 @@ import com.highcapable.adbrowser.frontend.locale.Locales
 @LyricistStrings(languageTag = Locales.EN, default = true)
 val EnStrings = Strings(
     commonUnknownError = "Unknown error.",
-    setupTitle = "Welcome to Adbrowser",
-    setupDescription = "Select your ADB executable path to continue. This path is validated on every app startup.",
-    setupAdbPath = "ADB executable path",
+    setupTitle = "Setup Wizard",
+    setupHeaderTitle = "Welcome to Adbrowser",
+    setupDescription = "This program relies on ADB to work. " +
+        "Please confirm whether ADB is correctly configured from the system environment variables, or configure it manually.",
+    setupAdbPath = "ADB path",
     setupSelectAdbExecutable = "Select ADB Executable",
     setupContinue = "Continue",
     mainTitle = "Adbrowser",

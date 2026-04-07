@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.frontend.ui.window.manager
 
 import androidx.compose.runtime.Composable
+import com.highcapable.adbrowser.frontend.ui.window.InitialSetupWindow
 import com.highcapable.adbrowser.frontend.ui.window.LogViewerWindow
 import com.highcapable.adbrowser.frontend.ui.window.PreferencesWindow
 
@@ -35,6 +36,7 @@ data class WindowRegistry(
  * Registered windows in the application.
  */
 val windowRegistries = listOf(
+    WindowRegistry(AppWindow.InitialSetup) { InitialSetupWindow(it) },
     WindowRegistry(AppWindow.Preferences) { PreferencesWindow(it) },
     WindowRegistry(AppWindow.LogViewer) { LogViewerWindow(it) }
 )

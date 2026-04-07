@@ -28,11 +28,12 @@ import com.highcapable.adbrowser.frontend.locale.Locales
 @LyricistStrings(languageTag = Locales.ZH_CN)
 val ZhCNStrings = Strings(
     commonUnknownError = "未知错误。",
-    setupTitle = "欢迎使用 Adbrowser",
-    setupDescription = "请选择 ADB 可执行文件路径后继续。应用每次启动都会校验该路径。",
-    setupAdbPath = "ADB 可执行文件路径",
+    setupTitle = "初始化向导",
+    setupHeaderTitle = "欢迎使用 Adbrowser",
+    setupDescription = "此程序依赖 ADB 工作，请确认 ADB 是否已正确从系统环境变量中配置，或手动进行配置。",
+    setupAdbPath = "ADB 路径",
     setupSelectAdbExecutable = "选择 ADB 可执行文件",
-    setupContinue = "进入主界面",
+    setupContinue = "继续",
     mainTitle = "Adbrowser",
     mainDevicesTitle = "可用设备",
     mainRefreshDeviceDescription = "刷新设备列表",

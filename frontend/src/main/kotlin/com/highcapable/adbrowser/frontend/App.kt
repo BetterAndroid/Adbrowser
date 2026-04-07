@@ -103,8 +103,10 @@ private fun RenderWindows() {
     val appState = LocalAppState.current
     val windowManager = LocalWindowManager.current
 
-    // Keep the main window always open.
-    MainWindow(appState.application::exitApplication)
+    // Keep main window hidden while initial setup is open.
+    if (appState.appServices.settingsService.current.adbExecPath.isBlank())
+        windowManager.open(AppWindow.InitialSetup)
+    else MainWindow(appState.application::exitApplication)
 
     // Render all registered windows.
     windowRegistries.forEach {
