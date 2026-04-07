@@ -33,7 +33,6 @@ import com.highcapable.adbrowser.frontend.cl.AppState
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
 import com.highcapable.adbrowser.frontend.locale.ProvidedLocales
 import com.highcapable.adbrowser.frontend.ui.utils.SystemAppearance
-import com.highcapable.adbrowser.frontend.ui.window.MainWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.frontend.ui.window.manager.WindowManager
@@ -103,15 +102,20 @@ private fun RenderWindows() {
     val appState = LocalAppState.current
     val windowManager = LocalWindowManager.current
 
-    // Keep main window hidden while initial setup is open.
-    if (appState.appServices.settingsService.current.adbExecPath.isBlank())
-        windowManager.open(AppWindow.InitialSetup)
-    else MainWindow(appState.application::exitApplication)
+    windowManager.open(
+        if (appState.appServices.settingsService.current.adbExecPath.isBlank())
+            AppWindow.InitialSetup
+        else AppWindow.Main
+    )
 
     // Render all registered windows.
     windowRegistries.forEach {
         if (windowManager.isOpen(it.window)) it.content {
-            windowManager.close(it.window)
+            // If the current window is Main, exit the app on close request.
+            // Otherwise, just close the window.
+            if (it.window != AppWindow.Main)
+                windowManager.close(it.window)
+            else appState.application.exitApplication()
         }
     }
 }
