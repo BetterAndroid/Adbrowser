@@ -27,12 +27,14 @@ import com.highcapable.adbrowser.generated.AdbrowserProperties
 /**
  * Provides build version text for UI display.
  *
- * - Format: `Build: {GIT_COMMIT_ID_ABBREV} | {GIT_COMMIT_TIME}`
+ * - Format: `Build: {PROJECT_APP_VERSION} ({GIT_COMMIT_ID_ABBREV}) | {GIT_COMMIT_TIME}`
  */
 object BuildVersion {
 
     /**
      * Returns a user-facing build version text.
      */
-    const val TEXT = "Build: ${AdbrowserProperties.GIT_COMMIT_ID_ABBREV} | ${AdbrowserProperties.GIT_COMMIT_TIME}"
+    const val TEXT = "Build: ${AdbrowserProperties.PROJECT_APP_VERSION} " +
+        "(${AdbrowserProperties.GIT_COMMIT_ID_ABBREV}) | " +
+        AdbrowserProperties.GIT_COMMIT_TIME
 }
