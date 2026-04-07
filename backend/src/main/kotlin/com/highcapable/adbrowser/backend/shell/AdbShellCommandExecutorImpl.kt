@@ -43,6 +43,13 @@ class AdbShellCommandExecutorImpl(
     private companion object {
 
         const val CATEGORY = "ADB Shell"
+
+        val suFallbackIndicators = listOf(
+            "su: inaccessible or not found",
+            "su: not found",
+            "su: inaccessible",
+            "su: permission denied"
+        )
     }
 
     /**
@@ -53,7 +60,15 @@ class AdbShellCommandExecutorImpl(
 
         return try {
             val suCommand = "su -c \"${escapeForDoubleQuotedShell(command)}\""
-            adbClient.executeShell(device, suCommand)
+            val suResponse = adbClient.executeShell(device, suCommand)
+            if (shouldFallbackToNormalShell(suResponse)) {
+                logService.log(
+                    LogLevel.Warning,
+                    CATEGORY,
+                    "su is unavailable on ${device.serial}. Fallback to normal shell."
+                )
+                adbClient.executeShell(device, command)
+            } else suResponse
         } catch (t: Throwable) {
             logService.log(
                 LogLevel.Warning,
@@ -69,4 +84,16 @@ class AdbShellCommandExecutorImpl(
         .replace("\"", "\\\"")
         .replace("$", "\\$")
         .replace("`", "\\`")
+
+    private fun shouldFallbackToNormalShell(response: AdbResponse): Boolean {
+        if (response.isOk) return false
+
+        val message = buildString {
+            append(response.standardError)
+            append('\n')
+            append(response.standardOutput)
+        }.lowercase()
+
+        return suFallbackIndicators.any { indicator -> message.contains(indicator) }
+    }
 }
