@@ -42,7 +42,7 @@ data class AppSettings(
     var deviceHomePaths: MutableMap<String, String> = mutableMapOf(),
     var deviceLastPaths: MutableMap<String, String> = mutableMapOf(),
     var devicePaneWidth: Double = 300.0,
-    var fileColumnWidthName: Double = 360.0,
+    var fileColumnWidthName: Double = 260.0,
     var fileColumnWidthSize: Double = 140.0,
     var fileColumnWidthModified: Double = 240.0,
     var fileColumnWidthPermission: Double = 150.0
