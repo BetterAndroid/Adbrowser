@@ -15,6 +15,7 @@ betterandroid-compose-extension = "1.0.2"
 jewel = "0.34.0-253.32098.37"
 intellij-platform-icons = "253.31033.145"
 junit = "4.13.1"
+git-properties = "2.5.7"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -22,6 +23,7 @@ kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "kotlin-ksp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 jetbrains-compose = { id = "org.jetbrains.compose", version.ref = "jetbrains-compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "compose-compiler" }
+git-properties = { id = "com.gorylenko.gradle-git-properties", version.ref = "git-properties" }
 
 [libraries]
 jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }

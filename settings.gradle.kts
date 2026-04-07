@@ -28,7 +28,8 @@ gropify {
             className = rootProject.name
             includeKeys(
                 "^project\\..*$".toRegex(),
-                "^gradle\\..*$".toRegex()
+                "^gradle\\..*$".toRegex(),
+                "^git\\..*$".toRegex()
             )
             isRestrictedAccessEnabled = true
         }
@@ -42,36 +43,14 @@ gropify {
 
     projects(":shared") {
         jvm {
-            val (shortCommit, commitTime) = resolveGitInfo()
+            existsPropertyFiles(".gradle/git-info.properties")
             permanentKeyValues(
-                "git.commit.short" to shortCommit,
-                "git.commit.time" to commitTime
+                "git.commit.id" to "",
+                "git.commit.id.abbrev" to "",
+                "git.commit.time" to ""
             )
         }
     }
-}
-
-fun resolveGitInfo(): Pair<String, String> {
-    fun runGit(vararg args: String): String? {
-        val process = runCatching {
-            ProcessBuilder(listOf("git", *args))
-                .redirectErrorStream(true)
-                .start()
-        }.getOrNull() ?: return null
-
-        return runCatching {
-            if (!process.waitFor(2, TimeUnit.SECONDS)) {
-                process.destroyForcibly()
-                return null
-            }
-            process.inputStream.bufferedReader().use { it.readText() }.trim()
-        }.getOrNull()?.takeIf { it.isNotBlank() }
-    }
-
-    val shortCommit = runGit("rev-parse", "--short=8", "HEAD") ?: "<Unknown>"
-    val commitTime = runGit("show", "-s", "--format=%cd", "--date=format:%Y-%m-%d %H:%M:%S", "HEAD") ?: "<Unknown>"
-
-    return shortCommit to commitTime
 }
 
 rootProject.name = "Adbrowser"

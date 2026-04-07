@@ -27,12 +27,12 @@ import com.highcapable.adbrowser.generated.AdbrowserProperties
 /**
  * Provides build version text for UI display.
  *
- * - Format: `Build: {shortCommit} | {buildTime}`
+ * - Format: `Build: {GIT_COMMIT_ID_ABBREV} | {GIT_COMMIT_TIME}`
  */
 object BuildVersion {
 
     /**
      * Returns a user-facing build version text.
      */
-    const val TEXT = "Build: ${AdbrowserProperties.GIT_COMMIT_SHORT} | ${AdbrowserProperties.GIT_COMMIT_TIME}"
+    const val TEXT = "Build: ${AdbrowserProperties.GIT_COMMIT_ID_ABBREV} | ${AdbrowserProperties.GIT_COMMIT_TIME}"
 }
