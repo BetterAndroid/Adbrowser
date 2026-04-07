@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.tatarka.inject.annotations.Inject
 import java.nio.file.Files
 import java.nio.file.Path
@@ -56,11 +57,15 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
     private companion object {
 
         const val CATEGORY = "ADB"
+
+        const val ADB_VERSION_SIGNATURE = "Android Debug Bridge"
         const val DEVICE_PROPS_COMMAND = "getprop ro.product.brand; " +
             "getprop ro.build.version.release; " +
             "getprop ro.build.version.sdk"
+
         const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
         const val ADB_VALIDATE_TIMEOUT_MS = 5000L
+        const val STREAM_READ_TIMEOUT_MULTIPLIER = 1L
     }
 
     private data class ParsedDevice(
@@ -99,9 +104,17 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
             pathValue = _pathValue,
             timeoutMs = ADB_VALIDATE_TIMEOUT_MS
         )
-        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
-
-        null to response
+        when {
+            !response.isOk -> null to response
+            !isAdbVersionResponse(response) -> null to response.copy(
+                exitCode = -1,
+                standardError = "ADB executable is invalid."
+            )
+            else -> {
+                logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
+                null to response
+            }
+        }
     }
 
     override suspend fun listDevices() = runner.exec<List<AndroidDevice>> {
@@ -200,9 +213,10 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
         val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(arguments) })
             .redirectErrorStream(false)
             .start()
+        closeProcessInput(process)
 
         coroutineContext[Job]?.invokeOnCompletion {
-            if (process.isAlive) process.destroyForcibly()
+            terminateProcess(process)
         }
 
         coroutineScope {
@@ -219,31 +233,80 @@ class AdbClientImpl(private val logService: LogService, private val settingsServ
                 true
             }
 
-            if (!finished && process.isAlive) {
-                process.destroyForcibly()
-                withContext(Dispatchers.IO) { process.waitFor() }
+            if (!finished) {
+                terminateProcess(process)
+                closeProcessStreams(process)
+                stdoutTask.cancel()
+                stderrTask.cancel()
+
+                return@coroutineScope AdbResponse(
+                    exitCode = -1,
+                    standardOutput = "",
+                    standardError = "ADB command timed out after ${timeoutMs}ms."
+                )
             }
 
-            val exitCode = if (finished)
-                process.exitValue()
-            else -1
+            val streamResult = timeoutMs?.let { commandTimeoutMs ->
+                val streamReadTimeoutMs = commandTimeoutMs * STREAM_READ_TIMEOUT_MULTIPLIER
+                withTimeoutOrNull(streamReadTimeoutMs) {
+                    awaitAll(stdoutTask, stderrTask)
+                } ?: run {
+                    terminateProcess(process)
+                    closeProcessStreams(process)
+                    stdoutTask.cancel()
+                    stderrTask.cancel()
+                    return@coroutineScope AdbResponse(
+                        exitCode = process.exitValue(),
+                        standardOutput = "",
+                        standardError = "ADB output read timed out after ${streamReadTimeoutMs}ms."
+                    )
+                }
+            } ?: awaitAll(stdoutTask, stderrTask)
 
-            val (stdout, stderr) = awaitAll(stdoutTask, stderrTask)
-            val timeoutError = if (!finished && stderr.isBlank())
-                "ADB command timed out after ${timeoutMs}ms."
-            else ""
+            val exitCode = process.exitValue()
+            val (stdout, stderr) = streamResult
 
             AdbResponse(
                 exitCode = exitCode,
                 standardOutput = stdout,
-                standardError = timeoutError.ifBlank { stderr }
+                standardError = stderr
             )
         }
     }
 
+    private fun closeProcessStreams(process: Process) {
+        runCatching { process.inputStream.close() }
+        runCatching { process.errorStream.close() }
+        runCatching { process.outputStream.close() }
+    }
+
+    private fun closeProcessInput(process: Process) {
+        runCatching { process.outputStream.close() }
+    }
+
+    private fun terminateProcess(process: Process) {
+        runCatching { process.toHandle() }.getOrNull()
+            ?.descendants()
+            ?.toList()
+            ?.asReversed()
+            ?.forEach { child -> runCatching { if (child.isAlive) child.destroyForcibly() } }
+
+        runCatching { if (process.isAlive) process.destroyForcibly() }
+    }
+
+    private fun isAdbVersionResponse(response: AdbResponse): Boolean {
+        val output = buildString {
+            append(response.standardOutput)
+            append('\n')
+            append(response.standardError)
+        }
+        return output.contains(ADB_VERSION_SIGNATURE, ignoreCase = true)
+    }
+
     private fun parseDeviceLine(line: String): ParsedDevice? {
-        if (line.startsWith("List of devices attached", ignoreCase = true) || line.startsWith("*"))
-            return null
+        if (line.startsWith("List of devices attached", ignoreCase = true) ||
+            line.startsWith("*")
+        ) return null
 
         val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (tokens.size < 2) return null
