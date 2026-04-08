@@ -142,6 +142,7 @@ import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 import org.jetbrains.jewel.ui.component.separator
 import org.jetbrains.jewel.ui.icon.IconKey
+import org.jetbrains.jewel.ui.icons.AllIconsKeys
 
 @Composable
 fun FrameWindowScope.MainMenuBar(
@@ -1367,25 +1368,30 @@ private fun MenuScope.entryFileContextMenu(
     separator()
     selectableItem(
         selected = false,
+        iconKey = AllIconsKeys.Actions.Edit,
         onClick = { perform(viewModel::renameSelectedEntry) }
     ) { Text(strings.menuRename) }
     selectableItemWithActionType(
         selected = false,
+        iconKey = AllIconsKeys.Actions.Copy,
         actionType = CopyMenuItemOptionAction,
         onClick = { perform(viewModel::copySelectedEntry) }
     ) { Text(strings.menuCopy) }
     selectableItemWithActionType(
         selected = false,
+        iconKey = AllIconsKeys.Actions.MenuCut,
         actionType = CutMenuItemOptionAction,
         onClick = { perform(viewModel::cutSelectedEntry) }
     ) { Text(strings.menuCut) }
     selectableItem(
         selected = false,
+        iconKey = AllIconsKeys.General.Delete,
         onClick = { perform(viewModel::deleteSelectedEntry) }
     ) { Text(strings.menuDelete) }
     separator()
     selectableItem(
         selected = false,
+        iconKey = AllIconsKeys.Actions.Properties,
         onClick = { perform(viewModel::showSelectedEntryProperties) }
     ) { Text(strings.menuProperties) }
 }
@@ -1406,18 +1412,21 @@ private fun MenuScope.blankFileContextMenu(
     selectableItem(
         selected = false,
         enabled = hasSelectedDevice,
+        iconKey = AllIconsKeys.Actions.Refresh,
         onClick = { perform(viewModel::refreshEntries) }
     ) { Text(strings.menuRefresh) }
     separator()
     selectableItem(
         selected = false,
         enabled = hasSelectedDevice,
+        iconKey = AllIconsKeys.Actions.NewFolder,
         onClick = { perform(viewModel::createNewFolder) }
     ) { Text(strings.menuNewFolder) }
     separator()
     if (viewModel.canPasteEntry) {
         selectableItemWithActionType(
             selected = false,
+            iconKey = AllIconsKeys.Actions.MenuPaste,
             actionType = PasteMenuItemOptionAction,
             onClick = { perform(viewModel::pasteToCurrentPath) }
         ) { Text(strings.menuPaste) }
