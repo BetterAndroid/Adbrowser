@@ -56,6 +56,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -73,6 +74,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -86,6 +88,12 @@ import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -95,6 +103,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
+import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
 import androidx.compose.ui.zIndex
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.frontend.ui.assets.AppIcons
@@ -115,11 +125,17 @@ import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.shared.utils.BuildVersion
 import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.flow.distinctUntilChanged
+import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CopyMenuItemOptionAction
+import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CutMenuItemOptionAction
+import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.PasteMenuItemOptionAction
+import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.SelectAllMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.Dropdown
+import org.jetbrains.jewel.ui.component.MenuScope
+import org.jetbrains.jewel.ui.component.PopupMenu
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import org.jetbrains.jewel.ui.component.separator
 import org.jetbrains.jewel.ui.icon.IconKey
-import androidx.compose.foundation.lazy.grid.items as gridItems
 
 @Composable
 fun FrameWindowScope.MainMenuBar(
@@ -135,6 +151,17 @@ fun FrameWindowScope.MainMenuBar(
     MenuBar {
         Menu(strings.menuFile) {
             Item(
+                text = strings.menuOpen,
+                enabled = viewModel.hasSelectedEntry,
+                onClick = viewModel::openSelectedEntry
+            )
+            Item(
+                text = strings.menuOpenWith,
+                enabled = viewModel.hasSelectedEntry,
+                onClick = viewModel::openSelectedEntryWith
+            )
+            Separator()
+            Item(
                 text = strings.menuNewFolder,
                 onClick = viewModel::createNewFolder,
                 shortcut = createShortcut(Key.N)
@@ -142,19 +169,19 @@ fun FrameWindowScope.MainMenuBar(
             Separator()
             Item(
                 text = strings.menuRename,
-                enabled = viewModel.canRenameOrDeleteEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::renameSelectedEntry,
                 shortcut = createShortcut(Key.F2)
             )
             Item(
                 text = strings.menuDelete,
-                enabled = viewModel.canRenameOrDeleteEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::deleteSelectedEntry,
                 shortcut = createShortcut(Key.Delete)
             )
             Item(
                 text = strings.menuProperties,
-                enabled = viewModel.canShowEntryProperties,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::showSelectedEntryProperties,
                 shortcut = createShortcut(Key.I)
             )
@@ -176,13 +203,13 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuEdit) {
             Item(
                 text = strings.menuCut,
-                enabled = viewModel.canCutOrCopyEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::cutSelectedEntry,
                 shortcut = createShortcut(Key.X)
             )
             Item(
                 text = strings.menuCopy,
-                enabled = viewModel.canCutOrCopyEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::copySelectedEntry,
                 shortcut = createShortcut(Key.C)
             )
@@ -697,6 +724,11 @@ private fun FileListArea(
     }
 }
 
+private sealed interface FileContextMenuState {
+    data class Entry(val item: DeviceFileItem, val position: Offset, val requestId: Long) : FileContextMenuState
+    data class Blank(val position: Offset, val requestId: Long) : FileContextMenuState
+}
+
 @Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileListView(viewModel: MainStageModel, serial: String) {
@@ -709,6 +741,18 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
     var handledDirectoryChangeVersion by remember(serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(serial)
     val selectedEntry = viewModel.selectedEntryOf(serial)
+    var contextMenuState by remember(serial) { mutableStateOf<FileContextMenuState?>(null) }
+    var contextMenuRequestId by remember(serial) { mutableStateOf(0L) }
+
+    fun openBlankContextMenu(position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
+    }
+
+    fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
+    }
 
     LaunchedEffect(serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
@@ -722,6 +766,7 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
     LaunchedEffect(serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
+        contextMenuState = null
         listState.scrollToItem(0)
         horizontalScrollState.scrollTo(0)
     }
@@ -747,7 +792,17 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
             viewModel = viewModel,
             horizontalScrollState = horizontalScrollState
         )
-        Box(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .onBlankPrimaryPress {
+                    contextMenuState = null
+                    viewModel.setSelectedEntry(serial, null)
+                }
+                .onSecondaryPress(pass = PointerEventPass.Main) { position ->
+                    openBlankContextMenu(position)
+                }
+        ) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
             LazyColumn(
                 state = listState,
@@ -758,11 +813,18 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
                 items(viewModel.entriesOf(serial)) { entry ->
                     FileListRow(
                         viewModel = viewModel,
+                        serial = serial,
                         horizontalScrollState = horizontalScrollState,
                         item = entry,
                         selected = viewModel.selectedEntryOf(serial) == entry,
                         onClick = { viewModel.setSelectedEntry(serial, entry) },
-                        onDoubleClick = { viewModel.openEntry(serial, entry) }
+                        onDoubleClick = { viewModel.openEntry(serial, entry) },
+                        onSecondaryClick = { position ->
+                            viewModel.setSelectedEntry(serial, entry)
+                            openEntryContextMenu(entry, position)
+                        },
+                        contextMenuState = contextMenuState,
+                        onDismissContextMenu = { contextMenuState = null }
                     )
                 }
             }
@@ -781,6 +843,12 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
                         .height(8.dp)
                 )
             }
+            FileBlankContextMenuPopup(
+                viewModel = viewModel,
+                serial = serial,
+                state = contextMenuState,
+                onDismissRequest = { contextMenuState = null }
+            )
         }
     }
 }
@@ -859,11 +927,15 @@ private fun FileListHeader(
 @Composable
 private fun FileListRow(
     viewModel: MainStageModel,
+    serial: String,
     horizontalScrollState: ScrollState,
     item: DeviceFileItem,
     selected: Boolean,
     onClick: () -> Unit,
-    onDoubleClick: () -> Unit
+    onDoubleClick: () -> Unit,
+    onSecondaryClick: (Offset) -> Unit,
+    contextMenuState: FileContextMenuState?,
+    onDismissContextMenu: () -> Unit
 ) {
     val colors = AdbrowserTheme.colors
     val nameWidth = viewModel.fileColumnWidthNamePx.dp
@@ -882,91 +954,104 @@ private fun FileListRow(
     )
     val foreground = if (selected) Color.White else Color.Unspecified
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
-            .background(background)
-            .hoverable(interactionSource = interactionSource)
-            .pointerInput(item) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        onClick()
-                        tryAwaitRelease()
-                        pressed = false
-                    },
-                    onDoubleTap = { onDoubleClick() }
-                )
-            },
-        verticalAlignment = Alignment.CenterVertically
+            .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clipToBounds()
-                .horizontalScroll(horizontalScrollState)
+                .clip(RoundedCornerShape(6.dp))
+                .background(background)
+                .hoverable(interactionSource = interactionSource)
+                .pointerInput(item) {
+                    detectTapGestures(
+                        onPress = {
+                            pressed = true
+                            onClick()
+                            tryAwaitRelease()
+                            pressed = false
+                        },
+                        onDoubleTap = { onDoubleClick() }
+                    )
+                },
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .width(contentWidth)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxWidth()
+                    .clipToBounds()
+                    .horizontalScroll(horizontalScrollState)
             ) {
                 Row(
-                    modifier = Modifier.width(nameWidth),
+                    modifier = Modifier
+                        .width(contentWidth)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ContentIcon(
-                        key = when {
-                            item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
-                            item.isDirectory -> AppIcons.Folder
-                            item.isSymbolicLink -> AppIcons.LinkedFile
-                            else -> AppIcons.File
-                        },
-                        selected = selected,
-                        contentDescription = item.name,
-                        modifier = Modifier.size(16.dp),
-                        tint = colors.primaryAccent
-                    )
-                    Spacer(Modifier.width(8.dp))
+                    Row(
+                        modifier = Modifier.width(nameWidth),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ContentIcon(
+                            key = when {
+                                item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
+                                item.isDirectory -> AppIcons.Folder
+                                item.isSymbolicLink -> AppIcons.LinkedFile
+                                else -> AppIcons.File
+                            },
+                            selected = selected,
+                            contentDescription = item.name,
+                            modifier = Modifier.size(16.dp),
+                            tint = colors.primaryAccent
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = item.name,
+                            color = foreground,
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
                     Text(
-                        text = item.name,
+                        text = item.sizeText,
+                        modifier = Modifier.width(sizeWidth),
+                        color = foreground,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = item.modifiedText,
+                        modifier = Modifier.width(modifiedWidth),
+                        color = foreground,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = item.permission,
+                        modifier = Modifier.width(permissionWidth),
                         color = foreground,
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = item.sizeText,
-                    modifier = Modifier.width(sizeWidth),
-                    color = foreground,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = item.modifiedText,
-                    modifier = Modifier.width(modifiedWidth),
-                    color = foreground,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = item.permission,
-                    modifier = Modifier.width(permissionWidth),
-                    color = foreground,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
+        FileEntryContextMenuPopup(
+            viewModel = viewModel,
+            serial = serial,
+            item = item,
+            state = contextMenuState,
+            onDismissRequest = onDismissContextMenu
+        )
     }
 }
 
@@ -1005,10 +1090,23 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
     var handledDirectoryChangeVersion by remember(serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(serial)
     val selectedEntry = viewModel.selectedEntryOf(serial)
+    var contextMenuState by remember(serial) { mutableStateOf<FileContextMenuState?>(null) }
+    var contextMenuRequestId by remember(serial) { mutableStateOf(0L) }
+
+    fun openBlankContextMenu(position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
+    }
+
+    fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
+    }
 
     LaunchedEffect(serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
+        contextMenuState = null
         gridState.scrollToItem(0)
     }
 
@@ -1024,23 +1122,41 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
 
-        repeat(2) { withFrameNanos { } }
+        repeat(2) { withFrameNanos {} }
         if (!isLazyGridIndexVisible(gridState, selectedIndex))
             gridState.scrollToItem(selectedIndex)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onBlankPrimaryPress {
+                contextMenuState = null
+                viewModel.setSelectedEntry(serial, null)
+            }
+            .onSecondaryPress(pass = PointerEventPass.Main) { position ->
+                openBlankContextMenu(position)
+            }
+    ) {
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = itemMinWidth),
             state = gridState,
             modifier = Modifier.fillMaxSize()
         ) {
-            gridItems(entries) { entry ->
+            items(entries) { entry ->
                 FileIconItem(
+                    serial = serial,
+                    viewModel = viewModel,
                     item = entry,
                     selected = viewModel.selectedEntryOf(serial) == entry,
                     onClick = { viewModel.setSelectedEntry(serial, entry) },
                     onDoubleClick = { viewModel.openEntry(serial, entry) },
+                    onSecondaryClick = { position ->
+                        viewModel.setSelectedEntry(serial, entry)
+                        openEntryContextMenu(entry, position)
+                    },
+                    contextMenuState = contextMenuState,
+                    onDismissContextMenu = { contextMenuState = null },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(104.dp)
@@ -1054,16 +1170,27 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
         )
+        FileBlankContextMenuPopup(
+            viewModel = viewModel,
+            serial = serial,
+            state = contextMenuState,
+            onDismissRequest = { contextMenuState = null }
+        )
     }
 }
 
 @Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileIconItem(
+    serial: String,
+    viewModel: MainStageModel,
     item: DeviceFileItem,
     selected: Boolean,
     onClick: () -> Unit,
     onDoubleClick: () -> Unit,
+    onSecondaryClick: (Offset) -> Unit,
+    contextMenuState: FileContextMenuState?,
+    onDismissContextMenu: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
@@ -1078,48 +1205,208 @@ private fun FileIconItem(
     )
     val foreground = if (selected) Color.White else Color.Unspecified
 
-    Column(
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(background)
-            .hoverable(interactionSource = interactionSource)
-            .pointerInput(item) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        onClick()
-                        tryAwaitRelease()
-                        pressed = false
-                    },
-                    onDoubleTap = { onDoubleClick() }
-                )
-            }
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
     ) {
-        ContentIcon(
-            key = when {
-                item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
-                item.isDirectory -> AppIcons.Folder
-                item.isSymbolicLink -> AppIcons.LinkedFile
-                else -> AppIcons.File
-            },
-            selected = selected,
-            contentDescription = item.name,
-            modifier = Modifier.size(34.dp),
-            tint = colors.primaryAccent
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = item.name,
-            color = foreground,
-            fontSize = 14.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center
+        Column(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(8.dp))
+                .background(background)
+                .hoverable(interactionSource = interactionSource)
+                .pointerInput(item) {
+                    detectTapGestures(
+                        onPress = {
+                            pressed = true
+                            onClick()
+                            tryAwaitRelease()
+                            pressed = false
+                        },
+                        onDoubleTap = { onDoubleClick() }
+                    )
+                }
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            ContentIcon(
+                key = when {
+                    item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
+                    item.isDirectory -> AppIcons.Folder
+                    item.isSymbolicLink -> AppIcons.LinkedFile
+                    else -> AppIcons.File
+                },
+                selected = selected,
+                contentDescription = item.name,
+                modifier = Modifier.size(34.dp),
+                tint = colors.primaryAccent
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = item.name,
+                color = foreground,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
+        FileEntryContextMenuPopup(
+            viewModel = viewModel,
+            serial = serial,
+            item = item,
+            state = contextMenuState,
+            onDismissRequest = onDismissContextMenu
         )
     }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun FileBlankContextMenuPopup(
+    viewModel: MainStageModel,
+    serial: String,
+    state: FileContextMenuState?,
+    onDismissRequest: () -> Unit
+) {
+    val blankState = state as? FileContextMenuState.Blank ?: return
+
+    PopupMenu(
+        onDismissRequest = {
+            onDismissRequest()
+            true
+        },
+        popupPositionProvider = rememberPopupPositionProviderAtPosition(blankState.position),
+        popupProperties = PopupProperties(focusable = false)
+    ) {
+        blankFileContextMenu(
+            viewModel = viewModel,
+            serial = serial,
+            onDismissRequest = onDismissRequest
+        )
+    }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun FileEntryContextMenuPopup(
+    viewModel: MainStageModel,
+    serial: String,
+    item: DeviceFileItem,
+    state: FileContextMenuState?,
+    onDismissRequest: () -> Unit
+) {
+    val entryState = state as? FileContextMenuState.Entry ?: return
+    if (entryState.item != item) return
+
+    PopupMenu(
+        onDismissRequest = {
+            onDismissRequest()
+            true
+        },
+        popupPositionProvider = rememberPopupPositionProviderAtPosition(entryState.position),
+        popupProperties = PopupProperties(focusable = false)
+    ) {
+        entryFileContextMenu(
+            viewModel = viewModel,
+            serial = serial,
+            item = item,
+            onDismissRequest = onDismissRequest
+        )
+    }
+}
+
+private fun MenuScope.entryFileContextMenu(
+    viewModel: MainStageModel,
+    serial: String,
+    item: DeviceFileItem,
+    onDismissRequest: () -> Unit
+) {
+    fun perform(action: () -> Unit) {
+        onDismissRequest()
+        viewModel.setSelectedEntry(serial, item)
+        action()
+    }
+
+    selectableItem(
+        selected = false,
+        onClick = { perform { viewModel.openEntry(serial, item) } }
+    ) { Text(strings.menuOpen) }
+    selectableItem(
+        selected = false,
+        onClick = { perform { viewModel.openEntryWith(serial, item) } }
+    ) { Text(strings.menuOpenWith) }
+    separator()
+    selectableItem(
+        selected = false,
+        onClick = { perform(viewModel::renameSelectedEntry) }
+    ) { Text(strings.menuRename) }
+    selectableItemWithActionType(
+        selected = false,
+        actionType = CopyMenuItemOptionAction,
+        onClick = { perform(viewModel::copySelectedEntry) }
+    ) { Text(strings.menuCopy) }
+    selectableItemWithActionType(
+        selected = false,
+        actionType = CutMenuItemOptionAction,
+        onClick = { perform(viewModel::cutSelectedEntry) }
+    ) { Text(strings.menuCut) }
+    selectableItem(
+        selected = false,
+        onClick = { perform(viewModel::deleteSelectedEntry) }
+    ) { Text(strings.menuDelete) }
+    separator()
+    selectableItem(
+        selected = false,
+        onClick = { perform(viewModel::showSelectedEntryProperties) }
+    ) { Text(strings.menuProperties) }
+}
+
+private fun MenuScope.blankFileContextMenu(
+    viewModel: MainStageModel,
+    serial: String,
+    onDismissRequest: () -> Unit
+) {
+    val hasEntries = viewModel.entriesOf(serial).isNotEmpty()
+    val hasSelectedDevice = viewModel.isSelectedWorkspace(serial)
+
+    fun perform(action: () -> Unit) {
+        onDismissRequest()
+        action()
+    }
+
+    selectableItem(
+        selected = false,
+        enabled = hasSelectedDevice,
+        onClick = { perform(viewModel::refreshEntries) }
+    ) { Text(strings.menuRefresh) }
+    separator()
+    selectableItem(
+        selected = false,
+        enabled = hasSelectedDevice,
+        onClick = { perform(viewModel::createNewFolder) }
+    ) { Text(strings.menuNewFolder) }
+    separator()
+    if (viewModel.canPasteEntry) {
+        selectableItemWithActionType(
+            selected = false,
+            actionType = PasteMenuItemOptionAction,
+            onClick = { perform(viewModel::pasteToCurrentPath) }
+        ) { Text(strings.menuPaste) }
+        separator()
+    }
+    selectableItemWithActionType(
+        selected = false,
+        enabled = hasEntries,
+        actionType = SelectAllMenuItemOptionAction,
+        onClick = { perform(viewModel::selectAllEntries) }
+    ) { Text(strings.menuSelectAll) }
+    selectableItem(
+        selected = false,
+        enabled = hasEntries,
+        onClick = { perform(viewModel::inverseSelectEntries) }
+    ) { Text(strings.menuInverseSelect) }
 }
 
 private fun isLazyListIndexVisible(state: LazyListState, index: Int): Boolean {
@@ -1144,6 +1431,29 @@ private fun resolveListItemBackground(
     pressed -> colors.panelBorder
     hovered -> colors.subtleControlBackground
     else -> Color.Transparent
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+private fun Modifier.onSecondaryPress(
+    pass: PointerEventPass,
+    onSecondaryPress: (Offset) -> Unit
+) = onPointerEvent(PointerEventType.Press, pass = pass) { event ->
+    if (!event.buttons.isSecondaryPressed) return@onPointerEvent
+    if (event.changes.any { it.isConsumed }) return@onPointerEvent
+
+    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    onSecondaryPress(change.position)
+    event.changes.forEach { it.consume() }
+}
+
+@OptIn(ExperimentalComposeUiApi::class)
+private fun Modifier.onBlankPrimaryPress(
+    onPrimaryPress: () -> Unit
+) = onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Final) { event ->
+    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
+    if (event.changes.any { it.isConsumed }) return@onPointerEvent
+    if (event.changes.none { it.changedToDownIgnoreConsumed() }) return@onPointerEvent
+    onPrimaryPress()
 }
 
 @Composable

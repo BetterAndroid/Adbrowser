@@ -58,6 +58,8 @@ data class Strings(
     val menuGo: String,
     val menuHelp: String,
     val menuPreferences: String,
+    val menuOpen: String,
+    val menuOpenWith: String,
     val menuNewFolder: String,
     val menuRename: String,
     val menuDelete: String,

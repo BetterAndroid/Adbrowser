@@ -196,13 +196,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canNavigateForward get() = activeWorkspace?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     val canNavigateUp get() = currentPath != "/"
     val canNavigateRoot get() = selectedDevice != null && currentPath != "/"
-    val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
-    val canCutOrCopyEntry get() = hasSelectedEntry
-    val canRenameOrDeleteEntry get() = hasSelectedEntry
-    val canShowEntryProperties get() = hasSelectedEntry
     val canPasteEntry get() = selectedDevice?.serial?.let { serial ->
         clipboardEntry?.deviceSerial == serial
     } == true
+
+    val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
 
     var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
         private set
@@ -455,6 +453,18 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         dialogState = DialogState.Properties(snapshot)
     }
 
+    fun openSelectedEntry() {
+        val serial = selectedDevice?.serial ?: return
+        val entry = selectedEntry ?: return
+        openEntry(serial, entry)
+    }
+
+    fun openSelectedEntryWith() {
+        val entry = selectedEntry ?: return
+        // TODO: Placeholder action for future implementation.
+        selectedEntry = entry
+    }
+
     fun dismissDialog() {
         dialogState = DialogState.None
     }
@@ -671,10 +681,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun openEntry(serial: String, entry: DeviceFileItem) {
         val state = workspace(serial) ?: return
-        if (!entry.isDirectory) return
+        if (!entry.isDirectory) return // TODO: Support opening files with associated applications in the future.
 
         val next = if (state.currentPath == "/") "/${entry.name}" else "${state.currentPath.trimEnd('/')}/${entry.name}"
         navigateTo(serial, next)
+    }
+
+    fun openEntryWith(serial: String, entry: DeviceFileItem) {
+        // TODO: Implement "Open With" functionality.
     }
 
     fun setSelectedEntry(serial: String, entry: DeviceFileItem?) {
