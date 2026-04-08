@@ -1036,7 +1036,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     private fun clearHistory(state: DeviceWorkspaceState) {
         state.navigationHistory.clear()
-        state.navigationHistory += "/"
         state.navigationIndex = 0
     }
 
