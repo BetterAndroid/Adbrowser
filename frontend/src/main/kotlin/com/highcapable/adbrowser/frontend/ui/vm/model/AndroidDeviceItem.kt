@@ -33,17 +33,6 @@ data class AndroidDeviceItem(
     val isOnline: Boolean
 ) {
 
-    val brandModel = "$brand $model".trim().ifBlank { "Unknown" }
-
-    fun toDomain() = AndroidDevice(
-        serial = serial,
-        name = name,
-        brand = brand,
-        model = model,
-        systemVersion = systemVersion,
-        isOnline = isOnline
-    )
-
     companion object {
 
         fun from(device: AndroidDevice) = AndroidDeviceItem(
@@ -55,4 +44,22 @@ data class AndroidDeviceItem(
             isOnline = device.isOnline
         )
     }
+
+    val brandModel = "$brand $model".trim().ifBlank { "Unknown" }
+
+    fun toDomain() = AndroidDevice(
+        serial = serial,
+        name = name,
+        brand = brand,
+        model = model,
+        systemVersion = systemVersion,
+        isOnline = isOnline
+    )
+
+    override fun equals(other: Any?) = when (other) {
+        is AndroidDeviceItem -> this.serial == other.serial
+        else -> super.equals(other)
+    }
+
+    override fun hashCode() = serial.hashCode()
 }

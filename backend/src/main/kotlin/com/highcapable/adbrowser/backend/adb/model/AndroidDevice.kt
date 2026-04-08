@@ -34,5 +34,12 @@ data class AndroidDevice(
     val isOnline: Boolean
 ) {
 
+    override fun equals(other: Any?) = when (other) {
+        is AndroidDevice -> this.serial == other.serial
+        else -> super.equals(other)
+    }
+
+    override fun hashCode() = serial.hashCode()
+
     override fun toString() = "$name ($brand $model) - $serial"
 }
