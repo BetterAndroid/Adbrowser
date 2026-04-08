@@ -65,9 +65,11 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -81,6 +83,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -95,6 +98,9 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -741,6 +747,8 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     val selectedEntry = viewModel.selectedEntryOf(device)
     var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
     var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
+    val visibleEntryBounds = remember(device.serial) { mutableStateMapOf<DeviceFileItem, Rect>() }
+    var contentCoordinates by remember(device.serial) { mutableStateOf<LayoutCoordinates?>(null) }
 
     fun openBlankContextMenu(position: Offset) {
         contextMenuRequestId += 1L
@@ -793,9 +801,12 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .onBlankPrimaryPress {
+                .onGloballyPositioned { contentCoordinates = it }
+                .onBlankPrimaryPress { position ->
                     contextMenuState = null
-                    viewModel.setSelectedEntry(device, null)
+                    val rootPosition = contentCoordinates?.localToRoot(position) ?: position
+                    if (visibleEntryBounds.values.none { it.contains(rootPosition) })
+                        viewModel.setSelectedEntry(device, null)
                 }
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                     openBlankContextMenu(position)
@@ -809,6 +820,9 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(viewModel.entriesOf(device)) { entry ->
+                    DisposableEffect(entry) {
+                        onDispose { visibleEntryBounds.remove(entry) }
+                    }
                     FileListRow(
                         viewModel = viewModel,
                         device = device,
@@ -822,7 +836,10 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                             openEntryContextMenu(entry, position)
                         },
                         contextMenuState = contextMenuState,
-                        onDismissContextMenu = { contextMenuState = null }
+                        onDismissContextMenu = { contextMenuState = null },
+                        modifier = Modifier.onGloballyPositioned { coordinates ->
+                            visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                        }
                     )
                 }
             }
@@ -933,7 +950,8 @@ private fun FileListRow(
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
     contextMenuState: FileContextMenuState?,
-    onDismissContextMenu: () -> Unit
+    onDismissContextMenu: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
     val nameWidth = viewModel.fileColumnWidthNamePx.dp
@@ -953,7 +971,7 @@ private fun FileListRow(
     val foreground = if (selected) Color.White else Color.Unspecified
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
     ) {
@@ -1090,6 +1108,8 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     val selectedEntry = viewModel.selectedEntryOf(device)
     var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
     var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
+    val visibleEntryBounds = remember(device.serial) { mutableStateMapOf<DeviceFileItem, Rect>() }
+    var contentCoordinates by remember(device.serial) { mutableStateOf<LayoutCoordinates?>(null) }
 
     fun openBlankContextMenu(position: Offset) {
         contextMenuRequestId += 1L
@@ -1128,9 +1148,12 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onBlankPrimaryPress {
+            .onGloballyPositioned { contentCoordinates = it }
+            .onBlankPrimaryPress { position ->
                 contextMenuState = null
-                viewModel.setSelectedEntry(device, null)
+                val rootPosition = contentCoordinates?.localToRoot(position) ?: position
+                if (visibleEntryBounds.values.none { it.contains(rootPosition) })
+                    viewModel.setSelectedEntry(device, null)
             }
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                 openBlankContextMenu(position)
@@ -1142,6 +1165,9 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             modifier = Modifier.fillMaxSize()
         ) {
             items(entries) { entry ->
+                DisposableEffect(entry) {
+                    onDispose { visibleEntryBounds.remove(entry) }
+                }
                 FileIconItem(
                     device = device,
                     viewModel = viewModel,
@@ -1156,6 +1182,9 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                     contextMenuState = contextMenuState,
                     onDismissContextMenu = { contextMenuState = null },
                     modifier = Modifier
+                        .onGloballyPositioned { coordinates ->
+                            visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                        }
                         .fillMaxWidth()
                         .height(104.dp)
                         .padding(4.dp)
@@ -1446,12 +1475,12 @@ private fun Modifier.onSecondaryPress(
 
 @OptIn(ExperimentalComposeUiApi::class)
 private fun Modifier.onBlankPrimaryPress(
-    onPrimaryPress: () -> Unit
+    onPrimaryPress: (Offset) -> Unit
 ) = onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Final) { event ->
     if (!event.buttons.isPrimaryPressed) return@onPointerEvent
     if (event.changes.any { it.isConsumed }) return@onPointerEvent
-    if (event.changes.none { it.changedToDownIgnoreConsumed() }) return@onPointerEvent
-    onPrimaryPress()
+    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    onPrimaryPress(change.position)
 }
 
 @Composable
