@@ -368,6 +368,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun refreshEntries() {
         val device = selectedDevice ?: return
+        workspace(device)?.selectedEntry = null
         refreshEntriesAsync(device = device, requestedPath = currentPath)
     }
 
