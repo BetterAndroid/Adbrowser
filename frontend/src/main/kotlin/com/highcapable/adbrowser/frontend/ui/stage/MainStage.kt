@@ -142,16 +142,19 @@ fun FrameWindowScope.MainMenuBar(
             Separator()
             Item(
                 text = strings.menuRename,
+                enabled = viewModel.canRenameOrDeleteEntry,
                 onClick = viewModel::renameSelectedEntry,
                 shortcut = createShortcut(Key.F2)
             )
             Item(
                 text = strings.menuDelete,
+                enabled = viewModel.canRenameOrDeleteEntry,
                 onClick = viewModel::deleteSelectedEntry,
                 shortcut = createShortcut(Key.Delete)
             )
             Item(
                 text = strings.menuProperties,
+                enabled = viewModel.canShowEntryProperties,
                 onClick = viewModel::showSelectedEntryProperties,
                 shortcut = createShortcut(Key.I)
             )
@@ -173,16 +176,19 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuEdit) {
             Item(
                 text = strings.menuCut,
+                enabled = viewModel.canCutOrCopyEntry,
                 onClick = viewModel::cutSelectedEntry,
                 shortcut = createShortcut(Key.X)
             )
             Item(
                 text = strings.menuCopy,
+                enabled = viewModel.canCutOrCopyEntry,
                 onClick = viewModel::copySelectedEntry,
                 shortcut = createShortcut(Key.C)
             )
             Item(
                 text = strings.menuPaste,
+                enabled = viewModel.canPasteEntry,
                 onClick = viewModel::pasteToCurrentPath,
                 shortcut = createShortcut(Key.V)
             )
@@ -228,22 +234,26 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuGo) {
             Item(
                 text = strings.menuForward,
+                enabled = viewModel.canNavigateForward,
                 onClick = viewModel::navigateForward,
                 shortcut = createShortcut(Key.DirectionRight, alt = true)
             )
             Item(
                 text = strings.menuBack,
+                enabled = viewModel.canNavigateBack,
                 onClick = viewModel::navigateBack,
                 shortcut = createShortcut(Key.DirectionLeft, alt = true)
             )
             Separator()
             Item(
                 text = strings.menuUp,
+                enabled = viewModel.canNavigateUp,
                 onClick = viewModel::navigateUp,
                 shortcut = createShortcut(Key.DirectionUp, alt = true)
             )
             Item(
                 text = strings.menuRoot,
+                enabled = viewModel.canNavigateRoot,
                 onClick = viewModel::navigateRoot,
                 shortcut = createShortcut(Key.R, shift = true)
             )

@@ -195,6 +195,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canNavigateBack get() = (activeWorkspace?.navigationIndex ?: 0) > 0
     val canNavigateForward get() = activeWorkspace?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     val canNavigateUp get() = currentPath != "/"
+    val canNavigateRoot get() = selectedDevice != null && currentPath != "/"
+    val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
+    val canCutOrCopyEntry get() = hasSelectedEntry
+    val canRenameOrDeleteEntry get() = hasSelectedEntry
+    val canShowEntryProperties get() = hasSelectedEntry
+    val canPasteEntry get() = selectedDevice?.serial?.let { serial ->
+        clipboardEntry?.deviceSerial == serial
+    } == true
 
     var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
         private set
@@ -390,22 +398,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun renameSelectedEntry() {
-        val entry = selectedEntry
-        if (entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return
-        }
+        val entry = selectedEntry ?: return
 
         dialogState = DialogState.Rename(initialName = entry.name)
     }
 
     fun confirmRenameSelectedEntry(newName: String): Boolean {
         val device = selectedDevice?.toDomain() ?: return false
-        val entry = selectedEntry
-        if (entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return false
-        }
+        val entry = selectedEntry ?: return false
 
         val targetName = newName.trim()
         if (targetName.isBlank()) {
@@ -427,22 +427,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun deleteSelectedEntry() {
-        val entry = selectedEntry
-        if (entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return
-        }
+        val entry = selectedEntry ?: return
 
         dialogState = DialogState.DeleteConfirm(entryName = entry.name)
     }
 
     fun confirmDeleteSelectedEntry(): Boolean {
         val device = selectedDevice?.toDomain() ?: return false
-        val entry = selectedEntry
-        if (entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return false
-        }
+        val entry = selectedEntry ?: return false
 
         val path = buildEntryFullPath(entry)
         val result = runBlocking { fileSystemService.delete(device, path) }
@@ -458,11 +450,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun showSelectedEntryProperties() {
-        val snapshot = buildSelectedEntrySnapshot()
-        if (snapshot == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return
-        }
+        val snapshot = buildSelectedEntrySnapshot() ?: return
 
         dialogState = DialogState.Properties(snapshot)
     }
@@ -474,10 +462,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun copySelectedEntry() {
         val device = selectedDevice
         val entry = selectedEntry
-        if (device == null || entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return
-        }
+        if (device == null || entry == null) return
 
         clipboardEntry = ClipboardEntrySnapshot(
             deviceSerial = device.serial,
@@ -491,10 +476,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun cutSelectedEntry() {
         val device = selectedDevice
         val entry = selectedEntry
-        if (device == null || entry == null) {
-            setStatus(StatusMessage.Key.SelectEntryFirst)
-            return
-        }
+        if (device == null || entry == null) return
 
         clipboardEntry = ClipboardEntrySnapshot(
             deviceSerial = device.serial,
