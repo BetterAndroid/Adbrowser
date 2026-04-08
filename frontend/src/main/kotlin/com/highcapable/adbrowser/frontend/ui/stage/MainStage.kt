@@ -544,15 +544,13 @@ private fun FilePaneHost(
     viewModel: MainStageModel,
     modifier: Modifier = Modifier
 ) {
-    val selectedSerial = viewModel.selectedDevice?.serial
-
     Box(modifier = modifier) {
         viewModel.deviceWorkspaces.forEach { workspace ->
-            key(workspace.serial) {
-                val isSelected = workspace.serial == selectedSerial
+            key(workspace.device) {
+                val isSelected = workspace.device == viewModel.selectedDevice
                 FilePane(
                     viewModel = viewModel,
-                    serial = workspace.serial,
+                    workspace = workspace,
                     modifier = Modifier
                         .fillMaxSize()
                         .zIndex(if (isSelected) 1f else 0f)
@@ -566,7 +564,7 @@ private fun FilePaneHost(
 @Composable
 private fun FilePane(
     viewModel: MainStageModel,
-    serial: String,
+    workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
@@ -577,16 +575,16 @@ private fun FilePane(
             .background(colors.panelBackground, RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
-        NavigationBar(viewModel = viewModel, serial = serial)
+        NavigationBar(viewModel = viewModel, device = workspace.device)
         Spacer(Modifier.height(12.dp))
-        FilePaneContent(viewModel = viewModel, serial = serial, modifier = Modifier.weight(1f))
+        FilePaneContent(viewModel = viewModel, workspace = workspace, modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun FilePaneContent(
     viewModel: MainStageModel,
-    serial: String,
+    workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
@@ -600,55 +598,55 @@ private fun FilePaneContent(
     ) {
         FileListArea(
             viewModel = viewModel,
-            serial = serial,
+            device = workspace.device,
             modifier = Modifier.weight(1f)
         )
-        PathBreadcrumbBar(viewModel = viewModel, serial = serial)
+        PathBreadcrumbBar(viewModel = viewModel, device = workspace.device)
     }
 }
 
 @Composable
-private fun NavigationBar(viewModel: MainStageModel, serial: String) {
+private fun NavigationBar(viewModel: MainStageModel, device: AndroidDeviceItem) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         ContentIconButton(
             key = AppIcons.ArrowLeft,
             contentDescription = strings.menuBack,
-            enabled = viewModel.canNavigateBack(serial),
+            enabled = viewModel.canNavigateBack(device),
             outlined = true,
-            onClick = { viewModel.navigateBack(serial) }
+            onClick = { viewModel.navigateBack(device) }
         )
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.ArrowRight,
             contentDescription = strings.menuForward,
-            enabled = viewModel.canNavigateForward(serial),
+            enabled = viewModel.canNavigateForward(device),
             outlined = true,
-            onClick = { viewModel.navigateForward(serial) }
+            onClick = { viewModel.navigateForward(device) }
         )
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.ArrowUp,
             contentDescription = strings.menuUp,
-            enabled = viewModel.canNavigateUp(serial),
+            enabled = viewModel.canNavigateUp(device),
             outlined = true,
-            onClick = { viewModel.navigateUp(serial) }
+            onClick = { viewModel.navigateUp(device) }
         )
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.Home,
             contentDescription = strings.menuHome,
             outlined = true,
-            onClick = { viewModel.navigateHome(serial) }
+            onClick = { viewModel.navigateHome(device) }
         )
         Spacer(Modifier.width(6.dp))
         TextField(
-            state = viewModel.pathInputOf(serial),
+            state = viewModel.pathInputOf(device),
             modifier = Modifier
                 .weight(1f)
                 .height(AdbrowserTheme.DefaultTextFieldHeight)
                 .onPreviewKeyEvent {
                     if (it.type == KeyEventType.KeyDown && (it.key == Key.Enter || it.key == Key.NumPadEnter)) {
-                        viewModel.openPathFromInput(serial)
+                        viewModel.openPathFromInput(device)
                         true
                     } else false
                 }
@@ -703,15 +701,15 @@ private fun SortModeDropdown(viewModel: MainStageModel, modifier: Modifier = Mod
 @Composable
 private fun FileListArea(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxWidth()) {
         if (viewModel.isListViewMode)
-            FileListView(viewModel = viewModel, serial = serial)
-        else FileIconView(viewModel = viewModel, serial = serial)
+            FileListView(viewModel = viewModel, device = device)
+        else FileIconView(viewModel = viewModel, device = device)
 
-        val hint = viewModel.fileListHintOf(serial)
+        val hint = viewModel.fileListHintOf(device)
         val hintIcon = fileListHintIcon(hint)
         val hintMessage = fileListHintMessage(hint)
 
@@ -731,18 +729,18 @@ private sealed interface FileContextMenuState {
 
 @Suppress("AssignedValueIsNeverRead")
 @Composable
-private fun FileListView(viewModel: MainStageModel, serial: String) {
+private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = viewModel.listScrollIndexOf(serial),
-        initialFirstVisibleItemScrollOffset = viewModel.listScrollOffsetOf(serial)
+        initialFirstVisibleItemIndex = viewModel.listScrollIndexOf(device),
+        initialFirstVisibleItemScrollOffset = viewModel.listScrollOffsetOf(device)
     )
-    val horizontalScrollState = rememberScrollState(viewModel.listHorizontalScrollOffsetOf(serial))
-    val directoryChangeVersion = viewModel.directoryChangeVersionOf(serial)
-    var handledDirectoryChangeVersion by remember(serial) { mutableStateOf(directoryChangeVersion) }
-    val entries = viewModel.entriesOf(serial)
-    val selectedEntry = viewModel.selectedEntryOf(serial)
-    var contextMenuState by remember(serial) { mutableStateOf<FileContextMenuState?>(null) }
-    var contextMenuRequestId by remember(serial) { mutableStateOf(0L) }
+    val horizontalScrollState = rememberScrollState(viewModel.listHorizontalScrollOffsetOf(device))
+    val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
+    var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
+    val entries = viewModel.entriesOf(device)
+    val selectedEntry = viewModel.selectedEntryOf(device)
+    var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
+    var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
 
     fun openBlankContextMenu(position: Offset) {
         contextMenuRequestId += 1L
@@ -754,7 +752,7 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
         contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
     }
 
-    LaunchedEffect(serial) {
+    LaunchedEffect(device.serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
 
@@ -763,7 +761,7 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
             listState.scrollToItem(selectedIndex)
     }
 
-    LaunchedEffect(serial, directoryChangeVersion) {
+    LaunchedEffect(device.serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
         contextMenuState = null
@@ -771,19 +769,19 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
         horizontalScrollState.scrollTo(0)
     }
 
-    LaunchedEffect(serial, listState) {
+    LaunchedEffect(device.serial, listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) ->
-                viewModel.updateListScrollState(serial, index, offset)
+                viewModel.updateListScrollState(device, index, offset)
             }
     }
 
-    LaunchedEffect(serial, horizontalScrollState) {
+    LaunchedEffect(device.serial, horizontalScrollState) {
         snapshotFlow { horizontalScrollState.value }
             .distinctUntilChanged()
             .collect { offset ->
-                viewModel.updateListHorizontalScrollState(serial, offset)
+                viewModel.updateListHorizontalScrollState(device, offset)
             }
     }
 
@@ -797,7 +795,7 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
                 .weight(1f)
                 .onBlankPrimaryPress {
                     contextMenuState = null
-                    viewModel.setSelectedEntry(serial, null)
+                    viewModel.setSelectedEntry(device, null)
                 }
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                     openBlankContextMenu(position)
@@ -810,17 +808,17 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
                 contentPadding = PaddingValues(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                items(viewModel.entriesOf(serial)) { entry ->
+                items(viewModel.entriesOf(device)) { entry ->
                     FileListRow(
                         viewModel = viewModel,
-                        serial = serial,
+                        device = device,
                         horizontalScrollState = horizontalScrollState,
                         item = entry,
-                        selected = viewModel.selectedEntryOf(serial) == entry,
-                        onClick = { viewModel.setSelectedEntry(serial, entry) },
-                        onDoubleClick = { viewModel.openEntry(serial, entry) },
+                        selected = viewModel.selectedEntryOf(device) == entry,
+                        onClick = { viewModel.setSelectedEntry(device, entry) },
+                        onDoubleClick = { viewModel.openEntry(device, entry) },
                         onSecondaryClick = { position ->
-                            viewModel.setSelectedEntry(serial, entry)
+                            viewModel.setSelectedEntry(device, entry)
                             openEntryContextMenu(entry, position)
                         },
                         contextMenuState = contextMenuState,
@@ -845,7 +843,7 @@ private fun FileListView(viewModel: MainStageModel, serial: String) {
             }
             FileBlankContextMenuPopup(
                 viewModel = viewModel,
-                serial = serial,
+                device = device,
                 state = contextMenuState,
                 onDismissRequest = { contextMenuState = null }
             )
@@ -927,7 +925,7 @@ private fun FileListHeader(
 @Composable
 private fun FileListRow(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     horizontalScrollState: ScrollState,
     item: DeviceFileItem,
     selected: Boolean,
@@ -1047,7 +1045,7 @@ private fun FileListRow(
         }
         FileEntryContextMenuPopup(
             viewModel = viewModel,
-            serial = serial,
+            device = device,
             item = item,
             state = contextMenuState,
             onDismissRequest = onDismissContextMenu
@@ -1080,18 +1078,18 @@ private fun FileColumnSplitter(
 
 @Suppress("AssignedValueIsNeverRead")
 @Composable
-private fun FileIconView(viewModel: MainStageModel, serial: String) {
+private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     val gridState = rememberLazyGridState(
-        initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(serial),
-        initialFirstVisibleItemScrollOffset = viewModel.iconScrollRowOffsetOf(serial)
+        initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(device),
+        initialFirstVisibleItemScrollOffset = viewModel.iconScrollRowOffsetOf(device)
     )
     val itemMinWidth = 120.dp
-    val directoryChangeVersion = viewModel.directoryChangeVersionOf(serial)
-    var handledDirectoryChangeVersion by remember(serial) { mutableStateOf(directoryChangeVersion) }
-    val entries = viewModel.entriesOf(serial)
-    val selectedEntry = viewModel.selectedEntryOf(serial)
-    var contextMenuState by remember(serial) { mutableStateOf<FileContextMenuState?>(null) }
-    var contextMenuRequestId by remember(serial) { mutableStateOf(0L) }
+    val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
+    var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
+    val entries = viewModel.entriesOf(device)
+    val selectedEntry = viewModel.selectedEntryOf(device)
+    var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
+    var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
 
     fun openBlankContextMenu(position: Offset) {
         contextMenuRequestId += 1L
@@ -1103,22 +1101,22 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
         contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
     }
 
-    LaunchedEffect(serial, directoryChangeVersion) {
+    LaunchedEffect(device.serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
         contextMenuState = null
         gridState.scrollToItem(0)
     }
 
-    LaunchedEffect(serial, gridState) {
+    LaunchedEffect(device.serial, gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) ->
-                viewModel.updateIconScrollState(serial, index, offset)
+                viewModel.updateIconScrollState(device, index, offset)
             }
     }
 
-    LaunchedEffect(serial) {
+    LaunchedEffect(device.serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
 
@@ -1132,7 +1130,7 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
             .fillMaxSize()
             .onBlankPrimaryPress {
                 contextMenuState = null
-                viewModel.setSelectedEntry(serial, null)
+                viewModel.setSelectedEntry(device, null)
             }
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                 openBlankContextMenu(position)
@@ -1145,14 +1143,14 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
         ) {
             items(entries) { entry ->
                 FileIconItem(
-                    serial = serial,
+                    device = device,
                     viewModel = viewModel,
                     item = entry,
-                    selected = viewModel.selectedEntryOf(serial) == entry,
-                    onClick = { viewModel.setSelectedEntry(serial, entry) },
-                    onDoubleClick = { viewModel.openEntry(serial, entry) },
+                    selected = viewModel.selectedEntryOf(device) == entry,
+                    onClick = { viewModel.setSelectedEntry(device, entry) },
+                    onDoubleClick = { viewModel.openEntry(device, entry) },
                     onSecondaryClick = { position ->
-                        viewModel.setSelectedEntry(serial, entry)
+                        viewModel.setSelectedEntry(device, entry)
                         openEntryContextMenu(entry, position)
                     },
                     contextMenuState = contextMenuState,
@@ -1172,7 +1170,7 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
         )
         FileBlankContextMenuPopup(
             viewModel = viewModel,
-            serial = serial,
+            device = device,
             state = contextMenuState,
             onDismissRequest = { contextMenuState = null }
         )
@@ -1182,7 +1180,7 @@ private fun FileIconView(viewModel: MainStageModel, serial: String) {
 @Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileIconItem(
-    serial: String,
+    device: AndroidDeviceItem,
     viewModel: MainStageModel,
     item: DeviceFileItem,
     selected: Boolean,
@@ -1254,7 +1252,7 @@ private fun FileIconItem(
         }
         FileEntryContextMenuPopup(
             viewModel = viewModel,
-            serial = serial,
+            device = device,
             item = item,
             state = contextMenuState,
             onDismissRequest = onDismissContextMenu
@@ -1266,7 +1264,7 @@ private fun FileIconItem(
 @Composable
 private fun FileBlankContextMenuPopup(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     state: FileContextMenuState?,
     onDismissRequest: () -> Unit
 ) {
@@ -1282,7 +1280,7 @@ private fun FileBlankContextMenuPopup(
     ) {
         blankFileContextMenu(
             viewModel = viewModel,
-            serial = serial,
+            device = device,
             onDismissRequest = onDismissRequest
         )
     }
@@ -1292,7 +1290,7 @@ private fun FileBlankContextMenuPopup(
 @Composable
 private fun FileEntryContextMenuPopup(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     item: DeviceFileItem,
     state: FileContextMenuState?,
     onDismissRequest: () -> Unit
@@ -1310,7 +1308,7 @@ private fun FileEntryContextMenuPopup(
     ) {
         entryFileContextMenu(
             viewModel = viewModel,
-            serial = serial,
+            device = device,
             item = item,
             onDismissRequest = onDismissRequest
         )
@@ -1319,23 +1317,23 @@ private fun FileEntryContextMenuPopup(
 
 private fun MenuScope.entryFileContextMenu(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     item: DeviceFileItem,
     onDismissRequest: () -> Unit
 ) {
     fun perform(action: () -> Unit) {
         onDismissRequest()
-        viewModel.setSelectedEntry(serial, item)
+        viewModel.setSelectedEntry(device, item)
         action()
     }
 
     selectableItem(
         selected = false,
-        onClick = { perform { viewModel.openEntry(serial, item) } }
+        onClick = { perform { viewModel.openEntry(device, item) } }
     ) { Text(strings.menuOpen) }
     selectableItem(
         selected = false,
-        onClick = { perform { viewModel.openEntryWith(serial, item) } }
+        onClick = { perform { viewModel.openEntryWith(device, item) } }
     ) { Text(strings.menuOpenWith) }
     separator()
     selectableItem(
@@ -1365,11 +1363,11 @@ private fun MenuScope.entryFileContextMenu(
 
 private fun MenuScope.blankFileContextMenu(
     viewModel: MainStageModel,
-    serial: String,
+    device: AndroidDeviceItem,
     onDismissRequest: () -> Unit
 ) {
-    val hasEntries = viewModel.entriesOf(serial).isNotEmpty()
-    val hasSelectedDevice = viewModel.isSelectedWorkspace(serial)
+    val hasEntries = viewModel.entriesOf(device).isNotEmpty()
+    val hasSelectedDevice = viewModel.isSelectedWorkspace(device)
 
     fun perform(action: () -> Unit) {
         onDismissRequest()
@@ -1510,7 +1508,7 @@ private fun DeviceListHint(
 }
 
 @Composable
-private fun PathBreadcrumbBar(viewModel: MainStageModel, serial: String) {
+private fun PathBreadcrumbBar(viewModel: MainStageModel, device: AndroidDeviceItem) {
     val colors = AdbrowserTheme.colors
     val scrollState = rememberScrollState()
 
@@ -1531,13 +1529,13 @@ private fun PathBreadcrumbBar(viewModel: MainStageModel, serial: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         BreadcrumbRootButton(
-            onClick = { viewModel.navigateToBreadcrumb(serial, "/") }
+            onClick = { viewModel.navigateToBreadcrumb(device, "/") }
         )
 
-        viewModel.breadcrumbsOf(serial).forEach { segment ->
+        viewModel.breadcrumbsOf(device).forEach { segment ->
             BreadcrumbSegment(
                 segment = segment,
-                onClick = { viewModel.navigateToBreadcrumb(serial, segment.fullPath) }
+                onClick = { viewModel.navigateToBreadcrumb(device, segment.fullPath) }
             )
         }
     }
