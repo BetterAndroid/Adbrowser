@@ -157,41 +157,41 @@ fun FrameWindowScope.MainMenuBar(
 
     MenuBar {
         Menu(strings.menuFile) {
-            Item(
-                text = strings.menuOpen,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::openSelectedEntry
-            )
-            Item(
-                text = strings.menuOpenWith,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::openSelectedEntryWith
-            )
-            Separator()
+            if (viewModel.hasSelectedEntry) {
+                Item(
+                    text = strings.menuOpen,
+                    onClick = viewModel::openSelectedEntry
+                )
+                if (!viewModel.selectedEntryIsDirectory)
+                    Item(
+                        text = strings.menuOpenWith,
+                        onClick = viewModel::openSelectedEntryWith
+                    )
+                Separator()
+            }
             Item(
                 text = strings.menuNewFolder,
                 onClick = viewModel::createNewFolder,
                 shortcut = createShortcut(Key.N)
             )
-            Separator()
-            Item(
-                text = strings.menuRename,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::renameSelectedEntry,
-                shortcut = createShortcut(Key.F2)
-            )
-            Item(
-                text = strings.menuDelete,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::deleteSelectedEntry,
-                shortcut = createShortcut(Key.Delete)
-            )
-            Item(
-                text = strings.menuProperties,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::showSelectedEntryProperties,
-                shortcut = createShortcut(Key.I)
-            )
+            if (viewModel.hasSelectedEntry) {
+                Separator()
+                Item(
+                    text = strings.menuRename,
+                    onClick = viewModel::renameSelectedEntry,
+                    shortcut = createShortcut(Key.F2)
+                )
+                Item(
+                    text = strings.menuDelete,
+                    onClick = viewModel::deleteSelectedEntry,
+                    shortcut = createShortcut(Key.Delete)
+                )
+                Item(
+                    text = strings.menuProperties,
+                    onClick = viewModel::showSelectedEntryProperties,
+                    shortcut = createShortcut(Key.I)
+                )
+            }
             if (!OsType.isMacOS) {
                 Separator()
                 Item(
@@ -1361,10 +1361,11 @@ private fun MenuScope.entryFileContextMenu(
         selected = false,
         onClick = { perform { viewModel.openEntry(device, item) } }
     ) { Text(strings.menuOpen) }
-    selectableItem(
-        selected = false,
-        onClick = { perform { viewModel.openEntryWith(device, item) } }
-    ) { Text(strings.menuOpenWith) }
+    if (!item.isDirectory)
+        selectableItem(
+            selected = false,
+            onClick = { perform { viewModel.openEntryWith(device, item) } }
+        ) { Text(strings.menuOpenWith) }
     separator()
     selectableItem(
         selected = false,

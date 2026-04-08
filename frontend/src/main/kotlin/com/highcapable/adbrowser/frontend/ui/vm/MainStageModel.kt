@@ -201,6 +201,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canPasteEntry get() = selectedDevice?.let { clipboardEntry?.device == it } == true
 
     val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
+    val selectedEntryIsDirectory get() = selectedEntry?.isDirectory == true
 
     var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
         private set
