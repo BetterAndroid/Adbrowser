@@ -119,6 +119,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val pathInput = TextFieldState("/")
         val currentEntries = mutableStateListOf<DeviceFileItem>()
         var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
+        val selectedEntryPaths = mutableStateListOf<String>()
+        var selectionAnchorPath by mutableStateOf<String?>(null)
+        var suppressNextDoubleOpen by mutableStateOf(false)
         val pathBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
         val navigationHistory = mutableStateListOf("/")
         var navigationIndex by mutableStateOf(0)
@@ -162,8 +165,18 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     var selectedEntry: DeviceFileItem?
         get() = activeWorkspace?.selectedEntry
         set(value) {
-            activeWorkspace?.selectedEntry = value
+            activeWorkspace?.let { state ->
+                setSelection(
+                    state = state,
+                    selectedPaths = value?.let(::buildEntryFullPath)?.let(::setOf).orEmpty(),
+                    primaryPath = value?.let(::buildEntryFullPath),
+                    anchorPath = value?.let(::buildEntryFullPath)
+                )
+            }
         }
+
+    val selectedEntries: List<DeviceFileItem>
+        get() = activeWorkspace?.let(::selectedEntriesOfState) ?: emptyEntries
 
     val currentPath: String
         get() = activeWorkspace?.currentPath ?: "/"
@@ -201,10 +214,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canShowBlankFileContextMenu get() = selectedDevice?.let(::canShowBlankFileContextMenu) == true
     val canPasteEntry get() = selectedDevice?.let { clipboardEntry?.device == it } == true
 
-    val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
-    val selectedEntryIsDirectory get() = selectedEntry?.isDirectory == true
+    val hasSelectedEntry get() = selectedEntries.isNotEmpty()
+    val hasSingleSelectedEntry get() = selectedEntries.size == 1
+    val hasMultipleSelectedEntries get() = selectedEntries.size > 1
+    val selectedEntryIsDirectory get() = hasSingleSelectedEntry && selectedEntry?.isDirectory == true
 
-    var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
+    var devicePaneWidthDp by mutableStateOf(settingsService.current.devicePaneWidth
+        .toFloat()
+        .coerceAtLeast(DEVICE_PANE_MIN_WIDTH))
         private set
 
     var fileColumnWidthNamePx by mutableStateOf(settingsService.current.fileColumnWidthName.toFloat())
@@ -369,8 +386,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun refreshEntries() {
         val device = selectedDevice ?: return
-        workspace(device)?.selectedEntry = null
-        refreshEntriesAsync(device = device, requestedPath = currentPath)
+        refreshEntriesAndClearSelection(device, requestedPath = currentPath)
     }
 
     fun createNewFolder() {
@@ -394,7 +410,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
 
         setStatus(StatusMessage.Key.FolderCreated, name)
-        selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
+        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
 
         return true
     }
@@ -423,7 +439,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
 
         setStatus(StatusMessage.Key.Renamed, entry.name, targetName)
-        selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
+        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
 
         return true
     }
@@ -446,7 +462,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
 
         setStatus(StatusMessage.Key.EntryDeleted, entry.name)
-        selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
+        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
 
         return true
     }
@@ -537,19 +553,38 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
             if (clipboard.isCut) clipboardEntry = null
             setStatus(StatusMessage.Key.Pasted, clipboard.name)
-            selectedDevice?.let { selected ->
-                val workspace = ensureWorkspace(selected)
-                refreshEntriesInternal(workspace, selected.toDomain(), requestedPath = workspace.currentPath)
-            }
+            selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
         }
     }
 
     fun selectAllEntries() {
-        selectedEntry = currentEntries.firstOrNull()
+        val state = activeWorkspace ?: return
+        val paths = state.currentEntries.map(::buildEntryFullPath).toSet()
+        val primaryPath = state.selectedEntry
+            ?.let(::buildEntryFullPath)
+            ?.takeIf(paths::contains)
+            ?: state.currentEntries.firstOrNull()?.let(::buildEntryFullPath)
+
+        setSelection(
+            state = state,
+            selectedPaths = paths,
+            primaryPath = primaryPath,
+            anchorPath = state.currentEntries.firstOrNull()?.let(::buildEntryFullPath)
+        )
     }
 
     fun inverseSelectEntries() {
-        selectedEntry = if (selectedEntry == null) currentEntries.firstOrNull() else null
+        val state = activeWorkspace ?: return
+        val allPaths = state.currentEntries.map(::buildEntryFullPath).toSet()
+        val inverted = allPaths - state.selectedEntryPaths.toSet()
+        val primaryPath = state.currentEntries.firstOrNull { buildEntryFullPath(it) in inverted }?.let(::buildEntryFullPath)
+
+        setSelection(
+            state = state,
+            selectedPaths = inverted,
+            primaryPath = primaryPath,
+            anchorPath = primaryPath
+        )
     }
 
     fun openViewModeMenu() {
@@ -696,10 +731,26 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun setSelectedEntry(device: AndroidDeviceItem, entry: DeviceFileItem?) {
-        workspace(device)?.selectedEntry = entry
+        workspace(device)?.let { state ->
+            setSelection(
+                state = state,
+                selectedPaths = entry?.let(::buildEntryFullPath)?.let(::setOf).orEmpty(),
+                primaryPath = entry?.let(::buildEntryFullPath),
+                anchorPath = entry?.let(::buildEntryFullPath)
+            )
+        }
     }
 
     fun selectedEntryOf(device: AndroidDeviceItem) = workspace(device)?.selectedEntry
+    fun selectedEntriesOf(device: AndroidDeviceItem) = workspace(device)?.let(::selectedEntriesOfState) ?: emptyEntries
+    fun selectedEntryPathsOf(device: AndroidDeviceItem) = workspace(device)?.selectedEntryPaths?.toSet().orEmpty()
+
+    fun hasMultipleSelectedEntries(device: AndroidDeviceItem) = selectedEntriesOf(device).size > 1
+    fun isEntrySelected(device: AndroidDeviceItem, entry: DeviceFileItem): Boolean {
+        val path = buildEntryFullPath(entry)
+        return workspace(device)?.selectedEntryPaths?.contains(path) == true
+    }
+
     fun entriesOf(device: AndroidDeviceItem) = workspace(device)?.currentEntries ?: emptyEntries
     fun directoryChangeVersionOf(device: AndroidDeviceItem) = workspace(device)?.directoryChangeVersion ?: 0
     fun listScrollIndexOf(device: AndroidDeviceItem) = workspace(device)?.listScrollIndex ?: 0
@@ -729,6 +780,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun pathInputOf(device: AndroidDeviceItem) = workspace(device)?.pathInput ?: fallbackPathInput
     fun breadcrumbsOf(device: AndroidDeviceItem) = workspace(device)?.pathBreadcrumbSegments ?: emptyBreadcrumbSegments
     fun fileListHintOf(device: AndroidDeviceItem) = workspace(device)?.fileListHint ?: FileListHint.None
+
     fun canShowBlankFileContextMenu(device: AndroidDeviceItem) = fileListHintOf(device).let {
         it == FileListHint.None || it == FileListHint.EmptyFolder
     }
@@ -736,6 +788,97 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun canNavigateForward(device: AndroidDeviceItem) =
         workspace(device)?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     fun canNavigateUp(device: AndroidDeviceItem) = workspace(device)?.currentPath?.let { it != "/" } ?: false
+
+    fun clearSelectedEntries(device: AndroidDeviceItem) {
+        workspace(device)?.let {
+            it.suppressNextDoubleOpen = false
+            setSelection(it, emptySet())
+        }
+    }
+
+    fun selectEntryByGesture(
+        device: AndroidDeviceItem,
+        entry: DeviceFileItem,
+        appendSelection: Boolean,
+        rangeSelection: Boolean
+    ) {
+        val state = workspace(device) ?: return
+        when {
+            rangeSelection -> {
+                state.suppressNextDoubleOpen = false
+                selectRangeToEntry(state, entry, additive = appendSelection)
+            }
+            appendSelection -> {
+                state.suppressNextDoubleOpen = false
+                toggleEntrySelection(state, entry)
+            }
+            else -> {
+                state.suppressNextDoubleOpen = state.selectedEntryPaths.size > 1
+                setSelection(
+                    state = state,
+                    selectedPaths = setOf(buildEntryFullPath(entry)),
+                    primaryPath = buildEntryFullPath(entry),
+                    anchorPath = buildEntryFullPath(entry)
+                )
+            }
+        }
+    }
+
+    fun ensureEntrySelectedForContextMenu(device: AndroidDeviceItem, entry: DeviceFileItem) {
+        val state = workspace(device) ?: return
+
+        val entryPath = buildEntryFullPath(entry)
+        if (state.selectedEntryPaths.size > 1 && entryPath in state.selectedEntryPaths) {
+            state.suppressNextDoubleOpen = false
+            state.selectedEntry = state.currentEntries.firstOrNull { buildEntryFullPath(it) == entryPath }
+            if (state.selectionAnchorPath == null) state.selectionAnchorPath = entryPath
+            return
+        }
+
+        state.suppressNextDoubleOpen = false
+        setSelection(
+            state = state,
+            selectedPaths = setOf(entryPath),
+            primaryPath = entryPath,
+            anchorPath = entryPath
+        )
+    }
+
+    fun consumeDoubleOpenSuppression(device: AndroidDeviceItem, entry: DeviceFileItem): Boolean {
+        val state = workspace(device) ?: return false
+        val entryPath = buildEntryFullPath(entry)
+
+        val shouldSuppress = state.suppressNextDoubleOpen &&
+            state.selectedEntryPaths.size == 1 &&
+            state.selectedEntryPaths.firstOrNull() == entryPath
+
+        state.suppressNextDoubleOpen = false
+        return shouldSuppress
+    }
+
+    fun updateDragSelection(
+        device: AndroidDeviceItem,
+        candidatePaths: Set<String>,
+        additive: Boolean,
+        initialSelectionPaths: Set<String>
+    ) {
+        val state = workspace(device) ?: return
+        state.suppressNextDoubleOpen = false
+
+        val validCandidatePaths = candidatePaths.filterTo(linkedSetOf()) { path ->
+            state.currentEntries.any { buildEntryFullPath(it) == path }
+        }
+        val finalSelection = if (additive) initialSelectionPaths + validCandidatePaths else validCandidatePaths
+        val primaryPath = state.currentEntries.firstOrNull { buildEntryFullPath(it) in validCandidatePaths }?.let(::buildEntryFullPath)
+            ?: state.currentEntries.firstOrNull { buildEntryFullPath(it) in finalSelection }?.let(::buildEntryFullPath)
+
+        setSelection(
+            state = state,
+            selectedPaths = finalSelection,
+            primaryPath = primaryPath,
+            anchorPath = state.selectionAnchorPath ?: primaryPath
+        )
+    }
 
     fun loadPermission(snapshot: FileEntrySnapshot) = runBlocking {
         permissionService.getPermission(snapshot.device, snapshot.fullPath)
@@ -801,6 +944,21 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             )
             onCompleted(success)
         }
+    }
+
+    private fun refreshEntriesAndClearSelection(
+        device: AndroidDeviceItem,
+        requestedPath: String? = null,
+        useRememberedPathWhenRequestedPathIsNull: Boolean = false,
+        onCompleted: (Boolean) -> Unit = {}
+    ) {
+        clearSelectedEntries(device)
+        refreshEntriesAsync(
+            device = device,
+            requestedPath = requestedPath,
+            useRememberedPathWhenRequestedPathIsNull = useRememberedPathWhenRequestedPathIsNull,
+            onCompleted = onCompleted
+        )
     }
 
     private suspend fun refreshEntriesInternal(
@@ -871,12 +1029,15 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val old = state.currentEntries[index]
         state.currentEntries[index] = old.copy(permission = symbolicPermission)
 
-        if (state.selectedEntry == old) state.selectedEntry = state.currentEntries[index]
+        if (state.selectedEntry?.let(::buildEntryFullPath) == fullPath)
+            state.selectedEntry = state.currentEntries[index]
     }
 
     private fun fillEntries(state: DeviceWorkspaceState, entries: List<DeviceFileEntry>) {
         val showHidden = settingsService.current.showHiddenFiles
-        val selectedPath = state.selectedEntry?.let { buildEntryFullPath(it) }
+        val selectedPaths = state.selectedEntryPaths.toSet()
+        val primaryPath = state.selectedEntry?.let(::buildEntryFullPath)
+        val anchorPath = state.selectionAnchorPath
 
         state.currentEntries.clear()
         state.currentEntries += entries
@@ -887,9 +1048,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         applySort(state)
 
-        state.selectedEntry = selectedPath?.let { path ->
-            state.currentEntries.firstOrNull { buildEntryFullPath(it) == path }
-        }
+        setSelection(
+            state = state,
+            selectedPaths = selectedPaths,
+            primaryPath = primaryPath,
+            anchorPath = anchorPath
+        )
     }
 
     private fun applySort(state: DeviceWorkspaceState) {
@@ -939,6 +1103,89 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         deviceWorkspaces += created
 
         return created
+    }
+
+    private fun selectedEntriesOfState(state: DeviceWorkspaceState): List<DeviceFileItem> {
+        if (state.selectedEntryPaths.isEmpty()) return emptyList()
+        val selectedPaths = state.selectedEntryPaths.toSet()
+
+        return state.currentEntries.filter { buildEntryFullPath(it) in selectedPaths }
+    }
+
+    private fun setSelection(
+        state: DeviceWorkspaceState,
+        selectedPaths: Set<String>,
+        primaryPath: String? = null,
+        anchorPath: String? = null
+    ) {
+        val validPaths = state.currentEntries
+            .map(::buildEntryFullPath)
+            .filterTo(linkedSetOf()) { it in selectedPaths }
+
+        state.selectedEntryPaths.clear()
+        state.selectedEntryPaths += validPaths
+
+        val resolvedPrimaryPath = primaryPath
+            ?.takeIf { it in validPaths }
+            ?: validPaths.firstOrNull()
+        state.selectedEntry = resolvedPrimaryPath?.let { path ->
+            state.currentEntries.firstOrNull { buildEntryFullPath(it) == path }
+        }
+
+        state.selectionAnchorPath = anchorPath
+            ?.takeIf { it in validPaths }
+            ?: resolvedPrimaryPath
+    }
+
+    private fun toggleEntrySelection(state: DeviceWorkspaceState, entry: DeviceFileItem) {
+        val entryPath = buildEntryFullPath(entry)
+        val current = state.selectedEntryPaths.toMutableSet()
+        if (!current.add(entryPath)) current.remove(entryPath)
+
+        val primaryPath = when {
+            entryPath in current -> entryPath
+            state.selectedEntry?.let(::buildEntryFullPath) in current -> state.selectedEntry?.let(::buildEntryFullPath)
+            else -> state.currentEntries.firstOrNull { buildEntryFullPath(it) in current }?.let(::buildEntryFullPath)
+        }
+        val anchorPath = when {
+            entryPath in current -> entryPath
+            state.selectionAnchorPath in current -> state.selectionAnchorPath
+            else -> primaryPath
+        }
+
+        setSelection(
+            state = state,
+            selectedPaths = current,
+            primaryPath = primaryPath,
+            anchorPath = anchorPath
+        )
+    }
+
+    private fun selectRangeToEntry(
+        state: DeviceWorkspaceState,
+        entry: DeviceFileItem,
+        additive: Boolean
+    ) {
+        val targetIndex = state.currentEntries.indexOfFirst { buildEntryFullPath(it) == buildEntryFullPath(entry) }
+        if (targetIndex < 0) return
+
+        val anchorPath = state.selectionAnchorPath
+            ?.takeIf { path -> state.currentEntries.any { buildEntryFullPath(it) == path } }
+            ?: state.selectedEntry?.let(::buildEntryFullPath)
+            ?: buildEntryFullPath(entry)
+        val anchorIndex = state.currentEntries.indexOfFirst { buildEntryFullPath(it) == anchorPath }.coerceAtLeast(0)
+
+        val range = state.currentEntries
+            .subList(minOf(anchorIndex, targetIndex), maxOf(anchorIndex, targetIndex) + 1)
+            .mapTo(linkedSetOf(), ::buildEntryFullPath)
+        val selectedPaths = if (additive) state.selectedEntryPaths.toSet() + range else range
+
+        setSelection(
+            state = state,
+            selectedPaths = selectedPaths,
+            primaryPath = buildEntryFullPath(entry),
+            anchorPath = anchorPath
+        )
     }
 
     private fun reconcileWorkspaces() {

@@ -50,6 +50,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,7 +72,7 @@ import org.jetbrains.jewel.ui.component.Text
 fun FileIconItem(
     item: DeviceFileItem,
     selected: Boolean,
-    onClick: () -> Unit,
+    onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
     modifier: Modifier = Modifier,
@@ -93,11 +100,19 @@ fun FileIconItem(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .hoverable(interactionSource = interactionSource)
+                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
+                    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
+
+                    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+                    pressed = true
+                    onPrimaryClick(
+                        event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed,
+                        event.keyboardModifiers.isShiftPressed
+                    )
+                }
                 .pointerInput(item) {
                     detectTapGestures(
                         onPress = {
-                            pressed = true
-                            onClick()
                             tryAwaitRelease()
                             pressed = false
                         },

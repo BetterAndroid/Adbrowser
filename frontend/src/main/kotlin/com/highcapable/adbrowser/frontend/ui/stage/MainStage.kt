@@ -24,9 +24,12 @@
 
 package com.highcapable.adbrowser.frontend.ui.stage
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,9 +63,28 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -87,7 +109,8 @@ import com.highcapable.adbrowser.frontend.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.frontend.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.frontend.ui.dialog.SimpleInputDialog
 import com.highcapable.adbrowser.frontend.ui.foundation.isIndexVisible
-import com.highcapable.adbrowser.frontend.ui.interaction.onBlankPrimaryPress
+import com.highcapable.adbrowser.frontend.ui.geometry.intersects
+import com.highcapable.adbrowser.frontend.ui.geometry.normalizedRect
 import com.highcapable.adbrowser.frontend.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.utils.extension.formatWithArgs
@@ -278,7 +301,18 @@ private fun FileListArea(
     device: AndroidDeviceItem,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxWidth()) {
+    val focusRequester = remember(device.serial) { FocusRequester() }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { handleFileAreaShortcut(viewModel, device, it) }
+            .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                focusRequester.requestFocus()
+            }
+    ) {
         if (viewModel.isListViewMode)
             FileListView(viewModel = viewModel, device = device)
         else FileIconView(viewModel = viewModel, device = device)
@@ -308,6 +342,7 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
+    val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device.serial) {
@@ -359,11 +394,15 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             modifier = Modifier
                 .weight(1f)
                 .onGloballyPositioned { interactionState.contentCoordinates = it }
-                .onBlankPrimaryPress { position ->
-                    interactionState.clearSelectionIfBlank(position) {
-                        viewModel.setSelectedEntry(device, null)
+                .fileAreaBlankSelection(
+                    interactionState = interactionState,
+                    showSelectionRect = false,
+                    selectedPathsProvider = { viewModel.selectedEntryPathsOf(device) },
+                    onClearSelection = { viewModel.clearSelectedEntries(device) },
+                    onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
+                        viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
                     }
-                }
+                )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                     if (canShowBlankContextMenu)
                         interactionState.openBlankContextMenu(position)
@@ -383,15 +422,22 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                     FileListRow(
                         horizontalScrollState = horizontalScrollState,
                         item = entry,
-                        selected = viewModel.selectedEntryOf(device) == entry,
+                        selected = viewModel.isEntrySelected(device, entry),
                         nameWidth = viewModel.fileColumnWidthNamePx.dp,
                         sizeWidth = viewModel.fileColumnWidthSizePx.dp,
                         modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp,
                         permissionWidth = viewModel.fileColumnWidthPermissionPx.dp,
-                        onClick = { viewModel.setSelectedEntry(device, entry) },
-                        onDoubleClick = { viewModel.openEntry(device, entry) },
+                        onPrimaryClick = { appendSelection, rangeSelection ->
+                            viewModel.selectEntryByGesture(device, entry, appendSelection, rangeSelection)
+                        },
+                        onDoubleClick = {
+                            if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileListRow
+                            if (selectedEntryCount > 1) return@FileListRow
+
+                            viewModel.openEntry(device, entry)
+                        },
                         onSecondaryClick = { position ->
-                            viewModel.setSelectedEntry(device, entry)
+                            viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
@@ -446,6 +492,7 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
+    val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device.serial, directoryChangeVersion) {
@@ -473,11 +520,15 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         modifier = Modifier
             .fillMaxSize()
             .onGloballyPositioned { interactionState.contentCoordinates = it }
-            .onBlankPrimaryPress { position ->
-                interactionState.clearSelectionIfBlank(position) {
-                    viewModel.setSelectedEntry(device, null)
+            .fileAreaBlankSelection(
+                interactionState = interactionState,
+                showSelectionRect = true,
+                selectedPathsProvider = { viewModel.selectedEntryPathsOf(device) },
+                onClearSelection = { viewModel.clearSelectedEntries(device) },
+                onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
+                    viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
                 }
-            }
+            )
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
                 if (canShowBlankContextMenu)
                     interactionState.openBlankContextMenu(position)
@@ -494,11 +545,18 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 }
                 FileIconItem(
                     item = entry,
-                    selected = viewModel.selectedEntryOf(device) == entry,
-                    onClick = { viewModel.setSelectedEntry(device, entry) },
-                    onDoubleClick = { viewModel.openEntry(device, entry) },
+                    selected = viewModel.isEntrySelected(device, entry),
+                    onPrimaryClick = { appendSelection, rangeSelection ->
+                        viewModel.selectEntryByGesture(device, entry, appendSelection, rangeSelection)
+                    },
+                    onDoubleClick = {
+                        if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileIconItem
+                        if (selectedEntryCount > 1) return@FileIconItem
+
+                        viewModel.openEntry(device, entry)
+                    },
                     onSecondaryClick = { position ->
-                        viewModel.setSelectedEntry(device, entry)
+                        viewModel.ensureEntrySelectedForContextMenu(device, entry)
                         interactionState.openEntryContextMenu(entry, position)
                     },
                     modifier = Modifier
@@ -526,6 +584,23 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
         )
+        interactionState.selectionRect?.let { rect ->
+            val accentColor = AdbrowserTheme.colors.primaryAccent
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(
+                    color = accentColor.copy(alpha = 0.14f),
+                    topLeft = rect.topLeft,
+                    size = rect.size
+                )
+                drawRect(
+                    color = accentColor,
+                    topLeft = rect.topLeft,
+                    size = rect.size,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+        }
         FileBlankContextMenuPopup(
             viewModel = viewModel,
             device = device,
@@ -596,50 +671,59 @@ private fun MenuScope.entryFileContextMenu(
     item: DeviceFileItem,
     onDismissRequest: () -> Unit
 ) {
+    val isMultiSelection = viewModel.hasMultipleSelectedEntries(device) && viewModel.isEntrySelected(device, item)
+
     fun perform(action: () -> Unit) {
         onDismissRequest()
-        viewModel.setSelectedEntry(device, item)
+        viewModel.ensureEntrySelectedForContextMenu(device, item)
         action()
     }
 
-    selectableItem(
-        selected = false,
-        onClick = { perform { viewModel.openEntry(device, item) } }
-    ) { Text(strings.menuOpen) }
-    if (!item.isDirectory)
+    if (!isMultiSelection) {
         selectableItem(
             selected = false,
-            onClick = { perform { viewModel.openEntryWith(device, item) } }
-        ) { Text(strings.menuOpenWith) }
-    separator()
-    selectableItem(
-        selected = false,
-        iconKey = AllIconsKeys.Actions.Edit,
-        onClick = { perform(viewModel::renameSelectedEntry) }
-    ) { Text(strings.menuRename) }
+            onClick = { perform { viewModel.openEntry(device, item) } }
+        ) { Text(strings.menuOpen) }
+        if (!item.isDirectory)
+            selectableItem(
+                selected = false,
+                onClick = { perform { viewModel.openEntryWith(device, item) } }
+            ) { Text(strings.menuOpenWith) }
+        separator()
+        selectableItem(
+            selected = false,
+            iconKey = AllIconsKeys.Actions.Edit,
+            onClick = { perform(viewModel::renameSelectedEntry) }
+        ) { Text(strings.menuRename) }
+    }
     selectableItemWithActionType(
         selected = false,
         iconKey = AllIconsKeys.Actions.Copy,
         actionType = CopyMenuItemOptionAction,
+        enabled = !isMultiSelection,
         onClick = { perform(viewModel::copySelectedEntry) }
     ) { Text(strings.menuCopy) }
     selectableItemWithActionType(
         selected = false,
         iconKey = AllIconsKeys.Actions.MenuCut,
         actionType = CutMenuItemOptionAction,
+        enabled = !isMultiSelection,
         onClick = { perform(viewModel::cutSelectedEntry) }
     ) { Text(strings.menuCut) }
     selectableItem(
         selected = false,
         iconKey = AllIconsKeys.General.Delete,
+        enabled = !isMultiSelection,
         onClick = { perform(viewModel::deleteSelectedEntry) }
     ) { Text(strings.menuDelete) }
-    separator()
-    selectableItem(
-        selected = false,
-        iconKey = AllIconsKeys.Actions.Properties,
-        onClick = { perform(viewModel::showSelectedEntryProperties) }
-    ) { Text(strings.menuProperties) }
+    if (!isMultiSelection) {
+        separator()
+        selectableItem(
+            selected = false,
+            iconKey = AllIconsKeys.Actions.Properties,
+            onClick = { perform(viewModel::showSelectedEntryProperties) }
+        ) { Text(strings.menuProperties) }
+    }
 }
 
 private fun MenuScope.blankFileContextMenu(
@@ -809,6 +893,7 @@ private class FileAreaInteractionState {
     private var contextMenuRequestId by mutableStateOf(0L)
 
     var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
+    var selectionRect by mutableStateOf<Rect?>(null)
     val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, Rect>()
     var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
 
@@ -826,6 +911,10 @@ private class FileAreaInteractionState {
         contextMenuState = null
     }
 
+    fun dismissSelectionRect() {
+        selectionRect = null
+    }
+
     fun clearSelectionIfBlank(position: Offset, onBlankAreaPressed: () -> Unit) {
         contextMenuState = null
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
@@ -833,9 +922,144 @@ private class FileAreaInteractionState {
             onBlankAreaPressed()
         }
     }
+
+    fun isBlankArea(position: Offset): Boolean {
+        val rootPosition = contentCoordinates?.localToRoot(position) ?: position
+        return visibleEntryBounds.values.none { it.contains(rootPosition) }
+    }
+
+    fun entryPathsIntersecting(localRect: Rect): Set<String> {
+        val rootRect = contentCoordinates?.let { coordinates ->
+            normalizedRect(
+                coordinates.localToRoot(localRect.topLeft),
+                coordinates.localToRoot(localRect.bottomRight)
+            )
+        } ?: localRect
+
+        return visibleEntryBounds
+            .filterValues { it.intersects(rootRect) }
+            .keys
+            .mapTo(linkedSetOf()) { entry ->
+                if (entry.path == "/")
+                    "/${entry.name}"
+                else "${entry.path.trimEnd('/')}/${entry.name}"
+            }
+    }
 }
 
 @Composable
-private fun rememberFileAreaInteractionState(device: AndroidDeviceItem) = remember(device.serial) {
+private fun rememberFileAreaInteractionState(device: AndroidDeviceItem) = remember(device) {
     FileAreaInteractionState()
+}
+
+private fun Modifier.fileAreaBlankSelection(
+    interactionState: FileAreaInteractionState,
+    showSelectionRect: Boolean,
+    selectedPathsProvider: () -> Set<String>,
+    onClearSelection: () -> Unit,
+    onSelectionChanged: (candidatePaths: Set<String>, additive: Boolean, initialSelectionPaths: Set<String>) -> Unit
+) = pointerInput(interactionState, showSelectionRect) {
+    awaitEachGesture {
+        var downPosition: Offset? = null
+        var additive = false
+
+        while (downPosition == null) {
+            val event = awaitPointerEvent(pass = PointerEventPass.Final)
+            if (!event.buttons.isPrimaryPressed) continue
+
+            val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: continue
+            downPosition = change.position
+            additive = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
+            change.consume()
+        }
+
+        val start = downPosition
+        if (!interactionState.isBlankArea(start)) {
+            interactionState.dismissSelectionRect()
+            return@awaitEachGesture
+        }
+
+        interactionState.dismissContextMenu()
+        interactionState.dismissSelectionRect()
+
+        if (!additive) onClearSelection()
+
+        val initialSelectionPaths = selectedPathsProvider()
+        var dragging = false
+
+        while (true) {
+            val event = awaitPointerEvent(pass = PointerEventPass.Final)
+            val primaryChange = event.changes.firstOrNull() ?: continue
+            val current = primaryChange.position
+
+            if (primaryChange.pressed) {
+                val dragRect = normalizedRect(start, current)
+                if (!dragging && maxOf(dragRect.width, dragRect.height) >= 4f) dragging = true
+                if (dragging) {
+                    interactionState.selectionRect = if (showSelectionRect) dragRect else null
+                    onSelectionChanged(
+                        interactionState.entryPathsIntersecting(dragRect),
+                        additive,
+                        initialSelectionPaths
+                    )
+                }
+                continue
+            }
+
+            interactionState.dismissSelectionRect()
+            break
+        }
+    }
+}
+
+private fun handleFileAreaShortcut(
+    viewModel: MainStageModel,
+    device: AndroidDeviceItem,
+    event: KeyEvent
+): Boolean {
+    if (event.type != KeyEventType.KeyDown) return false
+
+    val isPrimaryShortcutPressed = event.isCtrlPressed || event.isMetaPressed
+    return when {
+        isPrimaryShortcutPressed && event.key == Key.A && !event.isShiftPressed -> {
+            viewModel.selectAllEntries()
+            true
+        }
+        event.key == Key.A && event.isShiftPressed -> {
+            viewModel.inverseSelectEntries()
+            true
+        }
+        isPrimaryShortcutPressed && event.key == Key.C && viewModel.hasSingleSelectedEntry -> {
+            viewModel.copySelectedEntry()
+            true
+        }
+        isPrimaryShortcutPressed && event.key == Key.X && viewModel.hasSingleSelectedEntry -> {
+            viewModel.cutSelectedEntry()
+            true
+        }
+        isPrimaryShortcutPressed &&
+            event.key == Key.V &&
+            viewModel.canShowBlankFileContextMenu(device) &&
+            viewModel.canPasteEntry -> {
+            viewModel.pasteToCurrentPath()
+            true
+        }
+        event.key == Key.Delete && viewModel.hasSingleSelectedEntry -> {
+            viewModel.deleteSelectedEntry()
+            true
+        }
+        event.key == Key.F2 && viewModel.hasSingleSelectedEntry -> {
+            viewModel.renameSelectedEntry()
+            true
+        }
+        (event.key == Key.Enter || event.key == Key.NumPadEnter) && viewModel.hasSingleSelectedEntry -> {
+            viewModel.openSelectedEntry()
+            true
+        }
+        event.key == Key.Escape && viewModel.selectedEntriesOf(device).isNotEmpty() -> {
+            viewModel.clearSelectedEntries(device)
+            true
+        }
+        else -> false
+    }
 }

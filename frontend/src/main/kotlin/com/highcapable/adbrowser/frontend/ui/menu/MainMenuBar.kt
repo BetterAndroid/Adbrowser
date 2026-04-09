@@ -48,13 +48,13 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuFile) {
             Item(
                 text = strings.menuOpen,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::openSelectedEntry
             )
             if (!viewModel.selectedEntryIsDirectory)
                 Item(
                     text = strings.menuOpenWith,
-                    enabled = viewModel.hasSelectedEntry,
+                    enabled = viewModel.hasSingleSelectedEntry,
                     onClick = viewModel::openSelectedEntryWith
                 )
             Separator()
@@ -67,19 +67,19 @@ fun FrameWindowScope.MainMenuBar(
             Separator()
             Item(
                 text = strings.menuRename,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::renameSelectedEntry,
                 shortcut = KeyShortcut(Key.F2)
             )
             Item(
                 text = strings.menuDelete,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::deleteSelectedEntry,
                 shortcut = KeyShortcut(Key.Delete)
             )
             Item(
                 text = strings.menuProperties,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::showSelectedEntryProperties,
                 shortcut = KeyShortcut(Key.I)
             )
@@ -101,13 +101,13 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuEdit) {
             Item(
                 text = strings.menuCut,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::cutSelectedEntry,
                 shortcut = KeyShortcut(Key.X)
             )
             Item(
                 text = strings.menuCopy,
-                enabled = viewModel.hasSelectedEntry,
+                enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::copySelectedEntry,
                 shortcut = KeyShortcut(Key.C)
             )
