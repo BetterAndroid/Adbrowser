@@ -198,6 +198,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canNavigateForward get() = activeWorkspace?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     val canNavigateUp get() = currentPath != "/"
     val canNavigateRoot get() = selectedDevice != null && currentPath != "/"
+    val canShowBlankFileContextMenu get() = selectedDevice?.let(::canShowBlankFileContextMenu) == true
     val canPasteEntry get() = selectedDevice?.let { clipboardEntry?.device == it } == true
 
     val hasSelectedEntry get() = selectedDevice != null && selectedEntry != null
@@ -728,6 +729,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun pathInputOf(device: AndroidDeviceItem) = workspace(device)?.pathInput ?: fallbackPathInput
     fun breadcrumbsOf(device: AndroidDeviceItem) = workspace(device)?.pathBreadcrumbSegments ?: emptyBreadcrumbSegments
     fun fileListHintOf(device: AndroidDeviceItem) = workspace(device)?.fileListHint ?: FileListHint.None
+    fun canShowBlankFileContextMenu(device: AndroidDeviceItem) = fileListHintOf(device).let {
+        it == FileListHint.None || it == FileListHint.EmptyFolder
+    }
     fun canNavigateBack(device: AndroidDeviceItem) = (workspace(device)?.navigationIndex ?: 0) > 0
     fun canNavigateForward(device: AndroidDeviceItem) =
         workspace(device)?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true

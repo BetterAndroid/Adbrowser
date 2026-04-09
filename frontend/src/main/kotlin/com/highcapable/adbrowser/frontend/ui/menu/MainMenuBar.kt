@@ -60,6 +60,7 @@ fun FrameWindowScope.MainMenuBar(
             Separator()
             Item(
                 text = strings.menuNewFolder,
+                enabled = viewModel.canShowBlankFileContextMenu,
                 onClick = viewModel::createNewFolder,
                 shortcut = KeyShortcut(Key.N)
             )
@@ -112,18 +113,20 @@ fun FrameWindowScope.MainMenuBar(
             )
             Item(
                 text = strings.menuPaste,
-                enabled = viewModel.canPasteEntry,
+                enabled = viewModel.canShowBlankFileContextMenu && viewModel.canPasteEntry,
                 onClick = viewModel::pasteToCurrentPath,
                 shortcut = KeyShortcut(Key.V)
             )
             Separator()
             Item(
                 strings.menuSelectAll,
+                enabled = viewModel.canShowBlankFileContextMenu && viewModel.currentEntries.isNotEmpty(),
                 onClick = viewModel::selectAllEntries,
                 shortcut = KeyShortcut(Key.A)
             )
             Item(
                 strings.menuInverseSelect,
+                enabled = viewModel.canShowBlankFileContextMenu && viewModel.currentEntries.isNotEmpty(),
                 onClick = viewModel::inverseSelectEntries,
                 shortcut = KeyShortcut(Key.A, shift = true)
             )

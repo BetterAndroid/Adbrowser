@@ -282,9 +282,11 @@ private fun FileListArea(
         if (viewModel.isListViewMode)
             FileListView(viewModel = viewModel, device = device)
         else FileIconView(viewModel = viewModel, device = device)
+
         val hint = viewModel.fileListHintOf(device)
         val hintIcon = FileListHintIcon(hint)
         val hintMessage = FileListHintMessage(hint)
+
         if (hintIcon != null && hintMessage.isNotBlank())
             FileListHint(
                 iconKey = hintIcon,
@@ -306,6 +308,7 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
+    val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device.serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
@@ -362,7 +365,8 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                     }
                 }
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                    interactionState.openBlankContextMenu(position)
+                    if (canShowBlankContextMenu)
+                        interactionState.openBlankContextMenu(position)
                 }
         ) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
@@ -442,6 +446,7 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
+    val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device.serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
@@ -474,7 +479,8 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 }
             }
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                interactionState.openBlankContextMenu(position)
+                if (canShowBlankContextMenu)
+                    interactionState.openBlankContextMenu(position)
             }
     ) {
         LazyVerticalGrid(
@@ -536,6 +542,8 @@ private fun FileBlankContextMenuPopup(
     state: FileContextMenuState?,
     onDismissRequest: () -> Unit
 ) {
+    if (!viewModel.canShowBlankFileContextMenu(device)) return
+
     val blankState = state as? FileContextMenuState.Blank ?: return
 
     PopupMenu(
