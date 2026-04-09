@@ -20,6 +20,8 @@
  *
  * This file is created by fankes on 2025/6/4.
  */
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.highcapable.adbrowser.frontend.ui.window
 
 import androidx.compose.runtime.Composable
@@ -34,12 +36,11 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.frontend.cl.LocalAppState
-import com.highcapable.adbrowser.frontend.ui.stage.MainMenuBar
+import com.highcapable.adbrowser.frontend.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.frontend.ui.stage.MainStage
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.MainStageModel
 
-@Suppress("AssignedValueIsNeverRead")
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
     Window(

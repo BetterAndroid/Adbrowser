@@ -15,7 +15,13 @@ java {
 
 kotlin {
     jvmToolchain(17)
-    sourceSets.all { languageSettings { languageVersion = "2.0" } }
+    sourceSets.all {
+        languageSettings {
+            languageVersion = "2.0"
+            languageSettings.optIn("androidx.compose.ui.ExperimentalComposeUiApi")
+            languageSettings.optIn("org.jetbrains.jewel.foundation.ExperimentalJewelApi")
+        }
+    }
     compilerOptions {
         freeCompilerArgs = listOf(
             "-Xno-param-assertions",

@@ -22,12 +22,10 @@
  */
 package com.highcapable.adbrowser.frontend.ui.stage
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +34,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.FrameWindowScope
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.frontend.locale.languageOptions
+import com.highcapable.adbrowser.frontend.ui.component.PanelSurface
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.PreferencesStageModel
 import org.jetbrains.jewel.ui.Orientation
@@ -220,7 +218,10 @@ private fun PreferencesTabs(viewModel: PreferencesStageModel) {
 
 @Composable
 private fun GeneralTab(viewModel: PreferencesStageModel) {
-    PanelSurface {
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesUserInterface, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,7 +233,10 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
             }
         }
     }
-    PanelSurface {
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesResetOptions, fontWeight = FontWeight.SemiBold)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,7 +253,10 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
 
 @Composable
 private fun FilesTab(viewModel: PreferencesStageModel) {
-    PanelSurface {
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesFileList, fontWeight = FontWeight.SemiBold)
             CheckboxRow(
@@ -274,7 +281,10 @@ private fun DeviceTab(
     parentWindow: Window?,
     browseDialogTitle: String
 ) {
-    PanelSurface {
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesEnvironment, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -299,7 +309,10 @@ private fun DeviceTab(
             }
         }
     }
-    PanelSurface {
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesConnection, fontWeight = FontWeight.SemiBold)
             CheckboxRow(
@@ -315,6 +328,7 @@ private fun LanguageDropdown(viewModel: PreferencesStageModel) {
     val options = languageOptions()
     val selectedTag = viewModel.selectedLanguageTag
     val selected = options.firstOrNull { it.tag == selectedTag } ?: options.first()
+
     Dropdown(
         modifier = Modifier
             .width(200.dp)
@@ -329,20 +343,6 @@ private fun LanguageDropdown(viewModel: PreferencesStageModel) {
         }
     ) {
         Text(selected.displayName)
-    }
-}
-
-@Composable
-private fun PanelSurface(content: @Composable () -> Unit) {
-    val colors = AdbrowserTheme.colors
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.panelBackground, RoundedCornerShape(8.dp))
-            .border(BorderStroke(1.dp, colors.panelBorder), RoundedCornerShape(8.dp))
-            .padding(14.dp)
-    ) {
-        content()
     }
 }
 
@@ -364,5 +364,6 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
 
 private val TabLabelFontSize = 20.sp
 private val TabLabelFontWeight = FontWeight.Normal
+private val PanelPadding = PaddingValues(14.dp)
 
 private val StatusErrorColor = Color(0xFFB94747)

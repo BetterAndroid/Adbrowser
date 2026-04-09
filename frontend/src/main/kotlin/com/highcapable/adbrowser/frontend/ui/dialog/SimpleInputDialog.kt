@@ -20,6 +20,8 @@
  *
  * This file is created by fankes on 2026/4/5.
  */
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.highcapable.adbrowser.frontend.ui.dialog
 
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +41,6 @@ import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 
-@Suppress("AssignedValueIsNeverRead")
 @Composable
 fun SimpleInputDialog(
     title: String,

@@ -20,41 +20,25 @@
  *
  * This file is created by fankes on 2026/4/3.
  */
-@file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+@file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH", "AssignedValueIsNeverRead")
 
 package com.highcapable.adbrowser.frontend.ui.stage
 
 import androidx.compose.foundation.HorizontalScrollbar
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -62,8 +46,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -76,253 +58,70 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.KeyShortcut
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.isPrimaryPressed
-import androidx.compose.ui.input.pointer.isSecondaryPressed
-import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.FrameWindowScope
-import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
 import androidx.compose.ui.zIndex
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.frontend.ui.assets.AppIcons
-import com.highcapable.adbrowser.frontend.ui.component.ContentIcon
-import com.highcapable.adbrowser.frontend.ui.component.ContentIconButton
+import com.highcapable.adbrowser.frontend.ui.component.DevicePanePanel
+import com.highcapable.adbrowser.frontend.ui.component.FileIconItem
+import com.highcapable.adbrowser.frontend.ui.component.FileListHeader
+import com.highcapable.adbrowser.frontend.ui.component.FileListHint
+import com.highcapable.adbrowser.frontend.ui.component.FileListRow
+import com.highcapable.adbrowser.frontend.ui.component.FileNavigationBar
 import com.highcapable.adbrowser.frontend.ui.component.FixedWidthHorizontalSplitLayout
+import com.highcapable.adbrowser.frontend.ui.component.PanelSurface
+import com.highcapable.adbrowser.frontend.ui.component.PathBreadcrumbBar
+import com.highcapable.adbrowser.frontend.ui.component.StatusBar
 import com.highcapable.adbrowser.frontend.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.frontend.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.frontend.ui.dialog.SimpleInputDialog
-import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserColorScheme
+import com.highcapable.adbrowser.frontend.ui.foundation.isIndexVisible
+import com.highcapable.adbrowser.frontend.ui.interaction.onBlankPrimaryPress
+import com.highcapable.adbrowser.frontend.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
+import com.highcapable.adbrowser.frontend.ui.utils.extension.formatWithArgs
 import com.highcapable.adbrowser.frontend.ui.vm.MainStageModel
 import com.highcapable.adbrowser.frontend.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
-import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
-import com.highcapable.adbrowser.frontend.ui.window.manager.AppWindow
-import com.highcapable.adbrowser.frontend.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.shared.utils.BuildVersion
-import com.highcapable.adbrowser.shared.utils.OsType
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CopyMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CutMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.PasteMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.SelectAllMenuItemOptionAction
-import org.jetbrains.jewel.ui.component.Dropdown
 import org.jetbrains.jewel.ui.component.MenuScope
 import org.jetbrains.jewel.ui.component.PopupMenu
 import org.jetbrains.jewel.ui.component.Text
-import org.jetbrains.jewel.ui.component.TextField
 import org.jetbrains.jewel.ui.component.separator
-import org.jetbrains.jewel.ui.icon.IconKey
 import org.jetbrains.jewel.ui.icons.AllIconsKeys
-
-@Composable
-fun FrameWindowScope.MainMenuBar(
-    viewModel: MainStageModel,
-    onCloseRequest: () -> Unit
-) {
-    val windowManager = LocalWindowManager.current
-    val toggleStatusBarText = if (viewModel.isStatusBarVisible)
-        strings.menuHideStatusBar
-    else strings.menuShowStatusBar
-    val openPreferences = { windowManager.open(AppWindow.Preferences) }
-
-    MenuBar {
-        Menu(strings.menuFile) {
-            if (viewModel.hasSelectedEntry) {
-                Item(
-                    text = strings.menuOpen,
-                    onClick = viewModel::openSelectedEntry
-                )
-                if (!viewModel.selectedEntryIsDirectory)
-                    Item(
-                        text = strings.menuOpenWith,
-                        onClick = viewModel::openSelectedEntryWith
-                    )
-                Separator()
-            }
-            Item(
-                text = strings.menuNewFolder,
-                onClick = viewModel::createNewFolder,
-                shortcut = createShortcut(Key.N)
-            )
-            if (viewModel.hasSelectedEntry) {
-                Separator()
-                Item(
-                    text = strings.menuRename,
-                    onClick = viewModel::renameSelectedEntry,
-                    shortcut = createShortcut(Key.F2)
-                )
-                Item(
-                    text = strings.menuDelete,
-                    onClick = viewModel::deleteSelectedEntry,
-                    shortcut = createShortcut(Key.Delete)
-                )
-                Item(
-                    text = strings.menuProperties,
-                    onClick = viewModel::showSelectedEntryProperties,
-                    shortcut = createShortcut(Key.I)
-                )
-            }
-            if (!OsType.isMacOS) {
-                Separator()
-                Item(
-                    text = strings.menuPreferences,
-                    onClick = openPreferences,
-                    shortcut = createShortcut(Key.Comma)
-                )
-                Separator()
-                Item(
-                    text = strings.menuExit,
-                    onClick = onCloseRequest,
-                    shortcut = createShortcut(Key.Q)
-                )
-            }
-        }
-        Menu(strings.menuEdit) {
-            Item(
-                text = strings.menuCut,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::cutSelectedEntry,
-                shortcut = createShortcut(Key.X)
-            )
-            Item(
-                text = strings.menuCopy,
-                enabled = viewModel.hasSelectedEntry,
-                onClick = viewModel::copySelectedEntry,
-                shortcut = createShortcut(Key.C)
-            )
-            Item(
-                text = strings.menuPaste,
-                enabled = viewModel.canPasteEntry,
-                onClick = viewModel::pasteToCurrentPath,
-                shortcut = createShortcut(Key.V)
-            )
-            Separator()
-            Item(strings.menuSelectAll,
-                onClick = viewModel::selectAllEntries,
-                shortcut = createShortcut(Key.A)
-            )
-            Item(
-                strings.menuInverseSelect,
-                onClick = viewModel::inverseSelectEntries,
-                shortcut = createShortcut(Key.A, shift = true)
-            )
-        }
-        Menu(strings.menuView) {
-            Item(
-                text = strings.menuRefresh,
-                onClick = viewModel::refreshEntries,
-                shortcut = createShortcut(Key.R))
-            Item(
-                text = strings.menuViewMode,
-                onClick = viewModel::openViewModeMenu,
-                shortcut = createShortcut(Key.M))
-            Item(
-                text = strings.menuSortMode,
-                onClick = viewModel::openSortModeMenu,
-                shortcut = createShortcut(Key.O)
-            )
-            Separator()
-            Item(
-                text = toggleStatusBarText,
-                onClick = viewModel::toggleStatusBar,
-                shortcut = createShortcut(Key.B)
-            )
-            Item(
-                text = strings.menuAppLogs,
-                onClick = {
-                    windowManager.open(AppWindow.LogViewer)
-                },
-                shortcut = createShortcut(Key.L)
-            )
-        }
-        Menu(strings.menuGo) {
-            Item(
-                text = strings.menuForward,
-                enabled = viewModel.canNavigateForward,
-                onClick = viewModel::navigateForward,
-                shortcut = createShortcut(Key.DirectionRight, alt = true)
-            )
-            Item(
-                text = strings.menuBack,
-                enabled = viewModel.canNavigateBack,
-                onClick = viewModel::navigateBack,
-                shortcut = createShortcut(Key.DirectionLeft, alt = true)
-            )
-            Separator()
-            Item(
-                text = strings.menuUp,
-                enabled = viewModel.canNavigateUp,
-                onClick = viewModel::navigateUp,
-                shortcut = createShortcut(Key.DirectionUp, alt = true)
-            )
-            Item(
-                text = strings.menuRoot,
-                enabled = viewModel.canNavigateRoot,
-                onClick = viewModel::navigateRoot,
-                shortcut = createShortcut(Key.R, shift = true)
-            )
-            Item(
-                text = strings.menuHome,
-                onClick = viewModel::navigateHome,
-                shortcut = createShortcut(Key.H, shift = true)
-            )
-        }
-        Menu(strings.menuHelp) {
-            Item(
-                text = strings.menuComingSoon,
-                enabled = false,
-                onClick = {}
-            )
-        }
-    }
-}
-
-private fun createShortcut(
-    key: Key,
-    alt: Boolean = false,
-    shift: Boolean = false
-) = KeyShortcut(
-    key = key,
-    ctrl = !OsType.isMacOS,
-    meta = OsType.isMacOS,
-    alt = alt,
-    shift = shift
-)
 
 @Composable
 fun FrameWindowScope.MainStage(
     viewModel: MainStageModel,
     onCloseRequest: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    RenderContent(
+        viewModel = viewModel,
+        modifier = modifier
+    )
+    RenderDialogs(viewModel)
+}
+
+@Composable
+private fun RenderContent(
+    viewModel: MainStageModel,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
@@ -356,12 +155,13 @@ fun FrameWindowScope.MainStage(
                 )
             }
         )
-
-        if (viewModel.isStatusBarVisible)
-            StatusBar(viewModel = viewModel)
+        if (viewModel.isStatusBarVisible) {
+            StatusBar(
+                text = StatusMessageText(viewModel.statusMessage).ifBlank { strings.mainStatusReady },
+                versionText = BuildVersion.TEXT
+            )
+        }
     }
-
-    MainStageDialogs(viewModel)
 }
 
 @Composable
@@ -369,181 +169,18 @@ private fun DevicePane(
     viewModel: MainStageModel,
     modifier: Modifier = Modifier
 ) {
-    val colors = AdbrowserTheme.colors
     val listState = rememberLazyListState()
-
-    Column(
+    DevicePanePanel(
+        devices = viewModel.devices,
+        selectedDevice = viewModel.selectedDevice,
+        listState = listState,
+        title = strings.mainDevicesTitle,
+        refreshDescription = strings.mainRefreshDeviceDescription,
+        noDeviceMessage = strings.mainDeviceListHintNoDevice,
+        onRefresh = viewModel::refreshDevices,
+        onDeviceClick = viewModel::selectDevice,
         modifier = modifier
-            .border(1.dp, colors.panelBorder, RoundedCornerShape(8.dp))
-            .background(colors.panelBackground, RoundedCornerShape(8.dp))
-            .padding(14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = strings.mainDevicesTitle,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (viewModel.devices.isNotEmpty()) {
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "(${viewModel.devices.size})",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            ContentIconButton(
-                key = AppIcons.Refresh,
-                outlined = true,
-                contentDescription = strings.mainRefreshDeviceDescription,
-                onClick = viewModel::refreshDevices
-            )
-        }
-        Spacer(Modifier.height(10.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(1.dp, colors.panelBorder, RoundedCornerShape(8.dp))
-                .clip(RoundedCornerShape(8.dp))
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(viewModel.devices) { device ->
-                    DeviceRow(
-                        item = device,
-                        selected = viewModel.selectedDevice == device,
-                        onClick = { viewModel.selectDevice(device) }
-                    )
-                }
-            }
-            VerticalScrollbar(
-                adapter = rememberScrollbarAdapter(listState),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-            )
-            if (viewModel.devices.isEmpty())
-                DeviceListHint(
-                    message = strings.mainDeviceListHintNoDevice,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-        }
-    }
-}
-
-@Suppress("AssignedValueIsNeverRead")
-@Composable
-private fun DeviceRow(
-    item: AndroidDeviceItem,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val colors = AdbrowserTheme.colors
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    var pressed by remember { mutableStateOf(false) }
-    val background = resolveListItemBackground(
-        colors = colors,
-        selected = selected,
-        hovered = hovered,
-        pressed = pressed
     )
-    val foreground = if (selected) Color.White else Color.Unspecified
-    val statusColor = if (item.isOnline) OnlineStatusColor else OfflineStatusColor
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(background)
-            .hoverable(interactionSource = interactionSource)
-            .pointerInput(item.serial) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        onClick()
-                        tryAwaitRelease()
-                        pressed = false
-                    }
-                )
-            }
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(9.dp)
-                    .clip(CircleShape)
-                    .background(statusColor)
-            )
-            Spacer(Modifier.width(8.dp))
-            ContentIcon(
-                key = AppIcons.Device,
-                selected = selected,
-                contentDescription = "Device Icon",
-                tint = colors.primaryAccent
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.brandModel,
-                color = foreground,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(
-                modifier = Modifier.alpha(0.75f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (item.systemVersion.isNotBlank()) {
-                    Text(
-                        text = item.systemVersion,
-                        color = foreground,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "|",
-                        color = foreground,
-                        fontSize = 8.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .alpha(0.75f)
-                            .padding(horizontal = 3.dp)
-                    )
-                }
-                Text(
-                    text = item.serial,
-                    color = foreground,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -574,17 +211,12 @@ private fun FilePane(
     workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
-    val colors = AdbrowserTheme.colors
-
-    Column(
-        modifier = modifier
-            .border(1.dp, colors.panelBorder, RoundedCornerShape(8.dp))
-            .background(colors.panelBackground, RoundedCornerShape(8.dp))
-            .padding(16.dp)
-    ) {
-        NavigationBar(viewModel = viewModel, device = workspace.device)
-        Spacer(Modifier.height(12.dp))
-        FilePaneContent(viewModel = viewModel, workspace = workspace, modifier = Modifier.weight(1f))
+    PanelSurface(modifier = modifier, padding = PaddingValues(16.dp)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            NavigationBar(viewModel = viewModel, device = workspace.device)
+            Spacer(Modifier.height(12.dp))
+            FilePaneContent(viewModel = viewModel, workspace = workspace, modifier = Modifier.weight(1f))
+        }
     }
 }
 
@@ -594,115 +226,50 @@ private fun FilePaneContent(
     workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
-    val colors = AdbrowserTheme.colors
-    val shape = RoundedCornerShape(8.dp)
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.dp, colors.panelBorder, shape)
-            .clip(shape)
-    ) {
-        FileListArea(
-            viewModel = viewModel,
-            device = workspace.device,
-            modifier = Modifier.weight(1f)
-        )
-        PathBreadcrumbBar(viewModel = viewModel, device = workspace.device)
+    PanelSurface(modifier = modifier.fillMaxWidth(), clipContent = true) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            FileListArea(
+                viewModel = viewModel,
+                device = workspace.device,
+                modifier = Modifier.weight(1f)
+            )
+            PathBreadcrumbBar(
+                segments = viewModel.breadcrumbsOf(workspace.device),
+                scrollState = rememberScrollState(),
+                onRootClick = { viewModel.navigateToBreadcrumb(workspace.device, "/") },
+                onSegmentClick = { segment ->
+                    viewModel.navigateToBreadcrumb(workspace.device, segment.fullPath)
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun NavigationBar(viewModel: MainStageModel, device: AndroidDeviceItem) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        ContentIconButton(
-            key = AppIcons.ArrowLeft,
-            contentDescription = strings.menuBack,
-            enabled = viewModel.canNavigateBack(device),
-            outlined = true,
-            onClick = { viewModel.navigateBack(device) }
-        )
-        Spacer(Modifier.width(6.dp))
-        ContentIconButton(
-            key = AppIcons.ArrowRight,
-            contentDescription = strings.menuForward,
-            enabled = viewModel.canNavigateForward(device),
-            outlined = true,
-            onClick = { viewModel.navigateForward(device) }
-        )
-        Spacer(Modifier.width(6.dp))
-        ContentIconButton(
-            key = AppIcons.ArrowUp,
-            contentDescription = strings.menuUp,
-            enabled = viewModel.canNavigateUp(device),
-            outlined = true,
-            onClick = { viewModel.navigateUp(device) }
-        )
-        Spacer(Modifier.width(6.dp))
-        ContentIconButton(
-            key = AppIcons.Home,
-            contentDescription = strings.menuHome,
-            outlined = true,
-            onClick = { viewModel.navigateHome(device) }
-        )
-        Spacer(Modifier.width(6.dp))
-        TextField(
-            state = viewModel.pathInputOf(device),
-            modifier = Modifier
-                .weight(1f)
-                .height(AdbrowserTheme.DefaultTextFieldHeight)
-                .onPreviewKeyEvent {
-                    if (it.type == KeyEventType.KeyDown && (it.key == Key.Enter || it.key == Key.NumPadEnter)) {
-                        viewModel.openPathFromInput(device)
-                        true
-                    } else false
-                }
-        )
-        Spacer(Modifier.width(6.dp))
-        ViewModeDropdown(viewModel = viewModel)
-        Spacer(Modifier.width(6.dp))
-        SortModeDropdown(viewModel = viewModel)
-    }
-}
-
-@Composable
-private fun ViewModeDropdown(viewModel: MainStageModel, modifier: Modifier = Modifier) {
-    val selected = viewModel.selectedViewMode
-    Dropdown(
-        modifier = modifier
-            .width(110.dp)
-            .height(AdbrowserTheme.DefaultTextFieldHeight),
-        menuContent = {
-            viewModel.viewModes.forEach { option ->
-                selectableItem(
-                    selected = option == selected,
-                    onClick = { viewModel.onViewModeSelected(option) }
-                ) { Text(viewModeLabel(option.key)) }
-            }
-        }
-    ) {
-        Text(viewModeLabel(selected?.key))
-    }
-}
-
-@Composable
-private fun SortModeDropdown(viewModel: MainStageModel, modifier: Modifier = Modifier) {
-    val selected = viewModel.selectedSortMode
-    Dropdown(
-        modifier = modifier
-            .width(130.dp)
-            .height(AdbrowserTheme.DefaultTextFieldHeight),
-        menuContent = {
-            viewModel.sortModes.forEach { option ->
-                selectableItem(
-                    selected = option == selected,
-                    onClick = { viewModel.onSortModeSelected(option) }
-                ) { Text(sortModeLabel(option.key)) }
-            }
-        }
-    ) {
-        Text(sortModeLabel(selected?.key))
-    }
+    FileNavigationBar(
+        pathInput = viewModel.pathInputOf(device),
+        canNavigateBack = viewModel.canNavigateBack(device),
+        canNavigateForward = viewModel.canNavigateForward(device),
+        canNavigateUp = viewModel.canNavigateUp(device),
+        onNavigateBack = { viewModel.navigateBack(device) },
+        onNavigateForward = { viewModel.navigateForward(device) },
+        onNavigateUp = { viewModel.navigateUp(device) },
+        onNavigateHome = { viewModel.navigateHome(device) },
+        onOpenPathInput = { viewModel.openPathFromInput(device) },
+        backDescription = strings.menuBack,
+        forwardDescription = strings.menuForward,
+        upDescription = strings.menuUp,
+        homeDescription = strings.menuHome,
+        viewModeOptions = viewModel.viewModes,
+        selectedViewMode = viewModel.selectedViewMode,
+        viewModeLabelOf = ::ViewModeLabel,
+        onViewModeSelected = viewModel::onViewModeSelected,
+        sortModeOptions = viewModel.sortModes,
+        selectedSortMode = viewModel.selectedSortMode,
+        sortModeLabelOf = ::SortModeLabel,
+        onSortModeSelected = viewModel::onSortModeSelected
+    )
 }
 
 @Composable
@@ -715,11 +282,9 @@ private fun FileListArea(
         if (viewModel.isListViewMode)
             FileListView(viewModel = viewModel, device = device)
         else FileIconView(viewModel = viewModel, device = device)
-
         val hint = viewModel.fileListHintOf(device)
-        val hintIcon = fileListHintIcon(hint)
-        val hintMessage = fileListHintMessage(hint)
-
+        val hintIcon = FileListHintIcon(hint)
+        val hintMessage = FileListHintMessage(hint)
         if (hintIcon != null && hintMessage.isNotBlank())
             FileListHint(
                 iconKey = hintIcon,
@@ -729,14 +294,9 @@ private fun FileListArea(
     }
 }
 
-private sealed interface FileContextMenuState {
-    data class Entry(val item: DeviceFileItem, val position: Offset, val requestId: Long) : FileContextMenuState
-    data class Blank(val position: Offset, val requestId: Long) : FileContextMenuState
-}
-
-@Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
+    val interactionState = rememberFileAreaInteractionState(device)
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = viewModel.listScrollIndexOf(device),
         initialFirstVisibleItemScrollOffset = viewModel.listScrollOffsetOf(device)
@@ -746,38 +306,21 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
-    var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
-    var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
-    val visibleEntryBounds = remember(device.serial) { mutableStateMapOf<DeviceFileItem, Rect>() }
-    var contentCoordinates by remember(device.serial) { mutableStateOf<LayoutCoordinates?>(null) }
-
-    fun openBlankContextMenu(position: Offset) {
-        contextMenuRequestId += 1L
-        contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
-    }
-
-    fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
-        contextMenuRequestId += 1L
-        contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
-    }
 
     LaunchedEffect(device.serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
-
         repeat(2) { withFrameNanos { } }
-        if (!isLazyListIndexVisible(listState, selectedIndex))
+        if (!listState.isIndexVisible(selectedIndex))
             listState.scrollToItem(selectedIndex)
     }
-
     LaunchedEffect(device.serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
-        contextMenuState = null
+        interactionState.dismissContextMenu()
         listState.scrollToItem(0)
         horizontalScrollState.scrollTo(0)
     }
-
     LaunchedEffect(device.serial, listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
@@ -785,7 +328,6 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 viewModel.updateListScrollState(device, index, offset)
             }
     }
-
     LaunchedEffect(device.serial, horizontalScrollState) {
         snapshotFlow { horizontalScrollState.value }
             .distinctUntilChanged()
@@ -796,21 +338,31 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         FileListHeader(
-            viewModel = viewModel,
-            horizontalScrollState = horizontalScrollState
+            horizontalScrollState = horizontalScrollState,
+            nameWidth = viewModel.fileColumnWidthNamePx.dp,
+            sizeWidth = viewModel.fileColumnWidthSizePx.dp,
+            modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp,
+            permissionWidth = viewModel.fileColumnWidthPermissionPx.dp,
+            nameLabel = strings.mainHeaderName,
+            sizeLabel = strings.mainHeaderSize,
+            modifiedLabel = strings.mainHeaderModified,
+            permissionLabel = strings.mainHeaderPermission,
+            onResizeNameAndSize = viewModel::resizeNameAndSizeColumns,
+            onResizeSizeAndModified = viewModel::resizeSizeAndModifiedColumns,
+            onResizeModifiedAndPermission = viewModel::resizeModifiedAndPermissionColumns,
+            onResizeFinished = viewModel::persistFileColumnWidths
         )
         Box(
             modifier = Modifier
                 .weight(1f)
-                .onGloballyPositioned { contentCoordinates = it }
+                .onGloballyPositioned { interactionState.contentCoordinates = it }
                 .onBlankPrimaryPress { position ->
-                    contextMenuState = null
-                    val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-                    if (visibleEntryBounds.values.none { it.contains(rootPosition) })
+                    interactionState.clearSelectionIfBlank(position) {
                         viewModel.setSelectedEntry(device, null)
+                    }
                 }
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                    openBlankContextMenu(position)
+                    interactionState.openBlankContextMenu(position)
                 }
         ) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
@@ -822,24 +374,33 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             ) {
                 items(viewModel.entriesOf(device)) { entry ->
                     DisposableEffect(entry) {
-                        onDispose { visibleEntryBounds.remove(entry) }
+                        onDispose { interactionState.visibleEntryBounds.remove(entry) }
                     }
                     FileListRow(
-                        viewModel = viewModel,
-                        device = device,
                         horizontalScrollState = horizontalScrollState,
                         item = entry,
                         selected = viewModel.selectedEntryOf(device) == entry,
+                        nameWidth = viewModel.fileColumnWidthNamePx.dp,
+                        sizeWidth = viewModel.fileColumnWidthSizePx.dp,
+                        modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp,
+                        permissionWidth = viewModel.fileColumnWidthPermissionPx.dp,
                         onClick = { viewModel.setSelectedEntry(device, entry) },
                         onDoubleClick = { viewModel.openEntry(device, entry) },
                         onSecondaryClick = { position ->
                             viewModel.setSelectedEntry(device, entry)
-                            openEntryContextMenu(entry, position)
+                            interactionState.openEntryContextMenu(entry, position)
                         },
-                        contextMenuState = contextMenuState,
-                        onDismissContextMenu = { contextMenuState = null },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                            interactionState.visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                        },
+                        overlay = {
+                            FileEntryContextMenuPopup(
+                                viewModel = viewModel,
+                                device = device,
+                                item = entry,
+                                state = interactionState.contextMenuState,
+                                onDismissRequest = interactionState::dismissContextMenu
+                            )
                         }
                     )
                 }
@@ -862,242 +423,16 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             FileBlankContextMenuPopup(
                 viewModel = viewModel,
                 device = device,
-                state = contextMenuState,
-                onDismissRequest = { contextMenuState = null }
+                state = interactionState.contextMenuState,
+                onDismissRequest = { interactionState.contextMenuState = null }
             )
         }
     }
 }
 
-@Composable
-private fun FileListHeader(
-    viewModel: MainStageModel,
-    horizontalScrollState: ScrollState
-) {
-    val colors = AdbrowserTheme.colors
-    val nameWidth = viewModel.fileColumnWidthNamePx.dp
-    val sizeWidth = viewModel.fileColumnWidthSizePx.dp
-    val modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp
-    val permissionWidth = viewModel.fileColumnWidthPermissionPx.dp
-    val contentWidth = nameWidth + sizeWidth + modifiedWidth + permissionWidth + 30.dp
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.subtleControlBackground, RoundedCornerShape(topStart = 7.dp, topEnd = 7.dp))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clipToBounds()
-                .horizontalScroll(horizontalScrollState)
-        ) {
-            Row(
-                modifier = Modifier
-                    .width(contentWidth)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = strings.mainHeaderName,
-                    modifier = Modifier.width(nameWidth),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-                FileColumnSplitter(
-                    onDragDelta = viewModel::resizeNameAndSizeColumns,
-                    onDragStopped = viewModel::persistFileColumnWidths
-                )
-                Text(
-                    text = strings.mainHeaderSize,
-                    modifier = Modifier.width(sizeWidth),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-                FileColumnSplitter(
-                    onDragDelta = viewModel::resizeSizeAndModifiedColumns,
-                    onDragStopped = viewModel::persistFileColumnWidths
-                )
-                Text(
-                    text = strings.mainHeaderModified,
-                    modifier = Modifier.width(modifiedWidth),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-                FileColumnSplitter(
-                    onDragDelta = viewModel::resizeModifiedAndPermissionColumns,
-                    onDragStopped = viewModel::persistFileColumnWidths
-                )
-                Text(
-                    text = strings.mainHeaderPermission,
-                    modifier = Modifier.width(permissionWidth),
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
-                )
-            }
-        }
-    }
-}
-
-@Suppress("AssignedValueIsNeverRead")
-@Composable
-private fun FileListRow(
-    viewModel: MainStageModel,
-    device: AndroidDeviceItem,
-    horizontalScrollState: ScrollState,
-    item: DeviceFileItem,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onDoubleClick: () -> Unit,
-    onSecondaryClick: (Offset) -> Unit,
-    contextMenuState: FileContextMenuState?,
-    onDismissContextMenu: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = AdbrowserTheme.colors
-    val nameWidth = viewModel.fileColumnWidthNamePx.dp
-    val sizeWidth = viewModel.fileColumnWidthSizePx.dp
-    val modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp
-    val permissionWidth = viewModel.fileColumnWidthPermissionPx.dp
-    val contentWidth = nameWidth + sizeWidth + modifiedWidth + permissionWidth + 30.dp
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    var pressed by remember { mutableStateOf(false) }
-    val background = resolveListItemBackground(
-        colors = colors,
-        selected = selected,
-        hovered = hovered,
-        pressed = pressed
-    )
-    val foreground = if (selected) Color.White else Color.Unspecified
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
-                .background(background)
-                .hoverable(interactionSource = interactionSource)
-                .pointerInput(item) {
-                    detectTapGestures(
-                        onPress = {
-                            pressed = true
-                            onClick()
-                            tryAwaitRelease()
-                            pressed = false
-                        },
-                        onDoubleTap = { onDoubleClick() }
-                    )
-                },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clipToBounds()
-                    .horizontalScroll(horizontalScrollState)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .width(contentWidth)
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier.width(nameWidth),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ContentIcon(
-                            key = when {
-                                item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
-                                item.isDirectory -> AppIcons.Folder
-                                item.isSymbolicLink -> AppIcons.LinkedFile
-                                else -> AppIcons.File
-                            },
-                            selected = selected,
-                            contentDescription = item.name,
-                            modifier = Modifier.size(16.dp),
-                            tint = colors.primaryAccent
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = item.name,
-                            color = foreground,
-                            fontSize = 14.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = item.sizeText,
-                        modifier = Modifier.width(sizeWidth),
-                        color = foreground,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = item.modifiedText,
-                        modifier = Modifier.width(modifiedWidth),
-                        color = foreground,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = item.permission,
-                        modifier = Modifier.width(permissionWidth),
-                        color = foreground,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-        FileEntryContextMenuPopup(
-            viewModel = viewModel,
-            device = device,
-            item = item,
-            state = contextMenuState,
-            onDismissRequest = onDismissContextMenu
-        )
-    }
-}
-
-@Composable
-private fun FileColumnSplitter(
-    onDragDelta: (Float) -> Unit,
-    onDragStopped: () -> Unit
-) {
-    val colors = AdbrowserTheme.colors
-    val density = LocalDensity.current
-    val dragState = rememberDraggableState { deltaPx ->
-        onDragDelta(with(density) { deltaPx.toDp().value })
-    }
-
-    Box(
-        modifier = Modifier
-            .width(10.dp)
-            .height(20.dp)
-            .draggable(
-                orientation = Orientation.Horizontal,
-                state = dragState,
-                onDragStopped = { onDragStopped() }
-            )
-    )
-}
-
-@Suppress("AssignedValueIsNeverRead")
 @Composable
 private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
+    val interactionState = rememberFileAreaInteractionState(device)
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(device),
         initialFirstVisibleItemScrollOffset = viewModel.iconScrollRowOffsetOf(device)
@@ -1107,28 +442,13 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
-    var contextMenuState by remember(device.serial) { mutableStateOf<FileContextMenuState?>(null) }
-    var contextMenuRequestId by remember(device.serial) { mutableStateOf(0L) }
-    val visibleEntryBounds = remember(device.serial) { mutableStateMapOf<DeviceFileItem, Rect>() }
-    var contentCoordinates by remember(device.serial) { mutableStateOf<LayoutCoordinates?>(null) }
-
-    fun openBlankContextMenu(position: Offset) {
-        contextMenuRequestId += 1L
-        contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
-    }
-
-    fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
-        contextMenuRequestId += 1L
-        contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
-    }
 
     LaunchedEffect(device.serial, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
-        contextMenuState = null
+        interactionState.dismissContextMenu()
         gridState.scrollToItem(0)
     }
-
     LaunchedEffect(device.serial, gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
@@ -1136,28 +456,25 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 viewModel.updateIconScrollState(device, index, offset)
             }
     }
-
     LaunchedEffect(device.serial) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
-
         repeat(2) { withFrameNanos {} }
-        if (!isLazyGridIndexVisible(gridState, selectedIndex))
+        if (!gridState.isIndexVisible(selectedIndex))
             gridState.scrollToItem(selectedIndex)
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .onGloballyPositioned { contentCoordinates = it }
+            .onGloballyPositioned { interactionState.contentCoordinates = it }
             .onBlankPrimaryPress { position ->
-                contextMenuState = null
-                val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-                if (visibleEntryBounds.values.none { it.contains(rootPosition) })
+                interactionState.clearSelectionIfBlank(position) {
                     viewModel.setSelectedEntry(device, null)
+                }
             }
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                openBlankContextMenu(position)
+                interactionState.openBlankContextMenu(position)
             }
     ) {
         LazyVerticalGrid(
@@ -1167,28 +484,33 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         ) {
             items(entries) { entry ->
                 DisposableEffect(entry) {
-                    onDispose { visibleEntryBounds.remove(entry) }
+                    onDispose { interactionState.visibleEntryBounds.remove(entry) }
                 }
                 FileIconItem(
-                    device = device,
-                    viewModel = viewModel,
                     item = entry,
                     selected = viewModel.selectedEntryOf(device) == entry,
                     onClick = { viewModel.setSelectedEntry(device, entry) },
                     onDoubleClick = { viewModel.openEntry(device, entry) },
                     onSecondaryClick = { position ->
                         viewModel.setSelectedEntry(device, entry)
-                        openEntryContextMenu(entry, position)
+                        interactionState.openEntryContextMenu(entry, position)
                     },
-                    contextMenuState = contextMenuState,
-                    onDismissContextMenu = { contextMenuState = null },
                     modifier = Modifier
                         .onGloballyPositioned { coordinates ->
-                            visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                            interactionState.visibleEntryBounds[entry] = coordinates.boundsInRoot()
                         }
                         .fillMaxWidth()
                         .height(104.dp)
-                        .padding(4.dp)
+                        .padding(4.dp),
+                    overlay = {
+                        FileEntryContextMenuPopup(
+                            viewModel = viewModel,
+                            device = device,
+                            item = entry,
+                            state = interactionState.contextMenuState,
+                            onDismissRequest = interactionState::dismissContextMenu
+                        )
+                    }
                 )
             }
         }
@@ -1201,96 +523,12 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         FileBlankContextMenuPopup(
             viewModel = viewModel,
             device = device,
-            state = contextMenuState,
-            onDismissRequest = { contextMenuState = null }
+            state = interactionState.contextMenuState,
+            onDismissRequest = { interactionState.contextMenuState = null }
         )
     }
 }
 
-@Suppress("AssignedValueIsNeverRead")
-@Composable
-private fun FileIconItem(
-    device: AndroidDeviceItem,
-    viewModel: MainStageModel,
-    item: DeviceFileItem,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onDoubleClick: () -> Unit,
-    onSecondaryClick: (Offset) -> Unit,
-    contextMenuState: FileContextMenuState?,
-    onDismissContextMenu: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = AdbrowserTheme.colors
-    val interactionSource = remember { MutableInteractionSource() }
-    val hovered by interactionSource.collectIsHoveredAsState()
-    var pressed by remember { mutableStateOf(false) }
-    val background = resolveListItemBackground(
-        colors = colors,
-        selected = selected,
-        hovered = hovered,
-        pressed = pressed
-    )
-    val foreground = if (selected) Color.White else Color.Unspecified
-
-    Box(
-        modifier = modifier
-            .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
-    ) {
-        Column(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(8.dp))
-                .background(background)
-                .hoverable(interactionSource = interactionSource)
-                .pointerInput(item) {
-                    detectTapGestures(
-                        onPress = {
-                            pressed = true
-                            onClick()
-                            tryAwaitRelease()
-                            pressed = false
-                        },
-                        onDoubleTap = { onDoubleClick() }
-                    )
-                }
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            ContentIcon(
-                key = when {
-                    item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
-                    item.isDirectory -> AppIcons.Folder
-                    item.isSymbolicLink -> AppIcons.LinkedFile
-                    else -> AppIcons.File
-                },
-                selected = selected,
-                contentDescription = item.name,
-                modifier = Modifier.size(34.dp),
-                tint = colors.primaryAccent
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = item.name,
-                color = foreground,
-                fontSize = 14.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-        }
-        FileEntryContextMenuPopup(
-            viewModel = viewModel,
-            device = device,
-            item = item,
-            state = contextMenuState,
-            onDismissRequest = onDismissContextMenu
-        )
-    }
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun FileBlankContextMenuPopup(
     viewModel: MainStageModel,
@@ -1316,7 +554,6 @@ private fun FileBlankContextMenuPopup(
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun FileEntryContextMenuPopup(
     viewModel: MainStageModel,
@@ -1446,348 +683,8 @@ private fun MenuScope.blankFileContextMenu(
     ) { Text(strings.menuInverseSelect) }
 }
 
-private fun isLazyListIndexVisible(state: LazyListState, index: Int): Boolean {
-    if (index < 0) return false
-    return state.layoutInfo.visibleItemsInfo.any { it.index == index }
-}
-
-private fun isLazyGridIndexVisible(state: LazyGridState, index: Int): Boolean {
-    if (index < 0) return false
-    return state.layoutInfo.visibleItemsInfo.any { it.index == index }
-}
-
-private fun resolveListItemBackground(
-    colors: AdbrowserColorScheme,
-    selected: Boolean,
-    hovered: Boolean,
-    pressed: Boolean
-) = when {
-    selected && pressed -> colors.primaryAccentPressed
-    selected && hovered -> colors.primaryAccentHover
-    selected -> colors.primaryAccent
-    pressed -> colors.panelBorder
-    hovered -> colors.subtleControlBackground
-    else -> Color.Transparent
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.onSecondaryPress(
-    pass: PointerEventPass,
-    onSecondaryPress: (Offset) -> Unit
-) = onPointerEvent(PointerEventType.Press, pass = pass) { event ->
-    if (!event.buttons.isSecondaryPressed) return@onPointerEvent
-    if (event.changes.any { it.isConsumed }) return@onPointerEvent
-
-    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
-    onSecondaryPress(change.position)
-    event.changes.forEach { it.consume() }
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.onBlankPrimaryPress(
-    onPrimaryPress: (Offset) -> Unit
-) = onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Final) { event ->
-    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
-    if (event.changes.any { it.isConsumed }) return@onPointerEvent
-    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
-    onPrimaryPress(change.position)
-}
-
 @Composable
-private fun FileListHint(
-    iconKey: IconKey,
-    message: String,
-    modifier: Modifier = Modifier
-) {
-    val colors = AdbrowserTheme.colors
-
-    Column(
-        modifier = modifier.alpha(0.5f),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ContentIcon(
-            key = iconKey,
-            contentDescription = message,
-            modifier = Modifier.size(60.dp),
-            tint = colors.primaryAccent
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = message,
-            color = colors.primaryAccent,
-            fontSize = 16.sp
-        )
-    }
-}
-
-@Composable
-private fun DeviceListHint(
-    message: String,
-    modifier: Modifier = Modifier
-) {
-    val colors = AdbrowserTheme.colors
-
-    Column(
-        modifier = modifier.alpha(0.5f),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        ContentIcon(
-            key = AppIcons.Devices,
-            contentDescription = message,
-            modifier = Modifier.size(60.dp),
-            tint = colors.primaryAccent
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = message,
-            color = colors.primaryAccent,
-            fontSize = 16.sp
-        )
-    }
-}
-
-@Composable
-private fun PathBreadcrumbBar(viewModel: MainStageModel, device: AndroidDeviceItem) {
-    val colors = AdbrowserTheme.colors
-    val scrollState = rememberScrollState()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(34.dp)
-            .background(colors.hintBackground)
-            .edgeBorder(
-                color = colors.panelBorder,
-                top = true,
-                bottom = false,
-                start = false,
-                end = false
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .horizontalScroll(scrollState),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BreadcrumbRootButton(
-            onClick = { viewModel.navigateToBreadcrumb(device, "/") }
-        )
-
-        viewModel.breadcrumbsOf(device).forEach { segment ->
-            BreadcrumbSegment(
-                segment = segment,
-                onClick = { viewModel.navigateToBreadcrumb(device, segment.fullPath) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun BreadcrumbRootButton(onClick: () -> Unit) {
-    val colors = AdbrowserTheme.colors
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick)
-            .padding(2.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        ContentIcon(
-            key = AppIcons.FilePathArrow,
-            contentDescription = "/",
-            modifier = Modifier
-                .size(14.dp)
-                .alpha(0.5f)
-        )
-    }
-}
-
-@Composable
-private fun BreadcrumbSegment(
-    segment: PathBreadcrumbSegment,
-    onClick: () -> Unit
-) {
-    val colors = AdbrowserTheme.colors
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 4.dp)
-    ) {
-        if (segment.showLeadingArrow) {
-            ContentIcon(
-                key = AppIcons.FilePathArrow,
-                contentDescription = ">",
-                modifier = Modifier
-                    .size(14.dp)
-                    .alpha(0.5f)
-            )
-            Spacer(Modifier.width(4.dp))
-        }
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable(onClick = onClick)
-                .padding(2.dp)
-        ) {
-            Text(
-                text = segment.displayName,
-                fontSize = 13.sp,
-                color = colors.pathBreadcrumbForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatusBar(viewModel: MainStageModel) {
-    val colors = AdbrowserTheme.colors
-    val statusText = statusMessageText(viewModel.statusMessage)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.hintBackground)
-            .edgeBorder(
-                color = colors.hintBorder,
-                top = true,
-                bottom = false,
-                start = false,
-                end = false
-            )
-            .height(34.dp)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = statusText.ifBlank { strings.mainStatusReady },
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = BuildVersion.TEXT,
-            color = colors.pathBreadcrumbForeground,
-            fontSize = 12.sp
-        )
-    }
-}
-
-private fun Modifier.edgeBorder(
-    color: Color,
-    top: Boolean = true,
-    bottom: Boolean = true,
-    start: Boolean = true,
-    end: Boolean = true
-): Modifier = drawBehind {
-    val strokeWidth = 1.dp.toPx()
-    val halfStroke = strokeWidth / 2f
-
-    if (top)
-        drawLine(
-            color = color,
-            start = Offset(halfStroke, halfStroke),
-            end = Offset(size.width - halfStroke, halfStroke),
-            strokeWidth = strokeWidth
-        )
-    if (bottom)
-        drawLine(
-            color = color,
-            start = Offset(halfStroke, size.height - halfStroke),
-            end = Offset(size.width - halfStroke, size.height - halfStroke),
-            strokeWidth = strokeWidth
-        )
-    if (start)
-        drawLine(
-            color = color,
-            start = Offset(halfStroke, halfStroke),
-            end = Offset(halfStroke, size.height - halfStroke),
-            strokeWidth = strokeWidth
-        )
-    if (end)
-        drawLine(
-            color = color,
-            start = Offset(size.width - halfStroke, halfStroke),
-            end = Offset(size.width - halfStroke, size.height - halfStroke),
-            strokeWidth = strokeWidth
-        )
-}
-
-@Composable
-private fun viewModeLabel(modeKey: String?): String = when (modeKey) {
-    "icons" -> strings.mainViewModeIcons
-    "list" -> strings.mainViewModeList
-    else -> ""
-}
-
-@Composable
-private fun sortModeLabel(modeKey: String?): String = when (modeKey) {
-    "size" -> strings.mainSortModeSize
-    "modified" -> strings.mainSortModeModified
-    "name" -> strings.mainSortModeName
-    else -> ""
-}
-
-@Composable
-private fun statusMessageText(status: MainStageModel.StatusMessage): String = when (status) {
-    MainStageModel.StatusMessage.None -> ""
-    is MainStageModel.StatusMessage.Raw -> status.message
-    is MainStageModel.StatusMessage.Res -> {
-        val template = when (status.key) {
-            MainStageModel.StatusMessage.Key.CommonUnknownError -> strings.commonUnknownError
-            MainStageModel.StatusMessage.Key.DevicesUpdated -> strings.statusDevicesUpdated
-            MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
-            MainStageModel.StatusMessage.Key.InvalidFolderName -> strings.statusInvalidFolderName
-            MainStageModel.StatusMessage.Key.FolderCreated -> strings.statusFolderCreated
-            MainStageModel.StatusMessage.Key.SelectEntryFirst -> strings.statusSelectEntryFirst
-            MainStageModel.StatusMessage.Key.InvalidName -> strings.statusInvalidName
-            MainStageModel.StatusMessage.Key.Renamed -> strings.statusRenamed
-            MainStageModel.StatusMessage.Key.EntryDeleted -> strings.statusEntryDeleted
-            MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied
-            MainStageModel.StatusMessage.Key.Cut -> strings.statusCut
-            MainStageModel.StatusMessage.Key.ClipboardEmpty -> strings.statusClipboardEmpty
-            MainStageModel.StatusMessage.Key.CrossDevicePasteNotSupported -> strings.statusCrossDevicePasteNotSupported
-            MainStageModel.StatusMessage.Key.Pasted -> strings.statusPasted
-            MainStageModel.StatusMessage.Key.DialogPropertiesInvalidPermission -> strings.dialogPropertiesInvalidPermission
-            MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
-        }
-        formatWithArgs(template, status.args)
-    }
-}
-
-private fun formatWithArgs(template: String, args: List<String>): String {
-    var result = template
-    args.forEachIndexed { index, value ->
-        result = result.replace("{$index}", value)
-    }
-    return result
-}
-
-@Composable
-private fun fileListHintIcon(hint: MainStageModel.FileListHint) = when (hint) {
-    MainStageModel.FileListHint.None -> null
-    MainStageModel.FileListHint.EmptyFolder -> AppIcons.Folder
-    MainStageModel.FileListHint.DeviceOffline,
-    MainStageModel.FileListHint.DeviceNotFound -> AppIcons.DeletedFolder
-    MainStageModel.FileListHint.PermissionDenied -> AppIcons.BlockedFolder
-    MainStageModel.FileListHint.PathNotFound,
-    MainStageModel.FileListHint.LoadFailed -> AppIcons.ErrorFolder
-}
-
-@Composable
-private fun fileListHintMessage(hint: MainStageModel.FileListHint) = when (hint) {
-    MainStageModel.FileListHint.None -> ""
-    MainStageModel.FileListHint.EmptyFolder -> strings.mainFileListHintEmptyFolder
-    MainStageModel.FileListHint.DeviceOffline -> strings.mainFileListHintDeviceOffline
-    MainStageModel.FileListHint.DeviceNotFound -> strings.mainFileListHintDeviceNotFound
-    MainStageModel.FileListHint.PathNotFound -> strings.mainFileListHintPathNotFound
-    MainStageModel.FileListHint.PermissionDenied -> strings.mainFileListHintPermissionDenied
-    MainStageModel.FileListHint.LoadFailed -> strings.mainFileListHintLoadFailed
-}
-
-@Composable
-private fun MainStageDialogs(viewModel: MainStageModel) {
+private fun RenderDialogs(viewModel: MainStageModel) {
     when (val state = viewModel.dialogState) {
         MainStageModel.DialogState.None -> Unit
         MainStageModel.DialogState.NewFolder ->
@@ -1830,5 +727,107 @@ private fun MainStageDialogs(viewModel: MainStageModel) {
     }
 }
 
-private val OnlineStatusColor = Color(0xFF2DB455)
-private val OfflineStatusColor = Color(0xFFE46868)
+@Composable
+private fun ViewModeLabel(modeKey: String?) = when (modeKey) {
+    "icons" -> strings.mainViewModeIcons
+    "list" -> strings.mainViewModeList
+    else -> ""
+}
+
+@Composable
+private fun SortModeLabel(modeKey: String?) = when (modeKey) {
+    "size" -> strings.mainSortModeSize
+    "modified" -> strings.mainSortModeModified
+    "name" -> strings.mainSortModeName
+    else -> ""
+}
+
+@Composable
+private fun StatusMessageText(status: MainStageModel.StatusMessage): String = when (status) {
+    MainStageModel.StatusMessage.None -> ""
+    is MainStageModel.StatusMessage.Raw -> status.message
+    is MainStageModel.StatusMessage.Res -> {
+        val template = when (status.key) {
+            MainStageModel.StatusMessage.Key.CommonUnknownError -> strings.commonUnknownError
+            MainStageModel.StatusMessage.Key.DevicesUpdated -> strings.statusDevicesUpdated
+            MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
+            MainStageModel.StatusMessage.Key.InvalidFolderName -> strings.statusInvalidFolderName
+            MainStageModel.StatusMessage.Key.FolderCreated -> strings.statusFolderCreated
+            MainStageModel.StatusMessage.Key.SelectEntryFirst -> strings.statusSelectEntryFirst
+            MainStageModel.StatusMessage.Key.InvalidName -> strings.statusInvalidName
+            MainStageModel.StatusMessage.Key.Renamed -> strings.statusRenamed
+            MainStageModel.StatusMessage.Key.EntryDeleted -> strings.statusEntryDeleted
+            MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied
+            MainStageModel.StatusMessage.Key.Cut -> strings.statusCut
+            MainStageModel.StatusMessage.Key.ClipboardEmpty -> strings.statusClipboardEmpty
+            MainStageModel.StatusMessage.Key.CrossDevicePasteNotSupported -> strings.statusCrossDevicePasteNotSupported
+            MainStageModel.StatusMessage.Key.Pasted -> strings.statusPasted
+            MainStageModel.StatusMessage.Key.DialogPropertiesInvalidPermission -> strings.dialogPropertiesInvalidPermission
+            MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
+        }
+        template.formatWithArgs(status.args)
+    }
+}
+
+@Composable
+private fun FileListHintIcon(hint: MainStageModel.FileListHint) = when (hint) {
+    MainStageModel.FileListHint.None -> null
+    MainStageModel.FileListHint.EmptyFolder -> AppIcons.Folder
+    MainStageModel.FileListHint.DeviceOffline,
+    MainStageModel.FileListHint.DeviceNotFound -> AppIcons.DeletedFolder
+    MainStageModel.FileListHint.PermissionDenied -> AppIcons.BlockedFolder
+    MainStageModel.FileListHint.PathNotFound,
+    MainStageModel.FileListHint.LoadFailed -> AppIcons.ErrorFolder
+}
+
+@Composable
+private fun FileListHintMessage(hint: MainStageModel.FileListHint) = when (hint) {
+    MainStageModel.FileListHint.None -> ""
+    MainStageModel.FileListHint.EmptyFolder -> strings.mainFileListHintEmptyFolder
+    MainStageModel.FileListHint.DeviceOffline -> strings.mainFileListHintDeviceOffline
+    MainStageModel.FileListHint.DeviceNotFound -> strings.mainFileListHintDeviceNotFound
+    MainStageModel.FileListHint.PathNotFound -> strings.mainFileListHintPathNotFound
+    MainStageModel.FileListHint.PermissionDenied -> strings.mainFileListHintPermissionDenied
+    MainStageModel.FileListHint.LoadFailed -> strings.mainFileListHintLoadFailed
+}
+
+private sealed interface FileContextMenuState {
+    data class Entry(val item: DeviceFileItem, val position: Offset, val requestId: Long) : FileContextMenuState
+    data class Blank(val position: Offset, val requestId: Long) : FileContextMenuState
+}
+
+private class FileAreaInteractionState {
+
+    private var contextMenuRequestId by mutableStateOf(0L)
+
+    var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
+    val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, Rect>()
+    var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
+
+    fun openBlankContextMenu(position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
+    }
+
+    fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
+    }
+
+    fun dismissContextMenu() {
+        contextMenuState = null
+    }
+
+    fun clearSelectionIfBlank(position: Offset, onBlankAreaPressed: () -> Unit) {
+        contextMenuState = null
+        val rootPosition = contentCoordinates?.localToRoot(position) ?: position
+        if (visibleEntryBounds.values.none { it.contains(rootPosition) }) {
+            onBlankAreaPressed()
+        }
+    }
+}
+
+@Composable
+private fun rememberFileAreaInteractionState(device: AndroidDeviceItem) = remember(device.serial) {
+    FileAreaInteractionState()
+}
