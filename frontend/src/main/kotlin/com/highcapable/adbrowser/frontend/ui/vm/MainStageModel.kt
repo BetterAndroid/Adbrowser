@@ -67,7 +67,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object None : DialogState
         data object NewFolder : DialogState
         data class Rename(val initialName: String) : DialogState
-        data class DeleteConfirm(val entryName: String) : DialogState
+        data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
     }
 
@@ -86,11 +86,15 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             InvalidName,
             Renamed,
             EntryDeleted,
+            EntryDeletedMultiple,
             Copied,
+            CopiedMultiple,
             Cut,
+            CutMultiple,
             ClipboardEmpty,
             CrossDevicePasteNotSupported,
             Pasted,
+            PastedMultiple,
             DialogPropertiesInvalidPermission,
             DialogPropertiesPermissionUpdated
         }
@@ -106,10 +110,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         LoadFailed
     }
 
+    private data class ClipboardItemSnapshot(
+        val name: String,
+        val fullPath: String
+    )
+
     private data class ClipboardEntrySnapshot(
         val device: AndroidDeviceItem,
-        val name: String,
-        val fullPath: String,
+        val items: List<ClipboardItemSnapshot>,
         val isCut: Boolean
     )
 
@@ -445,24 +453,41 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun deleteSelectedEntry() {
-        val entry = selectedEntry ?: return
+        val entries = selectedEntries
+        if (entries.isEmpty()) return
 
-        dialogState = DialogState.DeleteConfirm(entryName = entry.name)
+        dialogState = DialogState.DeleteConfirm(
+            entryCount = entries.size,
+            primaryEntryName = selectedEntry?.name
+        )
     }
 
     fun confirmDeleteSelectedEntry(): Boolean {
-        val device = selectedDevice?.toDomain() ?: return false
-        val entry = selectedEntry ?: return false
+        val device = selectedDevice ?: return false
+        val entries = selectedEntries
+        if (entries.isEmpty()) return false
 
-        val path = buildEntryFullPath(entry)
-        val result = runBlocking { fileSystemService.delete(device, path) }
-        if (!result.isOk) {
-            setErrorStatus(result.errorMessage)
-            return false
+        val items = entries.map {
+            ClipboardItemSnapshot(
+                name = it.name,
+                fullPath = buildEntryFullPath(it)
+            )
         }
 
-        setStatus(StatusMessage.Key.EntryDeleted, entry.name)
-        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
+        launchBusyAction {
+            items.forEach { item ->
+                val result = fileSystemService.delete(device.toDomain(), item.fullPath)
+                if (!result.isOk) {
+                    setErrorStatus(result.errorMessage?.let { "${item.name}: $it" } ?: item.name)
+                    return@launchBusyAction
+                }
+            }
+
+            if (items.size == 1)
+                setStatus(StatusMessage.Key.EntryDeleted, items.first().name)
+            else setStatus(StatusMessage.Key.EntryDeletedMultiple, items.size.toString())
+            refreshEntriesAndClearSelection(device, requestedPath = currentPath)
+        }
 
         return true
     }
@@ -491,30 +516,42 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun copySelectedEntry() {
         val device = selectedDevice
-        val entry = selectedEntry
-        if (device == null || entry == null) return
+        val entries = selectedEntries
+        if (device == null || entries.isEmpty()) return
 
         clipboardEntry = ClipboardEntrySnapshot(
             device = device,
-            name = entry.name,
-            fullPath = buildEntryFullPath(entry),
+            items = entries.map {
+                ClipboardItemSnapshot(
+                    name = it.name,
+                    fullPath = buildEntryFullPath(it)
+                )
+            },
             isCut = false
         )
-        setStatus(StatusMessage.Key.Copied, entry.name)
+        if (entries.size == 1)
+            setStatus(StatusMessage.Key.Copied, entries.first().name)
+        else setStatus(StatusMessage.Key.CopiedMultiple, entries.size.toString())
     }
 
     fun cutSelectedEntry() {
         val device = selectedDevice
-        val entry = selectedEntry
-        if (device == null || entry == null) return
+        val entries = selectedEntries
+        if (device == null || entries.isEmpty()) return
 
         clipboardEntry = ClipboardEntrySnapshot(
             device = device,
-            name = entry.name,
-            fullPath = buildEntryFullPath(entry),
+            items = entries.map {
+                ClipboardItemSnapshot(
+                    name = it.name,
+                    fullPath = buildEntryFullPath(it)
+                )
+            },
             isCut = true
         )
-        setStatus(StatusMessage.Key.Cut, entry.name)
+        if (entries.size == 1)
+            setStatus(StatusMessage.Key.Cut, entries.first().name)
+        else setStatus(StatusMessage.Key.CutMultiple, entries.size.toString())
     }
 
     fun pasteToCurrentPath() {
@@ -535,24 +572,28 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return
         }
 
-        val targetPath = if (currentPath == "/")
-            "/${clipboard.name}"
-        else "${currentPath.trimEnd('/')}/${clipboard.name}"
-
         launchBusyAction {
-            val result = if (clipboard.isCut) {
-                fileSystemService.move(device.toDomain(), clipboard.fullPath, targetPath)
-            } else {
-                fileSystemService.copy(device.toDomain(), clipboard.fullPath, targetPath)
-            }
+            clipboard.items.forEach { item ->
+                val targetPath = if (currentPath == "/")
+                    "/${item.name}"
+                else "${currentPath.trimEnd('/')}/${item.name}"
 
-            if (!result.isOk) {
-                setErrorStatus(result.errorMessage)
-                return@launchBusyAction
+                val result = if (clipboard.isCut) {
+                    fileSystemService.move(device.toDomain(), item.fullPath, targetPath)
+                } else {
+                    fileSystemService.copy(device.toDomain(), item.fullPath, targetPath)
+                }
+
+                if (!result.isOk) {
+                    setErrorStatus(result.errorMessage?.let { "${item.name}: $it" } ?: item.name)
+                    return@launchBusyAction
+                }
             }
 
             if (clipboard.isCut) clipboardEntry = null
-            setStatus(StatusMessage.Key.Pasted, clipboard.name)
+            if (clipboard.items.size == 1)
+                setStatus(StatusMessage.Key.Pasted, clipboard.items.first().name)
+            else setStatus(StatusMessage.Key.PastedMultiple, clipboard.items.size.toString())
             selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
         }
     }

@@ -700,20 +700,17 @@ private fun MenuScope.entryFileContextMenu(
         selected = false,
         iconKey = AllIconsKeys.Actions.Copy,
         actionType = CopyMenuItemOptionAction,
-        enabled = !isMultiSelection,
         onClick = { perform(viewModel::copySelectedEntry) }
     ) { Text(strings.menuCopy) }
     selectableItemWithActionType(
         selected = false,
         iconKey = AllIconsKeys.Actions.MenuCut,
         actionType = CutMenuItemOptionAction,
-        enabled = !isMultiSelection,
         onClick = { perform(viewModel::cutSelectedEntry) }
     ) { Text(strings.menuCut) }
     selectableItem(
         selected = false,
         iconKey = AllIconsKeys.General.Delete,
-        enabled = !isMultiSelection,
         onClick = { perform(viewModel::deleteSelectedEntry) }
     ) { Text(strings.menuDelete) }
     if (!isMultiSelection) {
@@ -803,7 +800,9 @@ private fun RenderDialogs(viewModel: MainStageModel) {
         is MainStageModel.DialogState.DeleteConfirm ->
             ConfirmDialog(
                 title = strings.dialogDeleteTitle,
-                message = strings.dialogDeleteConfirm,
+                message = if (state.entryCount > 1)
+                    strings.dialogDeleteConfirmMultiple.formatWithArgs(listOf(state.entryCount.toString()))
+                else strings.dialogDeleteConfirm,
                 confirmText = strings.dialogDeleteConfirmButton,
                 cancelText = strings.dialogCommonCancel,
                 onCloseRequest = viewModel::dismissDialog,
@@ -849,11 +848,15 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.InvalidName -> strings.statusInvalidName
             MainStageModel.StatusMessage.Key.Renamed -> strings.statusRenamed
             MainStageModel.StatusMessage.Key.EntryDeleted -> strings.statusEntryDeleted
+            MainStageModel.StatusMessage.Key.EntryDeletedMultiple -> strings.statusEntryDeletedMultiple
             MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied
+            MainStageModel.StatusMessage.Key.CopiedMultiple -> strings.statusCopiedMultiple
             MainStageModel.StatusMessage.Key.Cut -> strings.statusCut
+            MainStageModel.StatusMessage.Key.CutMultiple -> strings.statusCutMultiple
             MainStageModel.StatusMessage.Key.ClipboardEmpty -> strings.statusClipboardEmpty
             MainStageModel.StatusMessage.Key.CrossDevicePasteNotSupported -> strings.statusCrossDevicePasteNotSupported
             MainStageModel.StatusMessage.Key.Pasted -> strings.statusPasted
+            MainStageModel.StatusMessage.Key.PastedMultiple -> strings.statusPastedMultiple
             MainStageModel.StatusMessage.Key.DialogPropertiesInvalidPermission -> strings.dialogPropertiesInvalidPermission
             MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
@@ -1029,11 +1032,11 @@ private fun handleFileAreaShortcut(
             viewModel.inverseSelectEntries()
             true
         }
-        isPrimaryShortcutPressed && event.key == Key.C && viewModel.hasSingleSelectedEntry -> {
+        isPrimaryShortcutPressed && event.key == Key.C && viewModel.hasSelectedEntry -> {
             viewModel.copySelectedEntry()
             true
         }
-        isPrimaryShortcutPressed && event.key == Key.X && viewModel.hasSingleSelectedEntry -> {
+        isPrimaryShortcutPressed && event.key == Key.X && viewModel.hasSelectedEntry -> {
             viewModel.cutSelectedEntry()
             true
         }
@@ -1044,7 +1047,7 @@ private fun handleFileAreaShortcut(
             viewModel.pasteToCurrentPath()
             true
         }
-        event.key == Key.Delete && viewModel.hasSingleSelectedEntry -> {
+        event.key == Key.Delete && viewModel.hasSelectedEntry -> {
             viewModel.deleteSelectedEntry()
             true
         }

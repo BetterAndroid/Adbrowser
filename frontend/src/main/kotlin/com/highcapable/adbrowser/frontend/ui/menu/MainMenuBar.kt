@@ -73,7 +73,7 @@ fun FrameWindowScope.MainMenuBar(
             )
             Item(
                 text = strings.menuDelete,
-                enabled = viewModel.hasSingleSelectedEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::deleteSelectedEntry,
                 shortcut = KeyShortcut(Key.Delete)
             )
@@ -101,13 +101,13 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuEdit) {
             Item(
                 text = strings.menuCut,
-                enabled = viewModel.hasSingleSelectedEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::cutSelectedEntry,
                 shortcut = KeyShortcut(Key.X)
             )
             Item(
                 text = strings.menuCopy,
-                enabled = viewModel.hasSingleSelectedEntry,
+                enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::copySelectedEntry,
                 shortcut = KeyShortcut(Key.C)
             )
