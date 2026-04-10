@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,13 +54,14 @@ fun FileListHeader(
     sizeLabel: String,
     modifiedLabel: String,
     permissionLabel: String,
-    onResizeNameAndSize: (Float) -> Unit,
-    onResizeSizeAndModified: (Float) -> Unit,
-    onResizeModifiedAndPermission: (Float) -> Unit,
+    onResizeNameAndSize: (Float) -> Float,
+    onResizeSizeAndModified: (Float) -> Float,
+    onResizeModifiedAndPermission: (Float) -> Float,
     onResizeFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
+    val density = LocalDensity.current
     val contentWidth = nameWidth + sizeWidth + modifiedWidth + permissionWidth + 30.dp
 
     Box(
@@ -81,17 +83,26 @@ fun FileListHeader(
             ) {
                 HeaderText(text = nameLabel, width = nameWidth)
                 FileColumnSplitter(
-                    onDragDelta = onResizeNameAndSize,
+                    onDragDelta = { deltaPx ->
+                        val consumedDp = onResizeNameAndSize(with(density) { deltaPx.toDp().value })
+                        with(density) { consumedDp.dp.toPx() }
+                    },
                     onDragStopped = onResizeFinished
                 )
                 HeaderText(text = sizeLabel, width = sizeWidth)
                 FileColumnSplitter(
-                    onDragDelta = onResizeSizeAndModified,
+                    onDragDelta = { deltaPx ->
+                        val consumedDp = onResizeSizeAndModified(with(density) { deltaPx.toDp().value })
+                        with(density) { consumedDp.dp.toPx() }
+                    },
                     onDragStopped = onResizeFinished
                 )
                 HeaderText(text = modifiedLabel, width = modifiedWidth)
                 FileColumnSplitter(
-                    onDragDelta = onResizeModifiedAndPermission,
+                    onDragDelta = { deltaPx ->
+                        val consumedDp = onResizeModifiedAndPermission(with(density) { deltaPx.toDp().value })
+                        with(density) { consumedDp.dp.toPx() }
+                    },
                     onDragStopped = onResizeFinished
                 )
                 HeaderText(text = permissionLabel, width = permissionWidth)

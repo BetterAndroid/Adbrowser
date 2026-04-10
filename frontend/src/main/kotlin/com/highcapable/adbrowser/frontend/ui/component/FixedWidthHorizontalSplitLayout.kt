@@ -68,10 +68,11 @@ fun FixedWidthHorizontalSplitLayout(
             ) { first() }
             DraggableResizeHandle(
                 orientation = Orientation.Horizontal,
-                onDragDelta = { delta ->
-                    val updatedPx = (firstPaneWidthPx + with(density) { delta.dp.toPx() })
+                onDragDelta = { deltaPx ->
+                    val updatedPx = (firstPaneWidthPx + deltaPx)
                         .coerceIn(minFirstPanePx, maxFirstPanePx)
                     onFirstPaneWidthChange(with(density) { updatedPx.toDp() })
+                    updatedPx - firstPaneWidthPx
                 },
                 onDragStopped = onFirstPaneWidthChangeFinished,
                 modifier = Modifier

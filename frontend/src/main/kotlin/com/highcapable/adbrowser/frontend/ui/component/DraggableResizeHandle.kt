@@ -52,7 +52,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
@@ -61,21 +60,23 @@ import java.awt.Cursor
 @Composable
 fun DraggableResizeHandle(
     orientation: Orientation,
-    onDragDelta: (Float) -> Unit,
+    onDragDelta: (Float) -> Float,
     onDragStopped: () -> Unit,
     modifier: Modifier = Modifier,
     indicatorThickness: Dp = 3.dp,
     indicatorPadding: Dp = 6.dp
 ) {
     val colors = AdbrowserTheme.colors
-    val density = LocalDensity.current
 
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     var dragged by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
+    val overflowRef = remember { floatArrayOf(0f) }
     val dragState = rememberDraggableState { deltaPx ->
-        onDragDelta(with(density) { deltaPx.toDp().value })
+        val adjusted = deltaPx + overflowRef[0]
+        val consumed = onDragDelta(adjusted)
+        overflowRef[0] = adjusted - consumed
     }
 
     val indicatorColor = when {
@@ -110,7 +111,10 @@ fun DraggableResizeHandle(
             .draggable(
                 orientation = orientation,
                 state = dragState,
-                onDragStarted = { dragged = true },
+                onDragStarted = {
+                    dragged = true
+                    overflowRef[0] = 0f
+                },
                 onDragStopped = {
                     dragged = false
                     onDragStopped()

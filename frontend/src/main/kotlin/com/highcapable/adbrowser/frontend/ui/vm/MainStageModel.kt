@@ -286,16 +286,22 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
     }
 
-    fun resizeNameAndSizeColumns(deltaDp: Float) {
-        fileColumnWidthNamePx = (fileColumnWidthNamePx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_NAME)
+    fun resizeNameAndSizeColumns(deltaDp: Float): Float {
+        val old = fileColumnWidthNamePx
+        fileColumnWidthNamePx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_NAME)
+        return fileColumnWidthNamePx - old
     }
 
-    fun resizeSizeAndModifiedColumns(deltaDp: Float) {
-        fileColumnWidthSizePx = (fileColumnWidthSizePx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_SIZE)
+    fun resizeSizeAndModifiedColumns(deltaDp: Float): Float {
+        val old = fileColumnWidthSizePx
+        fileColumnWidthSizePx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_SIZE)
+        return fileColumnWidthSizePx - old
     }
 
-    fun resizeModifiedAndPermissionColumns(deltaDp: Float) {
-        fileColumnWidthModifiedPx = (fileColumnWidthModifiedPx + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_MODIFIED)
+    fun resizeModifiedAndPermissionColumns(deltaDp: Float): Float {
+        val old = fileColumnWidthModifiedPx
+        fileColumnWidthModifiedPx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_MODIFIED)
+        return fileColumnWidthModifiedPx - old
     }
 
     fun persistFileColumnWidths() {

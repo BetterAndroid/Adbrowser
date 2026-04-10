@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun FileColumnSplitter(
-    onDragDelta: (Float) -> Unit,
+    onDragDelta: (Float) -> Float,
     onDragStopped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
