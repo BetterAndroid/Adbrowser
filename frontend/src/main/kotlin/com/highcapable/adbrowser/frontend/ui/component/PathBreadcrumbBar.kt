@@ -24,9 +24,7 @@ package com.highcapable.adbrowser.frontend.ui.component
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,12 +32,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +43,7 @@ import com.highcapable.adbrowser.frontend.ui.assets.AppIcons
 import com.highcapable.adbrowser.frontend.ui.modifier.edgeBorder
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.model.PathBreadcrumbSegment
+import org.jetbrains.jewel.ui.component.ActionButton
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
@@ -71,10 +68,11 @@ fun PathBreadcrumbBar(
                 start = false,
                 end = false
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(vertical = 6.dp)
             .horizontalScroll(scrollState),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Spacer(Modifier.width(4.dp))
         BreadcrumbRootButton(onClick = onRootClick)
         segments.forEach { segment ->
             BreadcrumbSegment(
@@ -82,18 +80,13 @@ fun PathBreadcrumbBar(
                 onClick = { onSegmentClick(segment) }
             )
         }
+        Spacer(Modifier.width(8.dp))
     }
 }
 
 @Composable
 private fun BreadcrumbRootButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .clip(RoundedCornerShape(4.dp))
-            .padding(2.dp),
-        contentAlignment = Alignment.Center
-    ) {
+    ActionButton(onClick = onClick, focusable = false) {
         ContentIcon(
             key = AppIcons.FilePathArrow,
             contentDescription = "/",
@@ -111,26 +104,9 @@ private fun BreadcrumbSegment(
 ) {
     val colors = AdbrowserTheme.colors
 
-    Row(
-        modifier = Modifier.padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (segment.showLeadingArrow) {
-            ContentIcon(
-                key = AppIcons.FilePathArrow,
-                contentDescription = ">",
-                modifier = Modifier
-                    .size(14.dp)
-                    .alpha(0.5f)
-            )
-            Spacer(Modifier.width(4.dp))
-        }
-        Box(
-            modifier = Modifier
-                .clickable(onClick = onClick)
-                .clip(RoundedCornerShape(4.dp))
-                .padding(2.dp)
-        ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (segment.showLeadingArrow) BreadcrumbRootButton(onClick = onClick)
+        ActionButton(onClick = onClick, focusable = false) {
             Text(
                 text = segment.displayName,
                 fontSize = 13.sp,
