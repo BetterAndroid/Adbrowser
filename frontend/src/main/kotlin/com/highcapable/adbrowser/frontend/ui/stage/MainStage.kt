@@ -30,6 +30,7 @@ import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,6 +78,9 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
@@ -118,7 +122,11 @@ import com.highcapable.adbrowser.frontend.ui.vm.MainStageModel
 import com.highcapable.adbrowser.frontend.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.shared.utils.BuildVersion
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CopyMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CutMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.PasteMenuItemOptionAction
@@ -394,6 +402,7 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         Box(
             modifier = Modifier
                 .weight(1f)
+                .nestedScroll(interactionState.nestedScrollConnection)
                 .onGloballyPositioned { interactionState.contentCoordinates = it }
                 .fileAreaBlankSelection(
                     interactionState = interactionState,
@@ -402,6 +411,10 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                     onClearSelection = { viewModel.clearSelectedEntries(device) },
                     onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
                         viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
+                    },
+                    autoScrollBy = { delta ->
+                        val consumed = listState.scrollBy(delta)
+                        interactionState.cumulativeScrollY += consumed
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
@@ -522,6 +535,7 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .nestedScroll(interactionState.nestedScrollConnection)
             .onGloballyPositioned { interactionState.contentCoordinates = it }
             .fileAreaBlankSelection(
                 interactionState = interactionState,
@@ -530,6 +544,10 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 onClearSelection = { viewModel.clearSelectedEntries(device) },
                 onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
                     viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
+                },
+                autoScrollBy = { delta ->
+                    val consumed = gridState.scrollBy(delta)
+                    interactionState.cumulativeScrollY += consumed
                 }
             )
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
@@ -901,6 +919,15 @@ private class FileAreaInteractionState {
     val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, List<Rect>>()
     var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
 
+    var cumulativeScrollY = 0f
+
+    val nestedScrollConnection = object : NestedScrollConnection {
+        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+            cumulativeScrollY -= consumed.y
+            return Offset.Zero
+        }
+    }
+
     fun openBlankContextMenu(position: Offset) {
         contextMenuRequestId += 1L
         contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
@@ -932,21 +959,38 @@ private class FileAreaInteractionState {
         return visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } }
     }
 
+    private fun viewportRectInRoot(): Rect? {
+        val coords = contentCoordinates ?: return null
+        return normalizedRect(
+            coords.localToRoot(Offset.Zero),
+            coords.localToRoot(Offset(coords.size.width.toFloat(), coords.size.height.toFloat()))
+        )
+    }
+
+    private fun buildEntryPath(entry: DeviceFileItem) =
+        if (entry.path == "/") "/${entry.name}"
+        else "${entry.path.trimEnd('/')}/${entry.name}"
+
     fun entryPathsIntersecting(localRect: Rect): Set<String> {
-        val rootRect = contentCoordinates?.let { coordinates ->
-            normalizedRect(
-                coordinates.localToRoot(localRect.topLeft),
-                coordinates.localToRoot(localRect.bottomRight)
-            )
-        } ?: localRect
+        val coords = contentCoordinates ?: return emptySet()
+        val rootRect = normalizedRect(
+            coords.localToRoot(localRect.topLeft),
+            coords.localToRoot(localRect.bottomRight)
+        )
+        val viewport = viewportRectInRoot() ?: return emptySet()
 
         return visibleEntryBounds
-            .filterValues { regions -> regions.any { it.intersects(rootRect) } }
-            .keys.mapTo(linkedSetOf()) { entry ->
-                if (entry.path == "/")
-                    "/${entry.name}"
-                else "${entry.path.trimEnd('/')}/${entry.name}"
+            .filterValues { regions ->
+                regions.any { it.intersects(viewport) } && regions.any { it.intersects(rootRect) }
             }
+            .keys.mapTo(linkedSetOf()) { buildEntryPath(it) }
+    }
+
+    fun viewportEntryPaths(): Set<String> {
+        val viewport = viewportRectInRoot() ?: return emptySet()
+        return visibleEntryBounds
+            .filterValues { regions -> regions.any { it.intersects(viewport) } }
+            .keys.mapTo(linkedSetOf()) { buildEntryPath(it) }
     }
 }
 
@@ -960,57 +1004,134 @@ private fun Modifier.fileAreaBlankSelection(
     showSelectionRect: Boolean,
     selectedPathsProvider: () -> Set<String>,
     onClearSelection: () -> Unit,
-    onSelectionChanged: (candidatePaths: Set<String>, additive: Boolean, initialSelectionPaths: Set<String>) -> Unit
+    onSelectionChanged: (candidatePaths: Set<String>, additive: Boolean, initialSelectionPaths: Set<String>) -> Unit,
+    autoScrollBy: (suspend (Float) -> Unit)? = null
 ) = pointerInput(interactionState, showSelectionRect) {
-    awaitEachGesture {
-        var downPosition: Offset? = null
-        var additive = false
+    val inputScope = this
 
-        while (downPosition == null) {
-            val event = awaitPointerEvent(pass = PointerEventPass.Final)
-            if (!event.buttons.isPrimaryPressed) continue
-
-            val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: continue
-            downPosition = change.position
-            additive = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
-            change.consume()
-        }
-
-        val start = downPosition
-        if (!interactionState.isBlankArea(start)) {
-            interactionState.dismissSelectionRect()
-            return@awaitEachGesture
-        }
-
-        interactionState.dismissContextMenu()
-        interactionState.dismissSelectionRect()
-
-        if (!additive) onClearSelection()
-
-        val initialSelectionPaths = selectedPathsProvider()
+    // Shared drag state between gesture handler and auto-scroll coroutine
+    // Thread-safe: both coroutines run on the single-threaded UI dispatcher
+    val drag = object {
+        var startX = 0f
+        var startY = 0f
+        var currentX = 0f
+        var currentY = 0f
+        var startScrollY = 0f
         var dragging = false
+        var active = false
+        var additive = false
+        var initialSelectionPaths: Set<String> = emptySet()
+        var accumulatedPaths = linkedSetOf<String>()
+    }
 
-        while (true) {
-            val event = awaitPointerEvent(pass = PointerEventPass.Final)
-            val primaryChange = event.changes.firstOrNull() ?: continue
-            val current = primaryChange.position
+    fun performSelectionUpdate() {
+        val scrollDelta = interactionState.cumulativeScrollY - drag.startScrollY
+        val adjustedStart = Offset(drag.startX, drag.startY - scrollDelta)
+        val current = Offset(drag.currentX, drag.currentY)
+        val dragRect = normalizedRect(adjustedStart, current)
+        val currentIntersecting = interactionState.entryPathsIntersecting(dragRect)
+        val viewportPaths = interactionState.viewportEntryPaths()
 
-            if (primaryChange.pressed) {
-                val dragRect = normalizedRect(start, current)
-                if (!dragging && maxOf(dragRect.width, dragRect.height) >= 4f) dragging = true
-                if (dragging) {
-                    interactionState.selectionRect = if (showSelectionRect) dragRect else null
-                    onSelectionChanged(
-                        interactionState.entryPathsIntersecting(dragRect),
-                        additive,
-                        initialSelectionPaths
-                    )
+        interactionState.selectionRect = if (showSelectionRect) dragRect else null
+        drag.accumulatedPaths = ((drag.accumulatedPaths - viewportPaths) + currentIntersecting).toCollection(linkedSetOf())
+
+        onSelectionChanged(drag.accumulatedPaths, drag.additive, drag.initialSelectionPaths)
+    }
+
+    coroutineScope {
+        // Auto-scroll and scroll-change observer coroutine
+        launch {
+            var lastObservedScrollY = interactionState.cumulativeScrollY
+            while (isActive) {
+                delay(16)
+
+                if (!drag.active || !drag.dragging) {
+                    lastObservedScrollY = interactionState.cumulativeScrollY
+                    continue
                 }
-                continue
+
+                // Auto-scroll when cursor moves outside the content area
+                if (autoScrollBy != null) {
+                    val y = drag.currentY
+                    val height = inputScope.size.height.toFloat()
+                    val maxScrollSpeed = 18f
+                    val maxOvershoot = 150f
+                    val scrollAmount = when {
+                        y < 0f -> -maxScrollSpeed * (minOf(-y, maxOvershoot) / maxOvershoot)
+                        y > height -> maxScrollSpeed * (minOf(y - height, maxOvershoot) / maxOvershoot)
+                        else -> 0f
+                    }
+
+                    if (scrollAmount != 0f) autoScrollBy(scrollAmount)
+                }
+
+                // Recompute selection when scroll offset changed (from mouse wheel or auto-scroll)
+                val currentScrollY = interactionState.cumulativeScrollY
+                if (currentScrollY != lastObservedScrollY) {
+                    lastObservedScrollY = currentScrollY
+                    performSelectionUpdate()
+                }
+            }
+        }
+
+        // Main gesture processing loop
+        inputScope.awaitEachGesture {
+            var downPosition: Offset? = null
+            drag.additive = false
+
+            while (downPosition == null) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                if (!event.buttons.isPrimaryPressed) continue
+
+                val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: continue
+                downPosition = change.position
+                drag.additive = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
+                change.consume()
             }
 
+            val start = downPosition
+            if (!interactionState.isBlankArea(start)) {
+                interactionState.dismissSelectionRect()
+                return@awaitEachGesture
+            }
+
+            interactionState.dismissContextMenu()
             interactionState.dismissSelectionRect()
-            break
+
+            if (!drag.additive) onClearSelection()
+
+            drag.initialSelectionPaths = selectedPathsProvider()
+            drag.startX = start.x
+            drag.startY = start.y
+            drag.currentX = start.x
+            drag.currentY = start.y
+            drag.startScrollY = interactionState.cumulativeScrollY
+            drag.accumulatedPaths = linkedSetOf()
+            drag.dragging = false
+            drag.active = true
+
+            while (true) {
+                val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                val primaryChange = event.changes.firstOrNull() ?: continue
+                val current = primaryChange.position
+
+                if (primaryChange.pressed) {
+                    val scrollDelta = interactionState.cumulativeScrollY - drag.startScrollY
+                    val adjustedStart = Offset(start.x, start.y - scrollDelta)
+
+                    drag.currentX = current.x
+                    drag.currentY = current.y
+
+                    val dragRect = normalizedRect(adjustedStart, current)
+                    if (!drag.dragging && maxOf(dragRect.width, dragRect.height) >= 4f) drag.dragging = true
+                    if (drag.dragging) performSelectionUpdate()
+                    continue
+                }
+
+                drag.active = false
+                interactionState.dismissSelectionRect()
+                break
+            }
         }
     }
 }
