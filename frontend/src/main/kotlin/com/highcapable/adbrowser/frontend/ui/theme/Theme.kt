@@ -161,7 +161,6 @@ fun AdbrowserTheme(
     val styling = remember(
         darkTheme,
         colors.primaryAccent,
-        colors.primaryAccentHover,
         colors.primaryAccentPressed
     ) {
         if (darkTheme) 
@@ -171,7 +170,6 @@ fun AdbrowserTheme(
                         background = SolidColor(colors.primaryAccent),
                         backgroundFocused = SolidColor(colors.primaryAccent),
                         backgroundPressed = SolidColor(colors.primaryAccentPressed),
-                        backgroundHovered = SolidColor(colors.primaryAccentHover),
                         border = SolidColor(colors.primaryAccent),
                         borderFocused = SolidColor(colors.primaryAccent),
                         borderPressed = SolidColor(colors.primaryAccent),
@@ -196,7 +194,6 @@ fun AdbrowserTheme(
                         background = SolidColor(colors.primaryAccent),
                         backgroundFocused = SolidColor(colors.primaryAccent),
                         backgroundPressed = SolidColor(colors.primaryAccentPressed),
-                        backgroundHovered = SolidColor(colors.primaryAccentHover),
                         border = SolidColor(colors.primaryAccent),
                         borderFocused = SolidColor(colors.primaryAccent),
                         borderPressed = SolidColor(colors.primaryAccent),

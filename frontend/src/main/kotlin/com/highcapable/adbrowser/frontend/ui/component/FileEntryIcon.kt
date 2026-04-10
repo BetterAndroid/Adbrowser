@@ -22,6 +22,7 @@
  */
 package com.highcapable.adbrowser.frontend.ui.component
 
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -33,7 +34,7 @@ import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 @Composable
 fun FileEntryIcon(
     item: DeviceFileItem,
-    selected: Boolean,
+    selected: Boolean = false,
     contentDescription: String = item.name,
     modifier: Modifier = Modifier,
     size: Dp = 16.dp
@@ -49,7 +50,7 @@ fun FileEntryIcon(
         },
         selected = selected,
         contentDescription = contentDescription,
-        modifier = modifier,
+        modifier = modifier.size(size),
         tint = colors.primaryAccent
     )
 }

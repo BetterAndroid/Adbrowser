@@ -34,10 +34,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -58,6 +57,9 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,31 +77,64 @@ fun FileIconItem(
     onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
+    onHitBoundsChanged: (List<Rect>) -> Unit = {},
     modifier: Modifier = Modifier,
+    contentModifier: Modifier = Modifier,
     overlay: @Composable BoxScope.() -> Unit = {}
 ) {
     val colors = AdbrowserTheme.colors
+
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
+    var contentOffsetInParent by remember { mutableStateOf(Offset.Zero) }
+    var iconOffsetInParent by remember { mutableStateOf(Offset.Zero) }
+    var textOffsetInParent by remember { mutableStateOf(Offset.Zero) }
+    var iconBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var textBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+
     val background = resolveListItemBackground(
         colors = colors,
         selected = selected,
         hovered = hovered,
         pressed = pressed
     )
+    val iconHighlight = when {
+        selected && pressed -> colors.primaryAccentPressed.copy(alpha = ItemContentColorAlpha)
+        selected -> colors.primaryAccent.copy(alpha = ItemContentColorAlpha)
+        pressed -> colors.panelBorder
+        else -> Color.Transparent
+    }
+    val textHighlight = when {
+        selected -> background
+        else -> Color.Transparent
+    }
     val foreground = if (selected) Color.White else Color.Unspecified
 
     Box(
-        modifier = modifier
-            .onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
+        modifier = modifier,
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(8.dp))
-                .background(background)
+            modifier = contentModifier
+                .onGloballyPositioned { coordinates ->
+                    contentOffsetInParent = coordinates.positionInParent()
+                }
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            fun Modifier.hitTarget(
+                offsetInParent: Offset,
+                onPositioned: (Offset, Rect) -> Unit
+            ) = clip(RoundedCornerShape(8.dp))
                 .hoverable(interactionSource = interactionSource)
+                .onGloballyPositioned { coordinates ->
+                    onPositioned(coordinates.positionInParent(), coordinates.boundsInRoot())
+                }
+                .onSecondaryPress(pass = PointerEventPass.Initial) { position ->
+                    onSecondaryClick(position + contentOffsetInParent + offsetInParent)
+                }
                 .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
                     if (!event.buttons.isPrimaryPressed) return@onPointerEvent
 
@@ -119,25 +154,47 @@ fun FileIconItem(
                         onDoubleTap = { onDoubleClick() }
                     )
                 }
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            FileEntryIcon(
-                item = item,
-                selected = selected,
-                modifier = Modifier.size(34.dp)
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = item.name,
-                color = foreground,
-                fontSize = 14.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
+
+            Box(
+                modifier = Modifier
+                    .hitTarget(iconOffsetInParent) { offset, bounds ->
+                        iconOffsetInParent = offset
+                        iconBoundsInRoot = bounds
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, textBoundsInRoot))
+                    }
+                    .background(iconHighlight)
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                FileEntryIcon(
+                    item = item,
+                    size = 34.dp
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .hitTarget(textOffsetInParent) { offset, bounds ->
+                        textOffsetInParent = offset
+                        textBoundsInRoot = bounds
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, textBoundsInRoot))
+                    }
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(textHighlight)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = item.name,
+                    color = foreground,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
         overlay()
     }
 }
+
+private const val ItemContentColorAlpha = 0.15f

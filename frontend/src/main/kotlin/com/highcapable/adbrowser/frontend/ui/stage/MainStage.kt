@@ -301,7 +301,7 @@ private fun FileListArea(
     device: AndroidDeviceItem,
     modifier: Modifier = Modifier
 ) {
-    val focusRequester = remember(device.serial) { FocusRequester() }
+    val focusRequester = remember(device) { FocusRequester() }
 
     Box(
         modifier = modifier
@@ -339,34 +339,35 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     )
     val horizontalScrollState = rememberScrollState(viewModel.listHorizontalScrollOffsetOf(device))
     val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
-    var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
+    var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
+
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
     val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
-    LaunchedEffect(device.serial) {
+    LaunchedEffect(device) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
         repeat(2) { withFrameNanos { } }
         if (!listState.isIndexVisible(selectedIndex))
             listState.scrollToItem(selectedIndex)
     }
-    LaunchedEffect(device.serial, directoryChangeVersion) {
+    LaunchedEffect(device, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
         interactionState.dismissContextMenu()
         listState.scrollToItem(0)
         horizontalScrollState.scrollTo(0)
     }
-    LaunchedEffect(device.serial, listState) {
+    LaunchedEffect(device, listState) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) ->
                 viewModel.updateListScrollState(device, index, offset)
             }
     }
-    LaunchedEffect(device.serial, horizontalScrollState) {
+    LaunchedEffect(device, horizontalScrollState) {
         snapshotFlow { horizontalScrollState.value }
             .distinctUntilChanged()
             .collect { offset ->
@@ -441,7 +442,8 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                             interactionState.openEntryContextMenu(entry, position)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
-                            interactionState.visibleEntryBounds[entry] = coordinates.boundsInRoot()
+                            val bounds = coordinates.boundsInRoot()
+                            interactionState.visibleEntryBounds[entry] = kotlin.collections.listOf(bounds)
                         },
                         overlay = {
                             FileEntryContextMenuPopup(
@@ -487,28 +489,29 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
         initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(device),
         initialFirstVisibleItemScrollOffset = viewModel.iconScrollRowOffsetOf(device)
     )
-    val itemMinWidth = 120.dp
+
     val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
-    var handledDirectoryChangeVersion by remember(device.serial) { mutableStateOf(directoryChangeVersion) }
+    var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
+
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
     val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
-    LaunchedEffect(device.serial, directoryChangeVersion) {
+    LaunchedEffect(device, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
         interactionState.dismissContextMenu()
         gridState.scrollToItem(0)
     }
-    LaunchedEffect(device.serial, gridState) {
+    LaunchedEffect(device, gridState) {
         snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
             .collect { (index, offset) ->
                 viewModel.updateIconScrollState(device, index, offset)
             }
     }
-    LaunchedEffect(device.serial) {
+    LaunchedEffect(device) {
         val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
         if (selectedIndex < 0) return@LaunchedEffect
         repeat(2) { withFrameNanos {} }
@@ -535,7 +538,7 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             }
     ) {
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = itemMinWidth),
+            columns = GridCells.Adaptive(minSize = DefaultFileItemMinWidth),
             state = gridState,
             modifier = Modifier.fillMaxSize()
         ) {
@@ -559,13 +562,11 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                         viewModel.ensureEntrySelectedForContextMenu(device, entry)
                         interactionState.openEntryContextMenu(entry, position)
                     },
-                    modifier = Modifier
-                        .onGloballyPositioned { coordinates ->
-                            interactionState.visibleEntryBounds[entry] = coordinates.boundsInRoot()
-                        }
-                        .fillMaxWidth()
-                        .height(104.dp)
-                        .padding(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(vertical = DefaultFileItemOuterPadding),
+                    onHitBoundsChanged = { bounds ->
+                        interactionState.visibleEntryBounds[entry] = bounds
+                    },
                     overlay = {
                         FileEntryContextMenuPopup(
                             viewModel = viewModel,
@@ -897,7 +898,7 @@ private class FileAreaInteractionState {
 
     var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
     var selectionRect by mutableStateOf<Rect?>(null)
-    val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, Rect>()
+    val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, List<Rect>>()
     var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
 
     fun openBlankContextMenu(position: Offset) {
@@ -921,14 +922,14 @@ private class FileAreaInteractionState {
     fun clearSelectionIfBlank(position: Offset, onBlankAreaPressed: () -> Unit) {
         contextMenuState = null
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-        if (visibleEntryBounds.values.none { it.contains(rootPosition) }) {
+
+        if (visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } })
             onBlankAreaPressed()
-        }
     }
 
     fun isBlankArea(position: Offset): Boolean {
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-        return visibleEntryBounds.values.none { it.contains(rootPosition) }
+        return visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } }
     }
 
     fun entryPathsIntersecting(localRect: Rect): Set<String> {
@@ -940,9 +941,8 @@ private class FileAreaInteractionState {
         } ?: localRect
 
         return visibleEntryBounds
-            .filterValues { it.intersects(rootRect) }
-            .keys
-            .mapTo(linkedSetOf()) { entry ->
+            .filterValues { regions -> regions.any { it.intersects(rootRect) } }
+            .keys.mapTo(linkedSetOf()) { entry ->
                 if (entry.path == "/")
                     "/${entry.name}"
                 else "${entry.path.trimEnd('/')}/${entry.name}"
@@ -1066,3 +1066,6 @@ private fun handleFileAreaShortcut(
         else -> false
     }
 }
+
+private val DefaultFileItemMinWidth = 105.dp
+private val DefaultFileItemOuterPadding = 8.dp

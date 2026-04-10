@@ -80,7 +80,6 @@ fun resolveListItemBackground(
     pressed: Boolean
 ) = when {
     selected && pressed -> colors.primaryAccentPressed
-    selected && hovered -> colors.primaryAccentHover
     selected -> colors.primaryAccent
     pressed -> colors.panelBorder
     hovered -> colors.subtleControlBackground
