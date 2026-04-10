@@ -22,10 +22,10 @@
  */
 package com.highcapable.adbrowser.frontend.ui.utils.extension
 
-fun String.formatWithArgs(args: List<String>): String {
+fun String.formatWithArgs(vararg args: Any): String {
     var result = this
     args.forEachIndexed { index, value ->
-        result = result.replace("{$index}", value)
+        result = result.replace("{$index}", value.toString())
     }
     return result
 }

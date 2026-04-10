@@ -28,6 +28,8 @@ import com.highcapable.adbrowser.frontend.locale.Locales
 @LyricistStrings(languageTag = Locales.EN, default = true)
 val EnStrings = Strings(
     commonUnknownError = "Unknown error.",
+    comma = ", ",
+    period = ". ",
     setupTitle = "Setup Wizard",
     setupHeaderTitle = "Welcome to Adbrowser",
     setupDescription = "This program relies on ADB to work. " +
@@ -56,6 +58,12 @@ val EnStrings = Strings(
     mainFileListHintPermissionDenied = "Permission denied",
     mainFileListHintLoadFailed = "Failed to load. Check ADB logs for details",
     mainStatusReady = "Ready",
+    mainStatusItemSingular = "1 item{0}",
+    mainStatusItemPlural = "{0} items{1}",
+    mainStatusSelectedItemSingular = "Selected 1 item ({0} total{1})",
+    mainStatusSelectedItemPlural = "Selected {0} items ({1} total{2})",
+    mainStatusHiddenItemSingular = "1 hidden item",
+    mainStatusHiddenItemPlural = "{0} hidden items",
     menuAbout = "About",
     menuFile = "File",
     menuEdit = "Edit",

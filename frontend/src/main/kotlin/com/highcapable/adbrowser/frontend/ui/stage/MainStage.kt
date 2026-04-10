@@ -188,7 +188,7 @@ private fun RenderContent(
         )
         if (viewModel.isStatusBarVisible) {
             StatusBar(
-                text = StatusMessageText(viewModel.statusMessage).ifBlank { strings.mainStatusReady },
+                text = MainStatusBarText(viewModel),
                 versionText = BuildVersion.TEXT
             )
         }
@@ -820,7 +820,7 @@ private fun RenderDialogs(viewModel: MainStageModel) {
             ConfirmDialog(
                 title = strings.dialogDeleteTitle,
                 message = if (state.entryCount > 1)
-                    strings.dialogDeleteConfirmMultiple.formatWithArgs(listOf(state.entryCount.toString()))
+                    strings.dialogDeleteConfirmMultiple.formatWithArgs(state.entryCount)
                 else strings.dialogDeleteConfirm,
                 confirmText = strings.dialogDeleteConfirmButton,
                 cancelText = strings.dialogCommonCancel,
@@ -879,8 +879,53 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DialogPropertiesInvalidPermission -> strings.dialogPropertiesInvalidPermission
             MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
-        template.formatWithArgs(status.args)
+        template.formatWithArgs(*status.args.toTypedArray())
     }
+}
+
+@Composable
+private fun MainStatusBarText(viewModel: MainStageModel): String {
+    val selectedCount = viewModel.selectedEntries.size
+    val totalCount = viewModel.currentEntries.size
+    val hiddenCount = viewModel.hiddenEntryCount
+    val explicitStatus = StatusMessageText(viewModel.statusMessage)
+    val hiddenSuffix = hiddenCount
+        .takeIf { !viewModel.isShowingHiddenFiles && it > 0 }
+        ?.let { count -> HiddenItemsText(count) }
+        .orEmpty()
+
+    return when {
+        selectedCount > 0 -> SelectedItemsText(selectedCount, totalCount, hiddenSuffix)
+        explicitStatus.isNotBlank() -> explicitStatus
+        viewModel.selectedDevice != null -> ItemsText(totalCount, hiddenSuffix)
+        else -> strings.mainStatusReady
+    }
+}
+
+@Composable
+private fun ItemsText(count: Int, suffix: String = ""): String {
+    val suffixText = suffix.takeIf(String::isNotEmpty)?.let { " ($it)" } ?: ""
+
+    return when (count) {
+        1 -> strings.mainStatusItemSingular.formatWithArgs(suffixText)
+        else -> strings.mainStatusItemPlural.formatWithArgs(count, suffixText)
+    }
+}
+
+@Composable
+private fun SelectedItemsText(selectedCount: Int, totalCount: Int, suffix: String = ""): String {
+    val suffixText = suffix.takeIf(String::isNotEmpty)?.let { "${strings.comma}$it" } ?: ""
+
+    return when (selectedCount) {
+        1 -> strings.mainStatusSelectedItemSingular.formatWithArgs(totalCount, suffixText)
+        else -> strings.mainStatusSelectedItemPlural.formatWithArgs(selectedCount, totalCount, suffixText)
+    }
+} 
+
+@Composable
+private fun HiddenItemsText(count: Int) = when (count) {
+    1 -> strings.mainStatusHiddenItemSingular
+    else -> strings.mainStatusHiddenItemPlural.formatWithArgs(count)
 }
 
 @Composable

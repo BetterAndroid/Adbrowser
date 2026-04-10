@@ -126,6 +126,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         var currentPath by mutableStateOf("/")
         val pathInput = TextFieldState("/")
         val currentEntries = mutableStateListOf<DeviceFileItem>()
+        var hiddenEntryCount by mutableStateOf(0)
         var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
         val selectedEntryPaths = mutableStateListOf<String>()
         var selectionAnchorPath by mutableStateOf<String?>(null)
@@ -195,11 +196,17 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val currentEntries: List<DeviceFileItem>
         get() = activeWorkspace?.currentEntries ?: emptyEntries
 
+    val hiddenEntryCount: Int
+        get() = activeWorkspace?.hiddenEntryCount ?: 0
+
+    val isShowingHiddenFiles get() = settingsService.current.showHiddenFiles
+
     val pathBreadcrumbSegments: List<PathBreadcrumbSegment>
         get() = activeWorkspace?.pathBreadcrumbSegments ?: emptyBreadcrumbSegments
 
     val fileListHint: FileListHint
         get() = activeWorkspace?.fileListHint ?: FileListHint.None
+
     var statusMessage by mutableStateOf<StatusMessage>(StatusMessage.None)
         private set
     var isBusy by mutableStateOf(false)
@@ -1019,8 +1026,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         if (result.isOk) {
             fillEntries(state, result.data.orEmpty())
             state.fileListHint = if (state.currentEntries.isEmpty()) FileListHint.EmptyFolder else FileListHint.None
-            if (state.currentPath != previousPath)
+            if (state.currentPath != previousPath) {
                 state.directoryChangeVersion += 1
+                statusMessage = StatusMessage.None
+            }
             persistCurrentPath(state, device)
         } else {
             fillEntries(state, emptyList())
@@ -1081,6 +1090,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val selectedPaths = state.selectedEntryPaths.toSet()
         val primaryPath = state.selectedEntry?.let(::buildEntryFullPath)
         val anchorPath = state.selectionAnchorPath
+        state.hiddenEntryCount = if (showHidden) 0 else entries.count { isHiddenEntryName(it.name) }
 
         state.currentEntries.clear()
         state.currentEntries += entries

@@ -24,6 +24,8 @@ package com.highcapable.adbrowser.frontend.locale.strings
 
 data class Strings(
     val commonUnknownError: String,
+    val comma: String,
+    val period: String,
     val setupTitle: String,
     val setupHeaderTitle: String,
     val setupDescription: String,
@@ -51,6 +53,12 @@ data class Strings(
     val mainFileListHintPermissionDenied: String,
     val mainFileListHintLoadFailed: String,
     val mainStatusReady: String,
+    val mainStatusItemSingular: String,
+    val mainStatusItemPlural: String,
+    val mainStatusSelectedItemSingular: String,
+    val mainStatusSelectedItemPlural: String,
+    val mainStatusHiddenItemSingular: String,
+    val mainStatusHiddenItemPlural: String,
     val menuAbout: String,
     val menuFile: String,
     val menuEdit: String,
