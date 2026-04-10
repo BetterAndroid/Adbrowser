@@ -24,10 +24,7 @@
 
 package com.highcapable.adbrowser.frontend.ui.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -40,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 
 @Composable
 fun FixedWidthHorizontalSplitLayout(
@@ -55,7 +51,6 @@ fun FixedWidthHorizontalSplitLayout(
     dividerWidth: Dp = 10.dp
 ) {
     val density = LocalDensity.current
-    val dividerStyle = AdbrowserTheme.dividerStyle(dividerWidth)
 
     BoxWithConstraints(modifier = modifier) {
         val totalWidthPx = with(density) { maxWidth.toPx() }
@@ -63,13 +58,7 @@ fun FixedWidthHorizontalSplitLayout(
         val minSecondPanePx = with(density) { secondPaneMinWidth.toPx() }
         val dividerWidthPx = with(density) { dividerWidth.toPx() }
         val maxFirstPanePx = (totalWidthPx - dividerWidthPx - minSecondPanePx).coerceAtLeast(minFirstPanePx)
-        val firstPaneWidthPx = with(density) { firstPaneWidth.toPx() }
-            .coerceIn(minFirstPanePx, maxFirstPanePx)
-
-        val dragState = rememberDraggableState { delta ->
-            val updatedPx = (firstPaneWidthPx + delta).coerceIn(minFirstPanePx, maxFirstPanePx)
-            onFirstPaneWidthChange(with(density) { updatedPx.toDp() })
-        }
+        val firstPaneWidthPx = with(density) { firstPaneWidth.toPx() }.coerceIn(minFirstPanePx, maxFirstPanePx)
 
         Row(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -77,19 +66,18 @@ fun FixedWidthHorizontalSplitLayout(
                     .width(with(density) { firstPaneWidthPx.toDp() })
                     .fillMaxHeight()
             ) { first() }
-
-            Box(
+            DraggableResizeHandle(
+                orientation = Orientation.Horizontal,
+                onDragDelta = { delta ->
+                    val updatedPx = (firstPaneWidthPx + with(density) { delta.dp.toPx() })
+                        .coerceIn(minFirstPanePx, maxFirstPanePx)
+                    onFirstPaneWidthChange(with(density) { updatedPx.toDp() })
+                },
+                onDragStopped = onFirstPaneWidthChangeFinished,
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(dividerWidth)
-                    .background(dividerStyle.color)
-                    .draggable(
-                        orientation = Orientation.Horizontal,
-                        state = dragState,
-                        onDragStopped = { onFirstPaneWidthChangeFinished() }
-                    )
             )
-
             Box(
                 modifier = Modifier
                     .fillMaxHeight()

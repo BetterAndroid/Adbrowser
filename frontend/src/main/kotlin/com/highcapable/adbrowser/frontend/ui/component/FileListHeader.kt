@@ -76,7 +76,7 @@ fun FileListHeader(
             Row(
                 modifier = Modifier
                     .width(contentWidth)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HeaderText(text = nameLabel, width = nameWidth)
@@ -107,7 +107,9 @@ private fun HeaderText(
 ) {
     Text(
         text = text,
-        modifier = Modifier.width(width),
+        modifier = Modifier
+            .width(width)
+            .padding(vertical = 8.dp),
         fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp
     )

@@ -23,14 +23,11 @@
 package com.highcapable.adbrowser.frontend.ui.component
 
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -39,19 +36,14 @@ fun FileColumnSplitter(
     onDragStopped: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
-    val dragState = rememberDraggableState { deltaPx ->
-        onDragDelta(with(density) { deltaPx.toDp().value })
-    }
-
-    Box(
+    DraggableResizeHandle(
+        orientation = Orientation.Horizontal,
+        onDragDelta = onDragDelta,
+        onDragStopped = onDragStopped,
         modifier = modifier
             .width(10.dp)
-            .height(20.dp)
-            .draggable(
-                orientation = Orientation.Horizontal,
-                state = dragState,
-                onDragStopped = { onDragStopped() }
-            )
+            .height(22.dp),
+        indicatorThickness = 2.dp,
+        indicatorPadding = Dp.Hairline
     )
 }
