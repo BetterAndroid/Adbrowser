@@ -72,12 +72,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -310,20 +312,33 @@ private fun FileListArea(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember(device) { FocusRequester() }
+    val entryPositionController = remember(device) { EntryPositionController() }
+    val entries = viewModel.entriesOf(device)
+    val selectedEntry = viewModel.selectedEntryOf(device)
+
+    LaunchedEffect(device, viewModel.selectedViewMode) {
+        val selectedIndex = selectedEntryIndex(entries, selectedEntry)
+        if (selectedIndex >= 0)
+            entryPositionController.request(index = selectedIndex, forceScroll = false)
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .focusRequester(focusRequester)
-            .focusable()
-            .onPreviewKeyEvent { handleFileAreaShortcut(viewModel, device, it) }
-            .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
-                focusRequester.requestFocus()
-            }
     ) {
         if (viewModel.isListViewMode)
-            FileListView(viewModel = viewModel, device = device)
-        else FileIconView(viewModel = viewModel, device = device)
+            FileListView(
+                viewModel = viewModel,
+                device = device,
+                focusRequester = focusRequester,
+                entryPositionController = entryPositionController
+            )
+        else FileIconView(
+            viewModel = viewModel,
+            device = device,
+            focusRequester = focusRequester,
+            entryPositionController = entryPositionController
+        )
 
         val hint = viewModel.fileListHintOf(device)
         val hintIcon = FileListHintIcon(hint)
@@ -339,7 +354,12 @@ private fun FileListArea(
 }
 
 @Composable
-private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
+private fun FileListView(
+    viewModel: MainStageModel,
+    device: AndroidDeviceItem,
+    focusRequester: FocusRequester,
+    entryPositionController: EntryPositionController
+) {
     val interactionState = rememberFileAreaInteractionState(device)
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = viewModel.listScrollIndexOf(device),
@@ -350,16 +370,19 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
 
     val entries = viewModel.entriesOf(device)
-    val selectedEntry = viewModel.selectedEntryOf(device)
-    val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
-    LaunchedEffect(device) {
-        val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
-        if (selectedIndex < 0) return@LaunchedEffect
+    LaunchedEffect(entryPositionController.currentRequest, entries) {
+        val request = entryPositionController.currentRequest ?: return@LaunchedEffect
+        if (request.index !in entries.indices) {
+            entryPositionController.consume(request)
+            return@LaunchedEffect
+        }
+
         repeat(2) { withFrameNanos { } }
-        if (!listState.isIndexVisible(selectedIndex))
-            listState.scrollToItem(selectedIndex)
+        if (request.forceScroll || !listState.isIndexVisible(request.index))
+            listState.scrollToItem(request.index)
+        entryPositionController.consume(request)
     }
     LaunchedEffect(device, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
@@ -383,7 +406,26 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent {
+                handleFileAreaShortcut(viewModel, device, it) { navigateChar ->
+                    val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
+                    if (targetIndex < 0) return@handleFileAreaShortcut false
+
+                    val targetEntry = entries[targetIndex]
+                    viewModel.setSelectedEntry(device, targetEntry)
+                    entryPositionController.request(index = targetIndex, forceScroll = true)
+                    true
+                }
+            }
+            .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                focusRequester.requestFocus()
+            }
+    ) {
         FileListHeader(
             horizontalScrollState = horizontalScrollState,
             nameWidth = viewModel.fileColumnWidthNamePx.dp,
@@ -498,7 +540,12 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
 }
 
 @Composable
-private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
+private fun FileIconView(
+    viewModel: MainStageModel,
+    device: AndroidDeviceItem,
+    focusRequester: FocusRequester,
+    entryPositionController: EntryPositionController
+) {
     val interactionState = rememberFileAreaInteractionState(device)
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = viewModel.iconScrollRowIndexOf(device),
@@ -509,8 +556,6 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
 
     val entries = viewModel.entriesOf(device)
-    val selectedEntry = viewModel.selectedEntryOf(device)
-    val selectedEntryCount = viewModel.selectedEntriesOf(device).size
     val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device, directoryChangeVersion) {
@@ -526,17 +571,38 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 viewModel.updateIconScrollState(device, index, offset)
             }
     }
-    LaunchedEffect(device) {
-        val selectedIndex = selectedEntry?.let { entries.indexOf(it) } ?: -1
-        if (selectedIndex < 0) return@LaunchedEffect
-        repeat(2) { withFrameNanos {} }
-        if (!gridState.isIndexVisible(selectedIndex))
-            gridState.scrollToItem(selectedIndex)
+    LaunchedEffect(entryPositionController.currentRequest, entries) {
+        val request = entryPositionController.currentRequest ?: return@LaunchedEffect
+        if (request.index !in entries.indices) {
+            entryPositionController.consume(request)
+            return@LaunchedEffect
+        }
+
+        repeat(4) { withFrameNanos {} }
+        if (request.forceScroll || !gridState.isIndexVisible(request.index))
+            gridState.scrollToItem(request.index)
+        entryPositionController.consume(request)
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent {
+                handleFileAreaShortcut(viewModel, device, it) { navigateChar ->
+                    val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
+                    if (targetIndex < 0) return@handleFileAreaShortcut false
+
+                    val targetEntry = entries[targetIndex]
+                    viewModel.setSelectedEntry(device, targetEntry)
+                    entryPositionController.request(index = targetIndex, forceScroll = true)
+                    true
+                }
+            }
+            .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                focusRequester.requestFocus()
+            }
             .nestedScroll(interactionState.nestedScrollConnection)
             .onGloballyPositioned { interactionState.contentCoordinates = it }
             .fileAreaBlankSelection(
@@ -1218,7 +1284,8 @@ private fun Modifier.fileAreaBlankSelection(
 private fun handleFileAreaShortcut(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
-    event: KeyEvent
+    event: KeyEvent,
+    onNavigateByInitialChar: (Char) -> Boolean = { false }
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
@@ -1263,7 +1330,59 @@ private fun handleFileAreaShortcut(
             viewModel.clearSelectedEntries(device)
             true
         }
-        else -> false
+        else -> extractInitialNavigationChar(event)?.let(onNavigateByInitialChar) == true
+    }
+}
+
+private fun extractInitialNavigationChar(event: KeyEvent): Char? {
+    if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return null
+
+    val codePoint = event.utf16CodePoint
+    if (codePoint <= 0) return null
+
+    val keyChar = codePoint.toChar()
+    if (keyChar.isISOControl() || keyChar.isWhitespace())
+        return null
+
+    return keyChar.lowercaseChar()
+}
+
+private fun findEntryIndexByInitialChar(entries: List<DeviceFileItem>, char: Char): Int =
+    entries.indexOfFirst { entry ->
+        entry.name.startsWith(char.toString(), ignoreCase = true)
+    }
+
+private fun selectedEntryIndex(
+    entries: List<DeviceFileItem>,
+    selectedEntry: DeviceFileItem?
+): Int = selectedEntry?.let(entries::indexOf) ?: -1
+
+private data class EntryPositionRequest(
+    val index: Int,
+    val forceScroll: Boolean,
+    val requestId: Long
+)
+
+private class EntryPositionController {
+
+    private var nextRequestId = 0L
+
+    var currentRequest by mutableStateOf<EntryPositionRequest?>(null)
+        private set
+
+    fun request(index: Int, forceScroll: Boolean) {
+        if (index < 0) return
+        nextRequestId += 1L
+        currentRequest = EntryPositionRequest(
+            index = index,
+            forceScroll = forceScroll,
+            requestId = nextRequestId
+        )
+    }
+
+    fun consume(request: EntryPositionRequest) {
+        if (currentRequest?.requestId == request.requestId)
+            currentRequest = null
     }
 }
 
