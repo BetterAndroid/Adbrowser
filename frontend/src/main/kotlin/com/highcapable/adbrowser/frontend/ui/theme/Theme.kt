@@ -137,7 +137,7 @@ fun AdbrowserTheme(
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
 
-    val fontFamily = remember { createFontFamilyOrNull() }
+    val fontFamily = remember { FontFamily() }
     val defaultTextStyle = remember(fontFamily) {
         if (fontFamily != null) 
             JewelTheme.createDefaultTextStyle(

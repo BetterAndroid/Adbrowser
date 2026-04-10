@@ -24,15 +24,18 @@
 
 package com.highcapable.adbrowser.frontend.ui.input
 
+import androidx.compose.runtime.Stable
 import androidx.compose.ui.input.pointer.PointerIcon
 import java.awt.Cursor
 
 /**
  * Creates [PointerIcon] from [Cursor]'s type.
  */
+@Stable
 fun PointerIcon(type: Int) = PointerIcon(AwtCursor(type))
 
 /**
  * Creates [Cursor] from [Cursor]'s type.
  */
+@Stable
 fun AwtCursor(type: Int): Cursor = Cursor.getPredefinedCursor(type)

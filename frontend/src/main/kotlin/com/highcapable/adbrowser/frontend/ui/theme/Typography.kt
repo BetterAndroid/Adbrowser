@@ -23,7 +23,6 @@
 package com.highcapable.adbrowser.frontend.ui.theme
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -87,7 +86,7 @@ class AdbrowserTypography : Typography {
         get() = JewelTheme.consoleTextStyle
 }
 
-private val availableSystemFontFamilies by lazy {
+private val AvailableSystemFontFamilies by lazy {
     runCatching {
         GraphicsEnvironment
             .getLocalGraphicsEnvironment()
@@ -107,11 +106,10 @@ private val PreferredFontFamilies by lazy {
 }
 
 private val SelectedFontFamilyName by lazy {
-    PreferredFontFamilies.firstOrNull { it.lowercase() in availableSystemFontFamilies }
+    PreferredFontFamilies.firstOrNull { it.lowercase() in AvailableSystemFontFamilies }
 }
 
-@OptIn(ExperimentalTextApi::class)
-fun createFontFamilyOrNull(): FontFamily? {
+fun FontFamily(): FontFamily? {
     val familyName = SelectedFontFamilyName ?: return null
 
     return FontFamily(

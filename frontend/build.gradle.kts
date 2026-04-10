@@ -19,6 +19,7 @@ kotlin {
         languageSettings {
             languageVersion = "2.0"
             languageSettings.optIn("androidx.compose.ui.ExperimentalComposeUiApi")
+            languageSettings.optIn("androidx.compose.ui.text.ExperimentalTextApi")
             languageSettings.optIn("org.jetbrains.jewel.foundation.ExperimentalJewelApi")
         }
     }
