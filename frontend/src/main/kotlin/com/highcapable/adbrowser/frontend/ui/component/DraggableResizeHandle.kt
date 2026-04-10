@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,11 +50,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.highcapable.adbrowser.frontend.ui.input.AwtCursor
+import com.highcapable.adbrowser.frontend.ui.input.PointerIcon
+import com.highcapable.adbrowser.frontend.ui.input.WindowCursorLock
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import java.awt.Cursor
 
@@ -72,6 +75,7 @@ fun DraggableResizeHandle(
     val hovered by interactionSource.collectIsHoveredAsState()
     var dragged by remember { mutableStateOf(false) }
     var pressed by remember { mutableStateOf(false) }
+
     val overflowRef = remember { floatArrayOf(0f) }
     val dragState = rememberDraggableState { deltaPx ->
         val adjusted = deltaPx + overflowRef[0]
@@ -86,12 +90,22 @@ fun DraggableResizeHandle(
     }
     val pointerIcon = remember(orientation) {
         PointerIcon(
-            Cursor.getPredefinedCursor(
-                if (orientation == Orientation.Horizontal)
-                    Cursor.E_RESIZE_CURSOR
-                else Cursor.N_RESIZE_CURSOR
-            )
+            if (orientation == Orientation.Horizontal)
+                Cursor.E_RESIZE_CURSOR
+            else Cursor.N_RESIZE_CURSOR
         )
+    }
+    val awtPointerCursor = remember(orientation) {
+        AwtCursor(
+            if (orientation == Orientation.Horizontal)
+                Cursor.E_RESIZE_CURSOR
+            else Cursor.N_RESIZE_CURSOR
+        )
+    }
+    val windowCursorLock = remember(awtPointerCursor) { WindowCursorLock(awtPointerCursor) }
+
+    DisposableEffect(windowCursorLock) {
+        onDispose { windowCursorLock.unlock() }
     }
 
     Box(
@@ -114,9 +128,11 @@ fun DraggableResizeHandle(
                 onDragStarted = {
                     dragged = true
                     overflowRef[0] = 0f
+                    windowCursorLock.lock()
                 },
                 onDragStopped = {
                     dragged = false
+                    windowCursorLock.unlock()
                     onDragStopped()
                 }
             ),
