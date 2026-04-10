@@ -1149,13 +1149,12 @@ private fun Modifier.fileAreaBlankSelection(
             drag.additive = false
 
             while (downPosition == null) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                 if (!event.buttons.isPrimaryPressed) continue
 
                 val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: continue
                 downPosition = change.position
                 drag.additive = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
-                change.consume()
             }
 
             val start = downPosition
@@ -1191,7 +1190,7 @@ private fun Modifier.fileAreaBlankSelection(
             drag.active = true
 
             while (true) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Final)
+                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                 val primaryChange = event.changes.firstOrNull() ?: continue
                 val current = primaryChange.position
 
