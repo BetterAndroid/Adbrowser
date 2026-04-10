@@ -464,7 +464,8 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                                 device = device,
                                 item = entry,
                                 state = interactionState.contextMenuState,
-                                onDismissRequest = interactionState::dismissContextMenu
+                                onDismissRequest = interactionState::dismissContextMenu,
+                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
                             )
                         }
                     )
@@ -489,7 +490,8 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                 viewModel = viewModel,
                 device = device,
                 state = interactionState.contextMenuState,
-                onDismissRequest = { interactionState.contextMenuState = null }
+                onDismissRequest = interactionState::dismissContextMenu,
+                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
             )
         }
     }
@@ -591,7 +593,8 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                             device = device,
                             item = entry,
                             state = interactionState.contextMenuState,
-                            onDismissRequest = interactionState::dismissContextMenu
+                            onDismissRequest = interactionState::dismissContextMenu,
+                            onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
                         )
                     }
                 )
@@ -624,7 +627,8 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
             viewModel = viewModel,
             device = device,
             state = interactionState.contextMenuState,
-            onDismissRequest = { interactionState.contextMenuState = null }
+            onDismissRequest = interactionState::dismissContextMenu,
+            onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
         )
     }
 }
@@ -634,7 +638,8 @@ private fun FileBlankContextMenuPopup(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
     state: FileContextMenuState?,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onDismissByOutsidePress: () -> Unit
 ) {
     if (!viewModel.canShowBlankFileContextMenu(device)) return
 
@@ -642,7 +647,7 @@ private fun FileBlankContextMenuPopup(
 
     PopupMenu(
         onDismissRequest = {
-            onDismissRequest()
+            onDismissByOutsidePress()
             true
         },
         popupPositionProvider = rememberPopupPositionProviderAtPosition(blankState.position),
@@ -662,16 +667,14 @@ private fun FileEntryContextMenuPopup(
     device: AndroidDeviceItem,
     item: DeviceFileItem,
     state: FileContextMenuState?,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    onDismissByOutsidePress: () -> Unit
 ) {
     val entryState = state as? FileContextMenuState.Entry ?: return
     if (entryState.item != item) return
 
     PopupMenu(
-        onDismissRequest = {
-            onDismissRequest()
-            true
-        },
+        onDismissRequest = { onDismissByOutsidePress(); true },
         popupPositionProvider = rememberPopupPositionProviderAtPosition(entryState.position),
         popupProperties = PopupProperties(focusable = false)
     ) {
@@ -958,6 +961,7 @@ private sealed interface FileContextMenuState {
 private class FileAreaInteractionState {
 
     private var contextMenuRequestId by mutableStateOf(0L)
+    private var consumeNextBlankPrimaryPress by mutableStateOf(false)
 
     var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
     var selectionRect by mutableStateOf<Rect?>(null)
@@ -974,11 +978,13 @@ private class FileAreaInteractionState {
     }
 
     fun openBlankContextMenu(position: Offset) {
+        consumeNextBlankPrimaryPress = false
         contextMenuRequestId += 1L
         contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
     }
 
     fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
+        consumeNextBlankPrimaryPress = false
         contextMenuRequestId += 1L
         contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
     }
@@ -987,12 +993,30 @@ private class FileAreaInteractionState {
         contextMenuState = null
     }
 
+    fun dismissContextMenuConsumingNextBlankPress() {
+        contextMenuState = null
+        consumeNextBlankPrimaryPress = true
+    }
+
     fun dismissSelectionRect() {
         selectionRect = null
     }
 
+    fun consumePendingBlankPrimaryPress(): Boolean {
+        if (!consumeNextBlankPrimaryPress) return false
+
+        consumeNextBlankPrimaryPress = false
+        return true
+    }
+
+    fun hasContextMenu() = contextMenuState != null
+
     fun clearSelectionIfBlank(position: Offset, onBlankAreaPressed: () -> Unit) {
-        contextMenuState = null
+        if (contextMenuState != null) {
+            contextMenuState = null
+            return
+        }
+
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
 
         if (visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } })
@@ -1136,6 +1160,17 @@ private fun Modifier.fileAreaBlankSelection(
 
             val start = downPosition
             if (!interactionState.isBlankArea(start)) {
+                interactionState.dismissSelectionRect()
+                return@awaitEachGesture
+            }
+
+            if (interactionState.consumePendingBlankPrimaryPress()) {
+                interactionState.dismissSelectionRect()
+                return@awaitEachGesture
+            }
+
+            if (interactionState.hasContextMenu()) {
+                interactionState.dismissContextMenu()
                 interactionState.dismissSelectionRect()
                 return@awaitEachGesture
             }
