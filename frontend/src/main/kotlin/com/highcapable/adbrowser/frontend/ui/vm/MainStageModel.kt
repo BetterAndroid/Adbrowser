@@ -909,7 +909,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val validCandidatePaths = candidatePaths.filterTo(linkedSetOf()) { path ->
             state.currentEntries.any { buildEntryFullPath(it) == path }
         }
-        val finalSelection = if (additive) initialSelectionPaths + validCandidatePaths else validCandidatePaths
+        val finalSelection = if (additive)
+            (initialSelectionPaths - validCandidatePaths) + (validCandidatePaths - initialSelectionPaths)
+        else validCandidatePaths
         val primaryPath = state.currentEntries.firstOrNull { buildEntryFullPath(it) in validCandidatePaths }?.let(::buildEntryFullPath)
             ?: state.currentEntries.firstOrNull { buildEntryFullPath(it) in finalSelection }?.let(::buildEntryFullPath)
 
