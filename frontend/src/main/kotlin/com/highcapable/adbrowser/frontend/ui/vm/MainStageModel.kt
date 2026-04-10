@@ -857,6 +857,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         rangeSelection: Boolean
     ) {
         val state = workspace(device) ?: return
+        val entryPath = buildEntryFullPath(entry)
+
         when {
             rangeSelection -> {
                 state.suppressNextDoubleOpen = false
@@ -867,12 +869,22 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 toggleEntrySelection(state, entry)
             }
             else -> {
+                // If the entry is already the only selected entry,
+                // do not clear and reselect it to avoid suppressing double open.
+                if (state.selectedEntryPaths.size == 1 &&
+                    state.selectedEntryPaths.firstOrNull() == entryPath &&
+                    state.selectedEntry?.let(::buildEntryFullPath) == entryPath
+                ) {
+                    state.suppressNextDoubleOpen = false
+                    return
+                }
                 state.suppressNextDoubleOpen = state.selectedEntryPaths.size > 1
+
                 setSelection(
                     state = state,
-                    selectedPaths = setOf(buildEntryFullPath(entry)),
-                    primaryPath = buildEntryFullPath(entry),
-                    anchorPath = buildEntryFullPath(entry)
+                    selectedPaths = setOf(entryPath),
+                    primaryPath = entryPath,
+                    anchorPath = entryPath
                 )
             }
         }

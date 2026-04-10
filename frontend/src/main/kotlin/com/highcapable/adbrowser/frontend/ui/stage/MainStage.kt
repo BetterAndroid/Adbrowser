@@ -446,7 +446,7 @@ private fun FileListView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                         },
                         onDoubleClick = {
                             if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileListRow
-                            if (selectedEntryCount > 1) return@FileListRow
+                            if (viewModel.hasMultipleSelectedEntries(device)) return@FileListRow
 
                             viewModel.openEntry(device, entry)
                         },
@@ -574,7 +574,7 @@ private fun FileIconView(viewModel: MainStageModel, device: AndroidDeviceItem) {
                     },
                     onDoubleClick = {
                         if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileIconItem
-                        if (selectedEntryCount > 1) return@FileIconItem
+                        if (viewModel.hasMultipleSelectedEntries(device)) return@FileIconItem
 
                         viewModel.openEntry(device, entry)
                     },
