@@ -172,9 +172,9 @@ private fun RenderContent(
             firstPaneWidth = viewModel.devicePaneWidthDp.dp,
             onFirstPaneWidthChange = { viewModel.setDevicePaneWidth(it.value) },
             onFirstPaneWidthChangeFinished = viewModel::persistDevicePaneWidth,
-            firstPaneMinWidth = 240.dp,
-            secondPaneMinWidth = 560.dp,
-            dividerWidth = 10.dp,
+            firstPaneMinWidth = FirstPaneMinWidth,
+            secondPaneMinWidth = SecondPaneMinWidth,
+            dividerWidth = PaneDividerWidth,
             first = {
                 DevicePane(
                     viewModel = viewModel,
@@ -188,12 +188,11 @@ private fun RenderContent(
                 )
             }
         )
-        if (viewModel.isStatusBarVisible) {
+        if (viewModel.isStatusBarVisible)
             StatusBar(
                 text = MainStatusBarText(viewModel),
                 versionText = BuildVersion.TEXT
             )
-        }
     }
 }
 
@@ -1385,6 +1384,10 @@ private class EntryPositionController {
             currentRequest = null
     }
 }
+
+private val FirstPaneMinWidth = 240.dp
+private val SecondPaneMinWidth = 560.dp
+private val PaneDividerWidth = 10.dp
 
 private val DefaultFileItemMinWidth = 105.dp
 private val DefaultFileItemOuterPadding = 8.dp
