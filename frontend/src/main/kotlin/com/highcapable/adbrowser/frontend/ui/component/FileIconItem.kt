@@ -33,9 +33,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,9 +57,10 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -69,6 +70,7 @@ import com.highcapable.adbrowser.frontend.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.frontend.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.frontend.ui.vm.model.DeviceFileItem
 import org.jetbrains.jewel.ui.component.Text
+import kotlin.math.max
 
 @Composable
 fun FileIconItem(
@@ -82,15 +84,19 @@ fun FileIconItem(
     contentModifier: Modifier = Modifier,
     overlay: @Composable BoxScope.() -> Unit = {}
 ) {
+    val density = LocalDensity.current
     val colors = AdbrowserTheme.colors
 
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
-    var contentOffsetInParent by remember { mutableStateOf(Offset.Zero) }
-    var iconOffsetInParent by remember { mutableStateOf(Offset.Zero) }
-    var textOffsetInParent by remember { mutableStateOf(Offset.Zero) }
+
+    var containerCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var bridgeCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var textCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var iconBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
+    var bridgeBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var textBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
 
     val background = resolveListItemBackground(
@@ -112,28 +118,33 @@ fun FileIconItem(
     val foreground = if (selected) Color.White else Color.Unspecified
 
     Box(
-        modifier = modifier,
+        modifier = modifier.onGloballyPositioned { coordinates ->
+            containerCoordinates = coordinates
+        },
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = contentModifier
-                .onGloballyPositioned { coordinates ->
-                    contentOffsetInParent = coordinates.positionInParent()
-                }
                 .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
             fun Modifier.hitTarget(
-                offsetInParent: Offset,
-                onPositioned: (Offset, Rect) -> Unit
+                targetCoordinates: () -> LayoutCoordinates?,
+                onPositioned: (LayoutCoordinates, Rect) -> Unit
             ) = clip(RoundedCornerShape(8.dp))
                 .hoverable(interactionSource = interactionSource)
                 .onGloballyPositioned { coordinates ->
-                    onPositioned(coordinates.positionInParent(), coordinates.boundsInRoot())
+                    onPositioned(coordinates, coordinates.boundsInRoot())
                 }
                 .onSecondaryPress(pass = PointerEventPass.Initial) { position ->
-                    onSecondaryClick(position + contentOffsetInParent + offsetInParent)
+                    val target = targetCoordinates()
+                    val container = containerCoordinates
+                    val translatedPosition = if (target != null && container != null)
+                        container.localPositionOf(target, position)
+                    else position
+
+                    onSecondaryClick(translatedPosition)
                 }
                 .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
                     if (!event.buttons.isPrimaryPressed) return@onPointerEvent
@@ -157,10 +168,10 @@ fun FileIconItem(
 
             Box(
                 modifier = Modifier
-                    .hitTarget(iconOffsetInParent) { offset, bounds ->
-                        iconOffsetInParent = offset
+                    .hitTarget(targetCoordinates = { iconCoordinates }) { coordinates, bounds ->
+                        iconCoordinates = coordinates
                         iconBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, textBoundsInRoot))
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
                     }
                     .background(iconHighlight)
                     .padding(8.dp),
@@ -171,13 +182,29 @@ fun FileIconItem(
                     size = 34.dp
                 )
             }
-            Spacer(Modifier.height(4.dp))
             Box(
                 modifier = Modifier
-                    .hitTarget(textOffsetInParent) { offset, bounds ->
-                        textOffsetInParent = offset
+                    .width(
+                        with(density) {
+                            max(
+                                iconBoundsInRoot?.width ?: 0f,
+                                textBoundsInRoot?.width ?: 0f
+                            ).toDp()
+                        }
+                    )
+                    .height(4.dp)
+                    .hitTarget(targetCoordinates = { bridgeCoordinates }) { coordinates, bounds ->
+                        bridgeCoordinates = coordinates
+                        bridgeBoundsInRoot = bounds
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                    }
+            )
+            Box(
+                modifier = Modifier
+                    .hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
+                        textCoordinates = coordinates
                         textBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, textBoundsInRoot))
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
                     }
                     .clip(RoundedCornerShape(6.dp))
                     .background(textHighlight)
