@@ -59,9 +59,22 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     private val settingsService get() = appState.appServices.settingsService
     private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /**
+     * Top-level Preferences sections shown by the tab strip.
+     */
     enum class Tab { General, Files, Device }
+
+    /**
+     * Visual category for the footer status message.
+     */
     enum class StatusCategory { Normal, Error }
 
+    /**
+     * Footer status payloads shown by the Preferences window.
+     *
+     * Errors are intentionally modeled explicitly for common validation failures so the stage can
+     * map them to localized strings without parsing backend text.
+     */
     sealed interface Status {
         data object None : Status
         data object SidebarSpacingReset : Status
@@ -109,6 +122,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         restoreFromSettings()
     }
 
+    /** Resets the saved device pane width and notifies the main stage to re-read settings. */
     fun resetSidebarSpacing() {
         val success = runPersistAction(
             successStatus = Status.SidebarSpacingReset
@@ -119,6 +133,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         if (success) appState.sync()
     }
 
+    /** Resets saved file header column widths and notifies the main stage to re-read settings. */
     fun resetFileColumnWidths() {
         val success = runPersistAction(
             successStatus = Status.FileColumnWidthsReset
@@ -132,6 +147,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         if (success) appState.sync()
     }
 
+    /** Resets persisted main window bounds so the next sync restores default centered behavior. */
     fun resetMainWindowBounds() {
         val success = runPersistAction(
             successStatus = Status.MainWindowBoundsReset
@@ -145,6 +161,13 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         if (success) appState.sync()
     }
 
+    /**
+     * Validates and persists the edited preferences asynchronously.
+     *
+     * Save is intentionally gated by `isSaving` because ADB path validation may block for several
+     * seconds when a wrong executable is selected. The callback is only invoked after a successful
+     * save so the caller can safely close the window without hiding validation failures.
+     */
     fun save(onSuccess: () -> Unit = {}) {
         if (isSaving) return
 
@@ -168,6 +191,9 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 }
 
                 val current = settingsService.current
+
+                // Only request a file list refresh when a saved preference affects how entries are
+                // presented. This avoids unnecessary reloads for unrelated settings such as language.
                 val shouldRefreshFileList = current.showHiddenFiles != showHiddenFiles ||
                     current.foldersFirst != foldersFirst ||
                     current.rememberLastFileViewMode != rememberLastFileViewMode
@@ -191,6 +217,8 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 }
 
                 if (saved) {
+                    // Preferences are consumed by the wider app, not only this window.
+                    // A sync broadcasts the updated settings back to active stages.
                     appState.sync(refreshFileList = shouldRefreshFileList)
                     onSuccess()
                 }
@@ -199,11 +227,13 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
             }
         }
     }
-    
+
+    /** Cancels the model scope when the Preferences window is disposed. */
     fun dispose() {
         modelScope.cancel()
     }
 
+    /** Opens the native file chooser and writes the chosen executable path back into the editor state. */
     fun browseAdbPath(parentWindow: Window?, dialogTitle: String) {
         val selectedPath = SystemFileChooser.chooseFile(
             parent = parentWindow,
@@ -214,11 +244,13 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         setAdbPath(selectedPath)
     }
 
+    /** Restores the editable values from persisted settings and marks the session as cancelled. */
     fun cancel() {
         restoreFromSettings()
         status = Status.Cancelled
     }
 
+    /** Copies the current persisted settings into the editable window state. */
     private fun restoreFromSettings() {
         val settings = settingsService.current
         selectedLanguageTag = normalizeStoredLanguageTag(settings.language)
@@ -231,12 +263,19 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         setAdbPath(settings.adbExecPath)
     }
 
+    /**
+     * Runs a small synchronous persistence action used by reset buttons.
+     *
+     * Resets are kept synchronous because they are short, self-contained setting writes and the
+     * caller expects an immediate success/error status before deciding whether to sync the app.
+     */
     private fun runPersistAction(successStatus: Status, block: suspend () -> Unit): Boolean =
         runCatching { runBlocking { block() } }
             .onSuccess { status = successStatus }
             .onFailure { status = Status.Failed(it.message) }
             .isSuccess
 
+    /** Async persistence helper used by the main save flow. */
     private suspend fun runPersistActionAsync(successStatus: Status, block: suspend () -> Unit): Boolean =
         runCatching { block() }
             .onSuccess { status = successStatus }
@@ -250,6 +289,13 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         ExecutableInvalid
     }
 
+    /**
+     * Validates the selected ADB executable.
+     *
+     * The timeout is important here: some wrong binaries do not fail fast and can block inside the
+     * validation command. Returning `ExecutableInvalid` on timeout keeps the Preferences window
+     * responsive instead of leaving the entire save flow stuck forever.
+     */
     private suspend fun validateAdbPath(): ValidationResult {
         val path = adbExecPath.text.toString().trim()
         if (path.isBlank()) return ValidationResult.PathEmpty
@@ -258,6 +304,8 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
             ?: return ValidationResult.PathNotFound
         if (!Files.exists(parsedPath)) return ValidationResult.PathNotFound
 
+        // Prefer validating the exact path value the user entered instead of relying on global
+        // app state. This keeps the check correct even before the setting is actually saved.
         val result = withContext(Dispatchers.IO) {
             withTimeoutOrNull(ADB_VALIDATE_TIMEOUT_MS) {
                 runCatching {
@@ -271,6 +319,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         return ValidationResult.Ok
     }
 
+    /** Replaces the text field content atomically so UI and model stay in sync after browse/reset. */
     private fun setAdbPath(path: String) {
         val value = path.trim()
         adbExecPath.edit {

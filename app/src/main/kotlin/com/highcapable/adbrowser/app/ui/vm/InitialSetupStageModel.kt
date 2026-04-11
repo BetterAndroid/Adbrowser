@@ -51,6 +51,10 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
     private val settingsService get() = appState.appServices.settingsService
     private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /**
+     * Validation and persistence outcomes shown in the footer of the initial setup window.
+     * Common path failures are modeled explicitly so they can be localized directly.
+     */
     sealed interface Status {
         data object None : Status
         data object AdbPathNotFound : Status
@@ -71,6 +75,12 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
     var isBusy by mutableStateOf(false)
         private set
 
+    /**
+     * Validates the chosen executable and persists it as the application's configured ADB path.
+     *
+     * The success callback is only invoked after the path is both valid and saved, so the caller
+     * can safely advance into the main application flow without hiding any validation error.
+     */
     fun continueSetup(onSuccess: () -> Unit = {}) {
         if (isBusy) return
 
@@ -105,6 +115,9 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
                 if (!saved) return@launch
 
                 status = Status.None
+
+                // Initial setup feeds global app state, so the rest of the application must be
+                // notified after the path is saved successfully.
                 appState.sync()
                 onSuccess()
             } finally {
@@ -113,6 +126,7 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Opens the native file chooser and clears any previous validation error on success. */
     fun browseAdbPath(parentWindow: Window?, dialogTitle: String) {
         val selectedPath = SystemFileChooser.chooseFile(
             parent = parentWindow,
@@ -124,10 +138,18 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
         status = Status.None
     }
 
+    /** Cancels model coroutines when the setup window leaves composition. */
     fun dispose() {
         modelScope.cancel()
     }
 
+    /**
+     * Validates the chosen executable with a timeout.
+     *
+     * This guard is important because selecting an arbitrary binary can cause validation to hang
+     * inside the spawned process. Timing out keeps the setup window responsive and lets the UI
+     * report the path as invalid instead of getting stuck forever.
+     */
     private suspend fun validateAdbPath(): ValidationResult {
         val path = adbExecPath.text.toString().trim()
         if (path.isBlank()) return ValidationResult.PathEmpty
@@ -136,6 +158,8 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
             ?: return ValidationResult.PathNotFound
         if (!Files.exists(parsedPath)) return ValidationResult.PathNotFound
 
+        // Validate the exact text field value before it is persisted. This avoids coupling first-run
+        // validation to any previously saved app state.
         val result = withContext(Dispatchers.IO) {
             withTimeoutOrNull(ADB_VALIDATE_TIMEOUT_MS) {
                 runCatching {
@@ -148,6 +172,7 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
         return ValidationResult.Ok
     }
 
+    /** Replaces the text field content atomically after browse or environment discovery. */
     private fun setAdbPath(path: String) {
         val value = path.trim()
         adbExecPath.edit {
@@ -155,6 +180,12 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /**
+     * Resolves the initial path shown in the setup window.
+     *
+     * A persisted setting wins if present; otherwise we probe the environment so the user can
+     * confirm an inferred path instead of having to type it manually on first launch.
+     */
     private fun resolveInitialAdbPath(): String {
         val persistedPath = settingsService.current.adbExecPath.trim()
         if (persistedPath.isNotBlank()) return persistedPath
@@ -162,6 +193,12 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
         return resolveAdbPathFromEnvironment().orEmpty()
     }
 
+    /**
+     * Tries several common ADB discovery sources in order of specificity.
+     *
+     * The explicit environment variable wins first, then standard Android SDK roots, and finally
+     * the system PATH. This order keeps a user-provided override from being masked by a global SDK.
+     */
     private fun resolveAdbPathFromEnvironment(): String? {
         val executableName = if (OsType.isWindows) "adb.exe" else "adb"
 
@@ -186,10 +223,13 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
             ?.firstOrNull(::isUsableExecutablePath)
     }
 
+    /** Basic filesystem-level executable check used by environment discovery. */
     private fun isUsableExecutablePath(path: String): Boolean {
         val candidate = runCatching { Path.of(path.trim()) }.getOrNull() ?: return false
         if (!Files.isRegularFile(candidate)) return false
 
+        // Windows executables are not reliably represented by Files.isExecutable, so the file
+        // existence check is enough there once the extension has already been resolved.
         return OsType.isWindows || Files.isExecutable(candidate)
     }
 }

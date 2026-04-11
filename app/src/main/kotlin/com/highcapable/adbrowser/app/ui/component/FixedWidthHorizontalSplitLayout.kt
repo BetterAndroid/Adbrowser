@@ -57,6 +57,9 @@ fun FixedWidthHorizontalSplitLayout(
         val minFirstPanePx = with(density) { firstPaneMinWidth.toPx() }
         val minSecondPanePx = with(density) { secondPaneMinWidth.toPx() }
         val dividerWidthPx = with(density) { dividerWidth.toPx() }
+
+        // The first pane width is clamped against the current total width so window resizing
+        // cannot push either side below its minimum size.
         val maxFirstPanePx = (totalWidthPx - dividerWidthPx - minSecondPanePx).coerceAtLeast(minFirstPanePx)
         val firstPaneWidthPx = with(density) { firstPaneWidth.toPx() }.coerceIn(minFirstPanePx, maxFirstPanePx)
 
@@ -72,6 +75,9 @@ fun FixedWidthHorizontalSplitLayout(
                     val updatedPx = (firstPaneWidthPx + deltaPx)
                         .coerceIn(minFirstPanePx, maxFirstPanePx)
                     onFirstPaneWidthChange(with(density) { updatedPx.toDp() })
+
+                    // Return the actually consumed delta so the handle can preserve any leftover
+                    // overflow when dragging against a min/max boundary.
                     updatedPx - firstPaneWidthPx
                 },
                 onDragStopped = onFirstPaneWidthChangeFinished,

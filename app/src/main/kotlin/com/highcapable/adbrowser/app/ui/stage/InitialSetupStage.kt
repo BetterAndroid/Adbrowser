@@ -58,7 +58,7 @@ fun FrameWindowScope.InitialSetupStage(
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
-    val statusText = initialSetupStatusMessage(viewModel.status)
+    val statusText = StatusMessage(viewModel.status)
     val isContinueEnabled = !viewModel.isBusy && viewModel.adbExecPath.text.toString().trim().isNotBlank()
     val selectAdbExecutableText = strings.setupSelectAdbExecutable
 
@@ -80,6 +80,8 @@ fun FrameWindowScope.InitialSetupStage(
         Text(
             text = strings.setupDescription,
             color = colors.pathBreadcrumbForeground,
+            // Reserve enough space for the description up front so the footer row does not jump
+            // vertically when localized text wraps differently across languages.
             modifier = Modifier.heightIn(min = lineHeight * 2)
         )
         Spacer(Modifier.height(16.dp))
@@ -129,6 +131,7 @@ fun FrameWindowScope.InitialSetupStage(
             Spacer(Modifier.width(10.dp))
             DefaultButton(
                 enabled = isContinueEnabled,
+                // The stage only advances after validation and persistence succeed.
                 onClick = { viewModel.continueSetup(onSuccess = onContinue) }
             ) {
                 Text(strings.setupContinue)
@@ -138,7 +141,7 @@ fun FrameWindowScope.InitialSetupStage(
 }
 
 @Composable
-private fun initialSetupStatusMessage(status: InitialSetupStageModel.Status): String = when (status) {
+private fun StatusMessage(status: InitialSetupStageModel.Status) = when (status) {
     InitialSetupStageModel.Status.None -> ""
     InitialSetupStageModel.Status.AdbPathNotFound -> strings.preferencesStatusAdbPathNotFound
     InitialSetupStageModel.Status.AdbExecutableInvalid -> strings.preferencesStatusAdbExecutableInvalid

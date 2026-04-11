@@ -226,6 +226,8 @@ private fun FilePaneHost(
         viewModel.deviceWorkspaces.forEach { workspace ->
             key(workspace.device) {
                 val isSelected = workspace.device == viewModel.selectedDevice
+                // Every device keeps its own pane instance alive. We only hide/show them so
+                // switching devices can preserve selection, scroll state, and cached entries.
                 FilePane(
                     viewModel = viewModel,
                     workspace = workspace,
@@ -319,8 +321,10 @@ private fun FileListArea(
 
     LaunchedEffect(device, viewModel.selectedViewMode) {
         val selectedIndex = selectedEntryIndex(entries, selectedEntry)
-        if (selectedIndex >= 0)
-            entryPositionController.request(index = selectedIndex, forceScroll = false)
+        // When switching between list and icon view, keep the current selection in sight if
+        // possible instead of resetting to the top. The request is not force-scrolled so the
+        // target remains still when it is already visible in the new layout.
+        if (selectedIndex >= 0) entryPositionController.request(index = selectedIndex, forceScroll = false)
     }
 
     Box(
@@ -379,6 +383,8 @@ private fun FileListView(
             return@LaunchedEffect
         }
 
+        // Lazy list layout info is not immediately valid after data or mode changes.
+        // Waiting a couple of frames avoids scrolling against stale measurement data.
         repeat(2) { withFrameNanos {} }
         when {
             request.forceScroll -> listState.scrollToItem(request.index)
@@ -393,6 +399,9 @@ private fun FileListView(
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
         handledDirectoryChangeVersion = directoryChangeVersion
         interactionState.dismissContextMenu()
+
+        // Directory changes intentionally reset both axes. A same-path refresh does not bump the
+        // version, so manual refresh can preserve the current viewport when desired.
         listState.scrollToItem(0)
         horizontalScrollState.scrollTo(0)
     }
@@ -450,6 +459,8 @@ private fun FileListView(
                 )
             }
             .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                // File area shortcuts should work immediately after a click, so focus is claimed
+                // on pointer press instead of waiting for child composable to become focused.
                 focusRequester.requestFocus()
             }
     ) {
@@ -523,6 +534,8 @@ private fun FileListView(
                             interactionState.openEntryContextMenu(entry, position)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
+                            // Visible entry bounds drive blank-area hit testing and marquee
+                            // selection, so they must track the actual composed coordinates.
                             val bounds = coordinates.boundsInRoot()
                             interactionState.visibleEntryBounds[entry] = kotlin.collections.listOf(bounds)
                         },
@@ -603,6 +616,8 @@ private fun FileIconView(
             return@LaunchedEffect
         }
 
+        // Grid layout typically needs a little more time to stabilize than the list variant
+        // because adaptive columns and card heights both influence the final row geometry.
         repeat(4) { withFrameNanos {} }
         if (request.forceScroll) {
             gridState.scrollToItem(request.index)
@@ -620,6 +635,8 @@ private fun FileIconView(
     ) {
         val gridColumnCount = (maxWidth / DefaultFileItemMinWidth).toInt().coerceAtLeast(1)
 
+        // Keyboard left/right navigation depends on the current adaptive column count.
+        // Recomputing from constraints keeps the navigation model aligned with the visible grid.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -705,6 +722,8 @@ private fun FileIconView(
                         modifier = Modifier.fillMaxWidth()
                             .padding(vertical = DefaultFileItemOuterPadding),
                         onHitBoundsChanged = { bounds ->
+                            // Icon hit targets are split across icon/text regions, so one entry can
+                            // contribute multiple rectangles to blank-area and drag-selection logic.
                             interactionState.visibleEntryBounds[entry] = bounds
                         },
                         overlay = {
@@ -1080,6 +1099,15 @@ private sealed interface FileContextMenuState {
     data class Blank(val position: Offset, val requestId: Long) : FileContextMenuState
 }
 
+/**
+ * Tracks transient pointer interaction state for one file area.
+ *
+ * This class centralizes a few non-obvious interaction rules that are hard to express directly in
+ * child composable:
+ * - clicking blank space after dismissing a context menu should not immediately clear selection
+ * - drag selection must survive auto-scroll
+ * - blank hit testing must work for both list rows and icon cards with custom hit regions
+ */
 private class FileAreaInteractionState {
 
     private var contextMenuRequestId by mutableStateOf(0L)
@@ -1122,6 +1150,8 @@ private class FileAreaInteractionState {
             return
         }
 
+        // The next blank primary press is consumed so closing a context menu does not also clear
+        // selection in the same gesture sequence.
         contextMenuState = null
         consumeNextBlankPrimaryPress = true
     }
@@ -1178,6 +1208,8 @@ private class FileAreaInteractionState {
 
         return visibleEntryBounds
             .filterValues { regions ->
+                // Only consider regions that still intersect the visible viewport. This avoids
+                // letting stale off-screen bounds participate while the list is auto-scrolling.
                 regions.any { it.intersects(viewport) } && regions.any { it.intersects(rootRect) }
             }
             .keys.mapTo(linkedSetOf()) { buildEntryPath(it) }
@@ -1206,8 +1238,8 @@ private fun Modifier.fileAreaBlankSelection(
 ) = pointerInput(interactionState, showSelectionRect) {
     val inputScope = this
 
-    // Shared drag state between gesture handler and auto-scroll coroutine
-    // Thread-safe: both coroutines run on the single-threaded UI dispatcher
+    // Shared drag state between the gesture loop and the auto-scroll coroutine.
+    // This stays safe without extra synchronization because both coroutines run on the UI thread.
     val drag = object {
         var startX = 0f
         var startY = 0f
@@ -1230,13 +1262,17 @@ private fun Modifier.fileAreaBlankSelection(
         val viewportPaths = interactionState.viewportEntryPaths()
 
         interactionState.selectionRect = if (showSelectionRect) dragRect else null
+
+        // Rebuild the candidate set from the current viewport contribution to every update.
+        // This prevents entries from remaining selected forever after they scroll out of view
+        // during an active drag-selection gesture.
         drag.accumulatedPaths = ((drag.accumulatedPaths - viewportPaths) + currentIntersecting).toCollection(linkedSetOf())
 
         onSelectionChanged(drag.accumulatedPaths, drag.additive, drag.initialSelectionPaths)
     }
 
     coroutineScope {
-        // Auto-scroll and scroll-change observer coroutine
+        // Auto-scroll and scroll-change observer coroutine.
         launch {
             var lastObservedScrollY = interactionState.cumulativeScrollY
             while (isActive) {
@@ -1247,7 +1283,7 @@ private fun Modifier.fileAreaBlankSelection(
                     continue
                 }
 
-                // Auto-scroll when cursor moves outside the content area
+                // Auto-scroll when the pointer leaves the content area while a marquee drag is active.
                 if (autoScrollBy != null) {
                     val y = drag.currentY
                     val height = inputScope.size.height.toFloat()
@@ -1262,7 +1298,8 @@ private fun Modifier.fileAreaBlankSelection(
                     if (scrollAmount != 0f) autoScrollBy(scrollAmount)
                 }
 
-                // Recompute selection when scroll offset changed (from mouse wheel or auto-scroll)
+                // Recompute selection when scroll changed, even if the pointer itself did not move.
+                // Without this, drag-selection would lag behind while auto-scroll is in progress.
                 val currentScrollY = interactionState.cumulativeScrollY
                 if (currentScrollY != lastObservedScrollY) {
                     lastObservedScrollY = currentScrollY
@@ -1271,7 +1308,7 @@ private fun Modifier.fileAreaBlankSelection(
             }
         }
 
-        // Main gesture processing loop
+        // Main gesture processing loop.
         inputScope.awaitEachGesture {
             var downPosition: Offset? = null
             drag.additive = false
@@ -1330,6 +1367,9 @@ private fun Modifier.fileAreaBlankSelection(
                     drag.currentY = current.y
 
                     val dragRect = normalizedRect(adjustedStart, current)
+
+                    // Ignore tiny pointer jitter so a regular click on blank space does not
+                    // accidentally start a marquee selection rectangle.
                     if (!drag.dragging && maxOf(dragRect.width, dragRect.height) >= 4f) drag.dragging = true
                     if (drag.dragging) performSelectionUpdate()
                     continue
@@ -1353,6 +1393,9 @@ private fun handleFileAreaShortcut(
     if (event.type != KeyEventType.KeyDown) return false
 
     val isPrimaryShortcutPressed = event.isCtrlPressed || event.isMetaPressed
+
+    // Keep this routing close to the file area instead of a global window handler so shortcuts
+    // only trigger when the file area actually owns focus.
     return when {
         isPrimaryShortcutPressed && event.key == Key.A && !event.isShiftPressed -> {
             viewModel.selectAllEntries()
@@ -1431,6 +1474,12 @@ private data class EntryPositionRequest(
     val requestId: Long
 )
 
+/**
+ * Small request queue for cross-view item positioning.
+ *
+ * A monotonically increasing request id prevents a previous request from clearing a newer one
+ * when multiple selection/scroll updates happen in quick succession.
+ */
 private class EntryPositionController {
 
     private var nextRequestId = 0L

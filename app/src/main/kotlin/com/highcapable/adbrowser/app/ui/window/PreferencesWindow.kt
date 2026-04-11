@@ -47,6 +47,9 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
         mutableStateOf(KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow != null)
     }
 
+    // Compose Desktop does not expose an "always on top within this app only" window flag.
+    // This focus-manager bridge is a pragmatic compromise: keep the window on top while any app
+    // window is active, and drop always-on-top as soon as focus leaves the application entirely.
     DisposableEffect(Unit) {
         val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
         val listener = PropertyChangeListener {
@@ -65,6 +68,8 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
 
     Window(
         onCloseRequest = {
+            // Saving is asynchronous and the footer is the only place where validation/persistence
+            // failures are shown, so the window must not close while a save is still in flight.
             if (viewModel.isSaving) return@Window
             onCloseRequest()
         },

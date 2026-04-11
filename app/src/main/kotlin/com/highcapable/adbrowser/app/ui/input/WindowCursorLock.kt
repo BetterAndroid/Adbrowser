@@ -39,14 +39,11 @@ import java.util.IdentityHashMap
 import javax.swing.SwingUtilities
 
 /**
- * Utility class to lock the cursor to a specific type (e.g., pointer) when it's within a window,
- * and restore the original cursor when it leaves.
+ * Temporarily forces a resize cursor across the active AWT window while a drag interaction is running.
  *
- * This is necessary because Swing doesn't provide a built-in way to change the cursor for the entire window and all its
- * components based on the cursor's position. By listening to mouse events and tracking the cursor's location,
- * we can dynamically update the cursor for the component under the pointer and restore it when
- * the pointer moves away. This class ensures that the cursor is consistently set to the desired
- * type while it's within the window, and that all original cursor states are properly restored when unlocking.
+ * Compose hover icons only affect the component currently under the pointer. During a resize drag
+ * the pointer often leaves the original handle immediately, so this helper bridges down to AWT and
+ * keeps the cursor consistent until the drag stops.
  */
 class WindowCursorLock(private val pointerCursor: Cursor) {
 
@@ -54,9 +51,7 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
     private var lockedComponentCursors: IdentityHashMap<Component, CursorRestoreState>? = null
     private var cursorLockListener: AWTEventListener? = null
 
-    /**
-     * Locks the cursor to the specified type for the currently active window and all its components.
-     */
+    /** Starts forcing the configured cursor for the current active window. */
     fun lock() {
         val window = KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow ?: return
         if (lockedWindow === window) return
@@ -66,6 +61,8 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
         fun applyCursor(component: Component?) {
             val target = component ?: window
             if (!cursorMap.containsKey(target)) {
+                // Store whether the cursor was explicitly set before we touch it. On unlock we must
+                // restore either the previous cursor or the inherited/null state, not just a cursor value.
                 cursorMap[target] = CursorRestoreState(
                     wasCursorSet = target.isCursorSet,
                     cursor = if (target.isCursorSet) target.cursor else null
@@ -77,9 +74,11 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
         fun updateCursorUnderPointer() {
             val pointerLocation = MouseInfo.getPointerInfo()?.location ?: return
             val pointInWindow = pointerLocation.location
-            val target = SwingUtilities.getDeepestComponentAt(window, pointInWindow.x, pointInWindow.y)
 
+            // Convert screen coordinates before hit testing. getDeepestComponentAt expects the point
+            // in the target container's local coordinate space, not screen space.
             SwingUtilities.convertPointFromScreen(pointInWindow, window)
+            val target = SwingUtilities.getDeepestComponentAt(window, pointInWindow.x, pointInWindow.y)
             applyCursor(target)
         }
 
@@ -89,6 +88,8 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
             if (SwingUtilities.getWindowAncestor(sourceComponent) !== window) return@AWTEventListener
 
             when (mouseEvent.id) {
+                // Re-evaluate the deepest hovered component whenever the pointer moves so nested
+                // child components cannot revert the resize cursor mid-drag.
                 MouseEvent.MOUSE_DRAGGED,
                 MouseEvent.MOUSE_MOVED,
                 MouseEvent.MOUSE_ENTERED,
@@ -108,9 +109,7 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
         cursorLockListener = listener
     }
 
-    /**
-     * Unlocks the cursor, restoring the original cursor for all components that were modified during locking.
-     */
+    /** Stops forcing the cursor and restores every component that was modified during the lock. */
     fun unlock() {
         cursorLockListener?.let { Toolkit.getDefaultToolkit().removeAWTEventListener(it) }
         cursorLockListener = null
@@ -121,8 +120,13 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
             component.cursor = if (state.wasCursorSet) state.cursor else null
         }
 
+        // AWT does not always refresh the visible cursor immediately after restoring component
+        // cursors, especially when the mouse has not moved yet. Posting a synthetic move nudges
+        // the window to recompute the cursor under the current pointer position.
         refreshWindowCursor(window)
         EventQueue.invokeLater {
+            // Run once more on the next event-turn because some platforms process the restoration
+            // and the synthetic move in separate phases.
             refreshWindowCursor(window)
         }
 
@@ -140,6 +144,8 @@ class WindowCursorLock(private val pointerCursor: Cursor) {
         val target = SwingUtilities.getDeepestComponentAt(targetWindow, pointInWindow.x, pointInWindow.y) ?: targetWindow
         val targetPoint = SwingUtilities.convertPoint(targetWindow, pointInWindow, target)
 
+        // Post a synthetic move instead of mutating cursor state directly again. This lets the
+        // target component/window re-apply its own normal cursor logic after the lock is released.
         Toolkit.getDefaultToolkit().systemEventQueue.postEvent(
             MouseEvent(
                 target,

@@ -126,6 +126,7 @@ fun FrameWindowScope.PreferencesStage(
             OutlinedButton(
                 enabled = !viewModel.isSaving,
                 onClick = {
+                    // Cancel restores the editable state back from saved settings before closing.
                     viewModel.cancel()
                     onCloseRequest()
                 },
@@ -137,6 +138,8 @@ fun FrameWindowScope.PreferencesStage(
             DefaultButton(
                 enabled = !viewModel.isSaving,
                 onClick = {
+                    // The close callback is only invoked after a successful save; validation or
+                    // persistence failures leave the window open so the footer can show the reason.
                     viewModel.save(onSuccess = onCloseRequest)
                 },
                 modifier = Modifier.width(80.dp)
@@ -149,6 +152,8 @@ fun FrameWindowScope.PreferencesStage(
 
 @Composable
 private fun PreferencesTabs(viewModel: PreferencesStageModel) {
+    // The tabs are constructed inline because the selection state is trivial and there is no
+    // independent tab model worth extracting at this stage.
     val tabs = listOf(
         TabData.Default(
             selected = viewModel.currentTab == PreferencesStageModel.Tab.General,
@@ -208,6 +213,8 @@ private fun PreferencesTabs(viewModel: PreferencesStageModel) {
             style = AdbrowserTheme.defaultTabStyle,
             modifier = Modifier.fillMaxWidth()
         )
+        // Jewel tabs conventionally keep a divider under the strip even when the content panel
+        // provides its own border, so the stage follows that visual structure here as well.
         Divider(
             orientation = Orientation.Horizontal,
             modifier = Modifier.fillMaxWidth(),
@@ -348,6 +355,8 @@ private fun LanguageDropdown(viewModel: PreferencesStageModel) {
     val selectedTag = viewModel.selectedLanguageTag
     val selected = options.firstOrNull { it.tag == selectedTag } ?: options.first()
 
+    // Resolve the current display item from the localized options list every recomposition so
+    // the label updates immediately after a language change is applied.
     Dropdown(
         modifier = Modifier
             .width(200.dp)

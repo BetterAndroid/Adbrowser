@@ -94,6 +94,7 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             )
 
             window.addComponentListener(adapter)
+            // Seed the current bounds immediately so a no-op session still has a valid baseline.
             liveWindowBounds = window.currentBounds()
 
             onDispose {
@@ -106,6 +107,8 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             val targetSize = DpSize(current.mainWindowWidth.dp, current.mainWindowHeight.dp)
             if (windowState.size != targetSize) windowState.size = targetSize
 
+            // Position is reapplied from settings sync as well so a reset from Preferences can
+            // immediately re-center the existing window instead of only affecting the next launch.
             windowState.position = current.savedMainWindowPosition()
         }
         LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
@@ -120,6 +123,8 @@ fun MainWindow(onCloseRequest: () -> Unit) {
                 .distinctUntilChanged()
                 .debounce(250)
                 .collect { bounds ->
+                    // Persist real AWT bounds instead of relying on Compose state snapshots only.
+                    // The native window can move/resize outside Compose's immediate awareness.
                     settingsService.current.mainWindowWidth = bounds.width.toDouble()
                     settingsService.current.mainWindowHeight = bounds.height.toDouble()
                     settingsService.current.mainWindowPosX = bounds.x.toDouble()
@@ -147,6 +152,12 @@ fun MainWindow(onCloseRequest: () -> Unit) {
     }
 }
 
+/**
+ * Converts persisted settings into an initial Compose window position.
+ *
+ * A null persisted position means "center on screen", which is also how the reset action is
+ * represented in settings.
+ */
 private fun AppSettings.savedMainWindowPosition(): WindowPosition {
     val mainWindowPosX = mainWindowPosX
     val mainWindowPosY = mainWindowPosY

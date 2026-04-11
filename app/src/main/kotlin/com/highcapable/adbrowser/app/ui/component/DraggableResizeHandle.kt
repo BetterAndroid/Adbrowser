@@ -80,6 +80,9 @@ fun DraggableResizeHandle(
     val dragState = rememberDraggableState { deltaPx ->
         val adjusted = deltaPx + overflowRef[0]
         val consumed = onDragDelta(adjusted)
+
+        // The parent may clamp the resize delta at min/max bounds. Keep the leftover delta and
+        // feed it into the next drag event so the handle does not feel "sticky" at the edge.
         overflowRef[0] = adjusted - consumed
     }
 
@@ -105,6 +108,7 @@ fun DraggableResizeHandle(
     val windowCursorLock = remember(awtPointerCursor) { WindowCursorLock(awtPointerCursor) }
 
     DisposableEffect(windowCursorLock) {
+        // Defensive cleanup in case the composable leaves composition mid-drag.
         onDispose { windowCursorLock.unlock() }
     }
 
@@ -128,6 +132,9 @@ fun DraggableResizeHandle(
                 onDragStarted = {
                     dragged = true
                     overflowRef[0] = 0f
+
+                    // Lock the whole window cursor instead of only relying on hover state from
+                    // this handle; during a real resize drag the pointer often leaves the handle.
                     windowCursorLock.lock()
                 },
                 onDragStopped = {

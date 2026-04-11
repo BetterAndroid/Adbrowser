@@ -63,6 +63,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         private const val FILE_COLUMN_MIN_WIDTH_PERMISSION = 110f
     }
 
+    /**
+     * Dialogs are modeled as explicit states so the stage can render them declaratively.
+     */
     sealed interface DialogState {
         data object None : DialogState
         data object NewFolder : DialogState
@@ -71,6 +74,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
     }
 
+    /**
+     * Status bar payloads are split between structured resource keys and raw backend messages.
+     * Raw messages are kept as a fallback for unexpected backend failures that do not yet have
+     * a dedicated i18n mapping.
+     */
     sealed interface StatusMessage {
         data object None : StatusMessage
         data class Res(val key: Key, val args: List<String> = emptyList()) : StatusMessage
@@ -100,6 +108,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /**
+     * Empty / failure hints that replace the file area content when entries cannot be shown.
+     */
     enum class FileListHint {
         None,
         EmptyFolder,
@@ -110,6 +121,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         LoadFailed
     }
 
+    /**
+     * Logical selection movement directions used by keyboard navigation.
+     */
     enum class NavigationDirection {
         Up,
         Down,
@@ -128,6 +142,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val isCut: Boolean
     )
 
+    /**
+     * Per-device UI state that survives device switching.
+     *
+     * The fields here intentionally mirror transient UI concerns such as selection, scroll
+     * position, and breadcrumb state. This keeps `MainStage` mostly stateless and avoids having
+     * to reconstruct the right pane from scratch whenever the active device changes.
+     */
     class DeviceWorkspaceState internal constructor(device: AndroidDeviceItem) {
         var device by mutableStateOf(device)
         var currentPath by mutableStateOf("/")
@@ -267,19 +288,29 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         normalizeFileColumnWidths()
     }
 
+    /** Returns the cached workspace for a device, if it has been materialized already. */
     fun workspace(device: AndroidDeviceItem) = workspaces[device]
 
+    /** Used by the UI to decide which prebuilt file pane should currently be visible. */
     fun isSelectedWorkspace(device: AndroidDeviceItem) = selectedDevice == device
 
+    /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
     fun setDevicePaneWidth(widthDp: Float) {
         devicePaneWidthDp = widthDp.coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
     }
 
+    /** Persists the current device pane width to settings after the user finishes dragging. */
     fun persistDevicePaneWidth() {
         settingsService.current.devicePaneWidth = devicePaneWidthDp.toDouble()
         saveSettingsAsync()
     }
 
+    /**
+     * Re-applies persisted presentation settings to the live stage.
+     *
+     * This is called after Preferences are saved or reset. Widths are normalized defensively
+     * because settings can come from older versions or external edits.
+     */
     fun onExternalSettingsChanged(refreshFileList: Boolean = false) {
         val settings = settingsService.current
         devicePaneWidthDp = settings.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
@@ -293,24 +324,28 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
     }
 
+    /** Resizes the Name column and returns the actually applied delta after clamping. */
     fun resizeNameAndSizeColumns(deltaDp: Float): Float {
         val old = fileColumnWidthNamePx
         fileColumnWidthNamePx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_NAME)
         return fileColumnWidthNamePx - old
     }
 
+    /** Resizes the Size column and returns the actually applied delta after clamping. */
     fun resizeSizeAndModifiedColumns(deltaDp: Float): Float {
         val old = fileColumnWidthSizePx
         fileColumnWidthSizePx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_SIZE)
         return fileColumnWidthSizePx - old
     }
 
+    /** Resizes the Modified column and returns the actually applied delta after clamping. */
     fun resizeModifiedAndPermissionColumns(deltaDp: Float): Float {
         val old = fileColumnWidthModifiedPx
         fileColumnWidthModifiedPx = (old + deltaDp).coerceAtLeast(FILE_COLUMN_MIN_WIDTH_MODIFIED)
         return fileColumnWidthModifiedPx - old
     }
 
+    /** Persists current file header column widths after the resize gesture completes. */
     fun persistFileColumnWidths() {
         settingsService.current.fileColumnWidthName = fileColumnWidthNamePx.toDouble()
         settingsService.current.fileColumnWidthSize = fileColumnWidthSizePx.toDouble()
@@ -319,6 +354,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         saveSettingsAsync()
     }
 
+    /** Starts the initial load exactly once and wires live device observation afterwards. */
     fun initialize() {
         if (initialized) return
 
@@ -327,11 +363,19 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         startObserveDevices()
     }
 
+    /** Cancels observers and model coroutines when the stage is disposed. */
     fun dispose() {
         deviceObserverJob?.cancel()
         modelScope.cancel()
     }
 
+    /**
+     * Activates a device workspace.
+     *
+     * The first selection triggers an initial directory load for that device. Later switches reuse
+     * the existing workspace so the right pane can come back with the previous scroll position and
+     * selection intact.
+     */
     fun selectDevice(device: AndroidDeviceItem) {
         if (selectedDevice == device) return
 
@@ -351,6 +395,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Forces an immediate device refresh. The live observer uses the same result pipeline. */
     fun refreshDevices(showStatus: Boolean = true) = launchBusyAction {
         consumeDeviceListResult(
             result = adbClient.listDevices(),
@@ -389,6 +434,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
         reconcileWorkspaces()
 
+        // Device models are recreated from backend data on every refresh. Resolve selection
+        // by equality against the new list instead of keeping a stale instance reference.
         val targetDevice = previousSelectedDevice
             ?.let { previous -> devices.firstOrNull { it == previous } }
             ?: selectDefaultDevice()
@@ -400,6 +447,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return
         }
 
+        // The selected workspace is hydrated synchronously because the user can see it
+        // immediately; non-selected workspaces are prefetched in the background afterward.
         selectedDevice = targetDevice
         val selectedState = ensureWorkspace(targetDevice)
         if (!selectedState.prebuilt) {
@@ -412,17 +461,20 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         prebuildWorkspacesInBackground(skipDevice = targetDevice)
     }
 
+    /** Reloads the current directory and clears selection, matching desktop file manager behavior. */
     fun refreshEntries() {
         val device = selectedDevice ?: return
         refreshEntriesAndClearSelection(device, requestedPath = currentPath)
     }
 
+    /** Opens the "new folder" dialog when a device is available. */
     fun createNewFolder() {
         if (!ensureDeviceSelected()) return
 
         dialogState = DialogState.NewFolder
     }
 
+    /** Creates a folder and refreshes the current directory if the backend operation succeeds. */
     fun confirmCreateFolder(folderName: String): Boolean {
         val device = selectedDevice?.toDomain() ?: return false
         val name = folderName.trim()
@@ -443,12 +495,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return true
     }
 
+    /** Opens the rename dialog using the current single selection as the initial value. */
     fun renameSelectedEntry() {
         val entry = selectedEntry ?: return
 
         dialogState = DialogState.Rename(initialName = entry.name)
     }
 
+    /** Renames the selected entry and refreshes the current directory on success. */
     fun confirmRenameSelectedEntry(newName: String): Boolean {
         val device = selectedDevice?.toDomain() ?: return false
         val entry = selectedEntry ?: return false
@@ -472,6 +526,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return true
     }
 
+    /** Opens the delete confirmation dialog for the current selection. */
     fun deleteSelectedEntry() {
         val entries = selectedEntries
         if (entries.isEmpty()) return
@@ -482,6 +537,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
+    /**
+     * Deletes the current selection asynchronously.
+     *
+     * Deletion is intentionally executed one entry at a time so partial failures can still
+     * identify which item failed in the status message.
+     */
     fun confirmDeleteSelectedEntry(): Boolean {
         val device = selectedDevice ?: return false
         val entries = selectedEntries
@@ -512,28 +573,33 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return true
     }
 
+    /** Opens the properties dialog for the current single selection. */
     fun showSelectedEntryProperties() {
         val snapshot = buildSelectedEntrySnapshot() ?: return
 
         dialogState = DialogState.Properties(snapshot)
     }
 
+    /** Opens the currently selected entry using the default open behavior. */
     fun openSelectedEntry() {
         val device = selectedDevice ?: return
         val entry = selectedEntry ?: return
         openEntry(device, entry)
     }
 
+    /** Placeholder entry point for the future "Open With" workflow. */
     fun openSelectedEntryWith() {
         val device = selectedDevice ?: return
         val entry = selectedEntry ?: return
         openEntryWith(device, entry)
     }
 
+    /** Closes whichever dialog is currently shown. */
     fun dismissDialog() {
         dialogState = DialogState.None
     }
 
+    /** Copies the current selection into the in-memory clipboard snapshot. */
     fun copySelectedEntry() {
         val device = selectedDevice
         val entries = selectedEntries
@@ -554,6 +620,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         else setStatus(StatusMessage.Key.CopiedMultiple, entries.size.toString())
     }
 
+    /** Cuts the current selection into the in-memory clipboard snapshot. */
     fun cutSelectedEntry() {
         val device = selectedDevice
         val entries = selectedEntries
@@ -574,6 +641,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         else setStatus(StatusMessage.Key.CutMultiple, entries.size.toString())
     }
 
+    /**
+     * Pastes the in-memory clipboard into the current path.
+     *
+     * Cross-device paste is intentionally blocked for now because backend copy/move semantics
+     * are device-local and the UI should not pretend otherwise.
+     */
     fun pasteToCurrentPath() {
         val device = selectedDevice
         if (device == null) {
@@ -618,6 +691,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Selects all visible entries in the active workspace. */
     fun selectAllEntries() {
         val state = activeWorkspace ?: return
         val paths = state.currentEntries.map(::buildEntryFullPath).toSet()
@@ -634,6 +708,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
+    /** Inverts selection against the currently visible entry set. */
     fun inverseSelectEntries() {
         val state = activeWorkspace ?: return
         val allPaths = state.currentEntries.map(::buildEntryFullPath).toSet()
@@ -656,6 +731,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         // Handled inline via Dropdown.
     }
 
+    /** Applies a new file view mode and persists it if the preference is enabled. */
     fun onViewModeSelected(option: SelectionOption) {
         selectedViewMode = option
         if (settingsService.current.rememberLastFileViewMode) {
@@ -666,23 +742,28 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Applies a new sort mode to every cached workspace, not just the active one. */
     fun onSortModeSelected(option: SelectionOption) {
         selectedSortMode = option
         deviceWorkspaces.forEach { applySort(it) }
     }
 
+    /** Convenience wrapper that navigates back in the active workspace, if any. */
     fun navigateBack() {
         selectedDevice?.let(::navigateBack)
     }
 
+    /** Convenience wrapper that navigates forward in the active workspace, if any. */
     fun navigateForward() {
         selectedDevice?.let(::navigateForward)
     }
 
+    /** Convenience wrapper that navigates to the parent directory in the active workspace. */
     fun navigateUp() {
         selectedDevice?.let(::navigateUp)
     }
 
+    /** Navigates to the configured home path for the active device, falling back to `/`. */
     fun navigateHome() {
         val device = selectedDevice ?: return
         val remembered = deviceHomePaths(device)
@@ -694,6 +775,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         navigateTo(device, remembered)
     }
 
+    /** Navigates to the configured home path for a specific device, falling back to `/`. */
     fun navigateHome(device: AndroidDeviceItem) {
         val remembered = deviceHomePaths(device)
         if (remembered.isNullOrBlank()) {
@@ -704,26 +786,32 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         navigateTo(device, remembered)
     }
 
+    /** Navigates the active workspace to the filesystem root. */
     fun navigateRoot() {
         selectedDevice?.let { navigateTo(it, "/") }
     }
 
+    /** Toggles status bar visibility without touching persisted preferences. */
     fun toggleStatusBar() {
         isStatusBarVisible = !isStatusBarVisible
     }
 
+    /** Resolves the active path input field and attempts to open the entered path. */
     fun openPathFromInput() {
         selectedDevice?.let(::openPathFromInput)
     }
 
+    /** Navigates to a breadcrumb target in the active workspace. */
     fun navigateToBreadcrumb(fullPath: String) {
         selectedDevice?.let { navigateToBreadcrumb(it, fullPath) }
     }
 
+    /** Opens an entry in the active workspace. */
     fun openEntry(entry: DeviceFileItem) {
         selectedDevice?.let { openEntry(it, entry) }
     }
 
+    /** Navigates backward within one device-specific history stack. */
     fun navigateBack(device: AndroidDeviceItem) {
         val state = workspace(device) ?: return
         if (state.navigationIndex <= 0) return
@@ -740,6 +828,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Navigates forward within one device-specific history stack. */
     fun navigateForward(device: AndroidDeviceItem) {
         val state = workspace(device) ?: return
         if (state.navigationIndex >= state.navigationHistory.size - 1) return
@@ -756,6 +845,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Navigates to the parent directory within one device-specific workspace. */
     fun navigateUp(device: AndroidDeviceItem) {
         val state = workspace(device) ?: return
         if (state.currentPath == "/") return
@@ -765,12 +855,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         navigateTo(device, parent)
     }
 
+    /** Opens whatever path the device-specific path field currently contains. */
     fun openPathFromInput(device: AndroidDeviceItem) {
         val state = workspace(device) ?: return
         val path = normalizePath(state.pathInput.text.toString())
         navigateTo(device, path)
     }
 
+    /** Navigates to a breadcrumb target for a specific device workspace. */
     fun navigateToBreadcrumb(device: AndroidDeviceItem, fullPath: String) {
         val state = workspace(device) ?: return
         val normalized = normalizePath(fullPath)
@@ -779,6 +871,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         navigateTo(device, normalized)
     }
 
+    /** Opens a file entry inside a specific workspace. */
     fun openEntry(device: AndroidDeviceItem, entry: DeviceFileItem) {
         val state = workspace(device) ?: return
         if (!entry.isDirectory) return // TODO: Support opening files with associated applications in the future.
@@ -791,6 +884,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         // TODO: Implement "Open With" functionality.
     }
 
+    /** Replaces selection with a single entry or clears it when `entry` is null. */
     fun setSelectedEntry(device: AndroidDeviceItem, entry: DeviceFileItem?) {
         workspace(device)?.let { state ->
             setSelection(
@@ -820,6 +914,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun iconScrollRowIndexOf(device: AndroidDeviceItem) = workspace(device)?.iconScrollRowIndex ?: 0
     fun iconScrollRowOffsetOf(device: AndroidDeviceItem) = workspace(device)?.iconScrollRowOffset ?: 0
 
+    /** Persists vertical list scroll position so switching devices or panes can restore it. */
     fun updateListScrollState(device: AndroidDeviceItem, index: Int, offset: Int) {
         workspace(device)?.let {
             it.listScrollIndex = index.coerceAtLeast(0)
@@ -827,10 +922,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /** Persists horizontal header/content scroll position for list view. */
     fun updateListHorizontalScrollState(device: AndroidDeviceItem, offset: Int) {
         workspace(device)?.listHorizontalScrollOffset = offset.coerceAtLeast(0)
     }
 
+    /** Persists grid scroll position so icon view can be restored per device. */
     fun updateIconScrollState(device: AndroidDeviceItem, rowIndex: Int, rowOffset: Int) {
         workspace(device)?.let {
             it.iconScrollRowIndex = rowIndex.coerceAtLeast(0)
@@ -850,6 +947,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         workspace(device)?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     fun canNavigateUp(device: AndroidDeviceItem) = workspace(device)?.currentPath?.let { it != "/" } ?: false
 
+    /** Clears selection and resets the double-open suppression flag for one workspace. */
     fun clearSelectedEntries(device: AndroidDeviceItem) {
         workspace(device)?.let {
             it.suppressNextDoubleOpen = false
@@ -857,6 +955,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /**
+     * Moves selection with arrow-key semantics.
+     *
+     * When multiple entries are selected, the first key press collapses the selection to a single
+     * edge item in the requested direction. This mirrors common desktop file manager behavior and
+     * prevents an arrow key from unexpectedly navigating/opening the wrong entry.
+     */
     fun navigateSelection(
         device: AndroidDeviceItem,
         direction: NavigationDirection,
@@ -900,6 +1005,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return targetIndex
     }
 
+    /**
+     * Applies click selection semantics for list/icon entries.
+     *
+     * The double-open suppression flag exists because a single click is delivered before a double
+     * click. When multi-selection collapses to a single item on the first click, the follow-up
+     * double click would otherwise immediately open the entry.
+     */
     fun selectEntryByGesture(
         device: AndroidDeviceItem,
         entry: DeviceFileItem,
@@ -940,6 +1052,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    /**
+     * Ensures the right-click target is selected before the entry menu opens.
+     *
+     * If the clicked entry already belongs to an existing multi-selection, that multi-selection is
+     * preserved. This matches desktop file managers where right-click should not unexpectedly throw
+     * away the current multi-selection.
+     */
     fun ensureEntrySelectedForContextMenu(device: AndroidDeviceItem, entry: DeviceFileItem) {
         val state = workspace(device) ?: return
 
@@ -960,6 +1079,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
+    /** Consumes the transient guard that prevents an unintended open after selection collapse. */
     fun consumeDoubleOpenSuppression(device: AndroidDeviceItem, entry: DeviceFileItem): Boolean {
         val state = workspace(device) ?: return false
         val entryPath = buildEntryFullPath(entry)
@@ -972,6 +1092,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return shouldSuppress
     }
 
+    /**
+     * Updates drag / marquee selection using only entries currently known to the workspace.
+     *
+     * Candidate paths are filtered against the live entry list because drag gestures can outlive a
+     * directory refresh, and we must not keep references to entries that no longer exist.
+     */
     fun updateDragSelection(
         device: AndroidDeviceItem,
         candidatePaths: Set<String>,
@@ -987,8 +1113,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val finalSelection = if (additive)
             (initialSelectionPaths - validCandidatePaths) + (validCandidatePaths - initialSelectionPaths)
         else validCandidatePaths
-        val primaryPath = state.currentEntries.firstOrNull { buildEntryFullPath(it) in validCandidatePaths }?.let(::buildEntryFullPath)
-            ?: state.currentEntries.firstOrNull { buildEntryFullPath(it) in finalSelection }?.let(::buildEntryFullPath)
+        val primaryPath = state.currentEntries.firstOrNull {
+            buildEntryFullPath(it) in validCandidatePaths
+        }?.let(::buildEntryFullPath) ?: state.currentEntries.firstOrNull {
+            buildEntryFullPath(it) in finalSelection
+        }?.let(::buildEntryFullPath)
 
         setSelection(
             state = state,
@@ -998,10 +1127,17 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
+    /** Loads permission details for the properties dialog. */
     fun loadPermission(snapshot: FileEntrySnapshot) = runBlocking {
         permissionService.getPermission(snapshot.device, snapshot.fullPath)
     }
 
+    /**
+     * Applies a chmod-style permission change and re-reads the resulting state from backend.
+     *
+     * The extra read is intentional because backend normalization may change the returned symbolic
+     * value, and the dialog should reflect the real final permission instead of a locally inferred one.
+     */
     fun applyPermission(
         snapshot: FileEntrySnapshot,
         modeText: String,
@@ -1042,6 +1178,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             useRememberedPathWhenRequestedPathIsNull = false
         ) { success ->
             if (!success) return@refreshEntriesAsync
+
+            // History must be pushed after refresh succeeds because `refreshEntriesInternal`
+            // updates `state.currentPath`. Pushing too early would record the old path again.
             pushHistory(state, state.currentPath)
         }
     }
@@ -1089,12 +1228,16 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val previousPath = state.currentPath
         val result = fileSystemService.list(device, targetPath)
 
+        // Apply the requested path immediately so the address bar and breadcrumb stay in sync
+        // with the navigation intent even if the backend call fails, and we end up showing a hint.
         applyPath(state, targetPath)
 
         if (result.isOk) {
             fillEntries(state, result.data.orEmpty())
             state.fileListHint = if (state.currentEntries.isEmpty()) FileListHint.EmptyFolder else FileListHint.None
             if (state.currentPath != previousPath) {
+                // This version counter is consumed by the UI to reset scroll position only when
+                // the directory actually changes, not when the same directory is reloaded.
                 state.directoryChangeVersion += 1
                 statusMessage = StatusMessage.None
             }
@@ -1169,6 +1312,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         applySort(state)
 
+        // Reconcile selection after every reload because sorting and hidden-file filtering can
+        // invalidate previously selected paths or reorder which entry should be primary.
         setSelection(
             state = state,
             selectedPaths = selectedPaths,
@@ -1181,6 +1326,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val sortMode = selectedSortMode?.key ?: "name"
         val foldersFirst = settingsService.current.foldersFirst
 
+        // Sorting is applied on the already-filtered UI entry list, not directly on backend data.
+        // That keeps selection reconciliation and view restoration operating on the same ordering
+        // the user actually sees on screen.
         val sorted = if (foldersFirst) when (sortMode) {
             "size" -> state.currentEntries.sortedWith(
                 compareByDescending<DeviceFileItem> { it.isDirectory }
@@ -1239,6 +1387,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         primaryPath: String? = null,
         anchorPath: String? = null
     ) {
+        // Only keep paths that still exist in the live entry list. Selection can outlive refreshes,
+        // sorting changes, hidden-file toggles, and drag-selection updates.
         val validPaths = state.currentEntries
             .map(::buildEntryFullPath)
             .filterTo(linkedSetOf()) { it in selectedPaths }
@@ -1278,6 +1428,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         fun row(index: Int) = index / gridColumnCount
         fun column(index: Int) = index % gridColumnCount
 
+        // When a multi-selection receives an arrow key, collapse toward the visual edge in that
+        // direction instead of arbitrarily keeping the primary selection.
         return when (direction) {
             NavigationDirection.Up ->
                 selectedIndices.minWithOrNull(compareBy({ row(it) }, { column(it) }, { it }))
@@ -1344,6 +1496,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             ?: buildEntryFullPath(entry)
         val anchorIndex = state.currentEntries.indexOfFirst { buildEntryFullPath(it) == anchorPath }.coerceAtLeast(0)
 
+        // Shift-selection works on the current visual order after sorting/filtering, which matches
+        // user expectations better than trying to preserve an older backend order.
         val range = state.currentEntries
             .subList(minOf(anchorIndex, targetIndex), maxOf(anchorIndex, targetIndex) + 1)
             .mapTo(linkedSetOf(), ::buildEntryFullPath)
@@ -1379,6 +1533,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 if (workspace.prebuilt) return@forEach
 
                 runCatching {
+                    // Background prebuild is best-effort only. Failures should not steal focus from
+                    // the active device or overwrite the status bar with noise the user did not ask for.
                     val success = refreshEntriesInternal(
                         state = workspace,
                         device = workspace.device.toDomain(),
@@ -1422,6 +1578,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             } catch (t: Throwable) {
                 setErrorStatus(t.message)
             } finally {
+                // Busy state is reference-counted because multiple async operations can overlap
+                // (for example, a device observer refresh while a file operation is still running).
                 endBusy()
             }
         }
@@ -1449,6 +1607,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 state.navigationHistory.removeAt(state.navigationHistory.lastIndex)
             }
 
+        // Match browser/file-manager history behavior: navigating after going back drops the
+        // forward branch instead of keeping a tree of alternate futures.
         if (state.navigationHistory.isNotEmpty() && state.navigationHistory.last() == path) return
 
         state.navigationHistory += path
@@ -1501,6 +1661,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         if (state.pathInput.text.toString() != state.currentPath)
             state.pathInput.edit { replace(0, length, state.currentPath) }
 
+        // Breadcrumbs are rebuilt from the normalized path instead of incremental mutation so the
+        // UI never accumulates stale segments after direct path edits or failed navigations.
         rebuildBreadcrumb(state, state.currentPath)
     }
 
@@ -1538,6 +1700,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private fun resolveFailureHint(errorMessage: String?): FileListHint {
         val message = errorMessage.orEmpty().lowercase()
 
+        // Backend error messages are not fully normalized yet, so this intentionally relies on
+        // tolerant substring checks instead of exact string matching.
         return when {
             "device offline" in message -> FileListHint.DeviceOffline
             ("device '" in message && "' not found" in message) ||
@@ -1556,6 +1720,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val parsed = value.toIntOrNull() ?: return null
         if (parsed !in 0..777) return null
 
+        // Values like 888 pass an integer parse but are not valid octal permission triples.
         val owner = parsed / 100
         val group = (parsed / 10) % 10
         val other = parsed % 10
