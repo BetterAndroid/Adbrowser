@@ -33,6 +33,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -114,7 +115,8 @@ import com.highcapable.adbrowser.app.ui.component.StatusBar
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.app.ui.dialog.SimpleInputDialog
-import com.highcapable.adbrowser.app.ui.foundation.isIndexVisible
+import com.highcapable.adbrowser.app.ui.foundation.isIndexFullyVisible
+import com.highcapable.adbrowser.app.ui.foundation.revealIndexBySingleStep
 import com.highcapable.adbrowser.app.ui.geometry.intersects
 import com.highcapable.adbrowser.app.ui.geometry.normalizedRect
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
@@ -377,9 +379,14 @@ private fun FileListView(
             return@LaunchedEffect
         }
 
-        repeat(2) { withFrameNanos { } }
-        if (request.forceScroll || !listState.isIndexVisible(request.index))
-            listState.scrollToItem(request.index)
+        repeat(2) { withFrameNanos {} }
+        when {
+            request.forceScroll -> listState.scrollToItem(request.index)
+            !listState.isIndexFullyVisible(request.index) ->
+                if (request.preferSingleStepReveal)
+                    listState.revealIndexBySingleStep(request.index)
+                else listState.scrollToItem(request.index)
+        }
         entryPositionController.consume(request)
     }
     LaunchedEffect(device, directoryChangeVersion) {
@@ -410,15 +417,37 @@ private fun FileListView(
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent {
-                handleFileAreaShortcut(viewModel, device, it) { navigateChar ->
-                    val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
-                    if (targetIndex < 0) return@handleFileAreaShortcut false
+                handleFileAreaShortcut(
+                    viewModel = viewModel,
+                    device = device,
+                    event = it,
+                    onNavigateSelection = { direction ->
+                        val targetIndex = when (direction) {
+                            MainStageModel.NavigationDirection.Up,
+                            MainStageModel.NavigationDirection.Down -> {
+                                viewModel.navigateSelection(device, direction)
+                            }
+                            MainStageModel.NavigationDirection.Left,
+                            MainStageModel.NavigationDirection.Right -> null
+                        } ?: return@handleFileAreaShortcut false
 
-                    val targetEntry = entries[targetIndex]
-                    viewModel.setSelectedEntry(device, targetEntry)
-                    entryPositionController.request(index = targetIndex, forceScroll = true)
-                    true
-                }
+                        entryPositionController.request(
+                            index = targetIndex,
+                            forceScroll = false,
+                            preferSingleStepReveal = true
+                        )
+                        true
+                    },
+                    onNavigateByInitialChar = { navigateChar ->
+                        val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
+                        if (targetIndex < 0) return@handleFileAreaShortcut false
+
+                        val targetEntry = entries[targetIndex]
+                        viewModel.setSelectedEntry(device, targetEntry)
+                        entryPositionController.request(index = targetIndex, forceScroll = true)
+                        true
+                    }
+                )
             }
             .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
                 focusRequester.requestFocus()
@@ -575,122 +604,153 @@ private fun FileIconView(
         }
 
         repeat(4) { withFrameNanos {} }
-        if (request.forceScroll || !gridState.isIndexVisible(request.index))
+        if (request.forceScroll) {
             gridState.scrollToItem(request.index)
+        } else if (!gridState.isIndexFullyVisible(request.index)) {
+            if (request.preferSingleStepReveal)
+                gridState.revealIndexBySingleStep(request.index)
+            else gridState.scrollToItem(request.index)
+        }
         entryPositionController.consume(request)
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .focusRequester(focusRequester)
-            .focusable()
-            .onPreviewKeyEvent {
-                handleFileAreaShortcut(viewModel, device, it) { navigateChar ->
-                    val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
-                    if (targetIndex < 0) return@handleFileAreaShortcut false
-
-                    val targetEntry = entries[targetIndex]
-                    viewModel.setSelectedEntry(device, targetEntry)
-                    entryPositionController.request(index = targetIndex, forceScroll = true)
-                    true
-                }
-            }
-            .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
-                focusRequester.requestFocus()
-            }
-            .nestedScroll(interactionState.nestedScrollConnection)
-            .onGloballyPositioned { interactionState.contentCoordinates = it }
-            .fileAreaBlankSelection(
-                interactionState = interactionState,
-                showSelectionRect = true,
-                selectedPathsProvider = { viewModel.selectedEntryPathsOf(device) },
-                onClearSelection = { viewModel.clearSelectedEntries(device) },
-                onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
-                    viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
-                },
-                autoScrollBy = { delta ->
-                    val consumed = gridState.scrollBy(delta)
-                    interactionState.cumulativeScrollY += consumed
-                }
-            )
-            .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                interactionState.openBlankContextMenu(position)
-            }
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = DefaultFileItemMinWidth),
-            state = gridState,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(entries) { entry ->
-                DisposableEffect(entry) {
-                    onDispose { interactionState.visibleEntryBounds.remove(entry) }
-                }
-                FileIconItem(
-                    item = entry,
-                    selected = viewModel.isEntrySelected(device, entry),
-                    onPrimaryClick = { appendSelection, rangeSelection ->
-                        viewModel.selectEntryByGesture(device, entry, appendSelection, rangeSelection)
-                    },
-                    onDoubleClick = {
-                        if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileIconItem
-                        if (viewModel.hasMultipleSelectedEntries(device)) return@FileIconItem
+        val gridColumnCount = (maxWidth / DefaultFileItemMinWidth).toInt().coerceAtLeast(1)
 
-                        viewModel.openEntry(device, entry)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester)
+                .focusable()
+                .onPreviewKeyEvent {
+                    handleFileAreaShortcut(
+                        viewModel = viewModel,
+                        device = device,
+                        event = it,
+                        onNavigateSelection = { direction ->
+                            val targetIndex = viewModel.navigateSelection(
+                                device = device,
+                                direction = direction,
+                                gridColumnCount = gridColumnCount
+                            ) ?: return@handleFileAreaShortcut false
+
+                            entryPositionController.request(
+                                index = targetIndex,
+                                forceScroll = false,
+                                preferSingleStepReveal = true
+                            )
+                            true
+                        },
+                        onNavigateByInitialChar = { navigateChar ->
+                            val targetIndex = findEntryIndexByInitialChar(entries, navigateChar)
+                            if (targetIndex < 0) return@handleFileAreaShortcut false
+
+                            val targetEntry = entries[targetIndex]
+                            viewModel.setSelectedEntry(device, targetEntry)
+                            entryPositionController.request(index = targetIndex, forceScroll = true)
+                            true
+                        }
+                    )
+                }
+                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                    focusRequester.requestFocus()
+                }
+                .nestedScroll(interactionState.nestedScrollConnection)
+                .onGloballyPositioned { interactionState.contentCoordinates = it }
+                .fileAreaBlankSelection(
+                    interactionState = interactionState,
+                    showSelectionRect = true,
+                    selectedPathsProvider = { viewModel.selectedEntryPathsOf(device) },
+                    onClearSelection = { viewModel.clearSelectedEntries(device) },
+                    onSelectionChanged = { candidatePaths, additive, initialSelectionPaths ->
+                        viewModel.updateDragSelection(device, candidatePaths, additive, initialSelectionPaths)
                     },
-                    onSecondaryClick = { position ->
-                        viewModel.ensureEntrySelectedForContextMenu(device, entry)
-                        interactionState.openEntryContextMenu(entry, position)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(vertical = DefaultFileItemOuterPadding),
-                    onHitBoundsChanged = { bounds ->
-                        interactionState.visibleEntryBounds[entry] = bounds
-                    },
-                    overlay = {
-                        FileEntryContextMenuPopup(
-                            viewModel = viewModel,
-                            device = device,
-                            item = entry,
-                            state = interactionState.contextMenuState,
-                            onDismissRequest = interactionState::dismissContextMenu,
-                            onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
-                        )
+                    autoScrollBy = { delta ->
+                        val consumed = gridState.scrollBy(delta)
+                        interactionState.cumulativeScrollY += consumed
                     }
                 )
-            }
-        }
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(gridState),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-        )
-        interactionState.selectionRect?.let { rect ->
-            val accentColor = AdbrowserTheme.colors.primaryAccent
+                .onSecondaryPress(pass = PointerEventPass.Main) { position ->
+                    interactionState.openBlankContextMenu(position)
+                }
+        ) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = DefaultFileItemMinWidth),
+                state = gridState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(entries) { entry ->
+                    DisposableEffect(entry) {
+                        onDispose { interactionState.visibleEntryBounds.remove(entry) }
+                    }
+                    FileIconItem(
+                        item = entry,
+                        selected = viewModel.isEntrySelected(device, entry),
+                        onPrimaryClick = { appendSelection, rangeSelection ->
+                            viewModel.selectEntryByGesture(device, entry, appendSelection, rangeSelection)
+                        },
+                        onDoubleClick = {
+                            if (viewModel.consumeDoubleOpenSuppression(device, entry)) return@FileIconItem
+                            if (viewModel.hasMultipleSelectedEntries(device)) return@FileIconItem
 
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawRect(
-                    color = accentColor.copy(alpha = 0.14f),
-                    topLeft = rect.topLeft,
-                    size = rect.size
-                )
-                drawRect(
-                    color = accentColor,
-                    topLeft = rect.topLeft,
-                    size = rect.size,
-                    style = Stroke(width = 1.dp.toPx())
-                )
+                            viewModel.openEntry(device, entry)
+                        },
+                        onSecondaryClick = { position ->
+                            viewModel.ensureEntrySelectedForContextMenu(device, entry)
+                            interactionState.openEntryContextMenu(entry, position)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = DefaultFileItemOuterPadding),
+                        onHitBoundsChanged = { bounds ->
+                            interactionState.visibleEntryBounds[entry] = bounds
+                        },
+                        overlay = {
+                            FileEntryContextMenuPopup(
+                                viewModel = viewModel,
+                                device = device,
+                                item = entry,
+                                state = interactionState.contextMenuState,
+                                onDismissRequest = interactionState::dismissContextMenu,
+                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                            )
+                        }
+                    )
+                }
             }
+            VerticalScrollbar(
+                adapter = rememberScrollbarAdapter(gridState),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+            )
+            interactionState.selectionRect?.let { rect ->
+                val accentColor = AdbrowserTheme.colors.primaryAccent
+
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        color = accentColor.copy(alpha = 0.14f),
+                        topLeft = rect.topLeft,
+                        size = rect.size
+                    )
+                    drawRect(
+                        color = accentColor,
+                        topLeft = rect.topLeft,
+                        size = rect.size,
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+            }
+            FileBlankContextMenuPopup(
+                viewModel = viewModel,
+                device = device,
+                state = interactionState.contextMenuState,
+                onDismissRequest = interactionState::dismissContextMenu,
+                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+            )
         }
-        FileBlankContextMenuPopup(
-            viewModel = viewModel,
-            device = device,
-            state = interactionState.contextMenuState,
-            onDismissRequest = interactionState::dismissContextMenu,
-            onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
-        )
     }
 }
 
@@ -1287,6 +1347,7 @@ private fun handleFileAreaShortcut(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
     event: KeyEvent,
+    onNavigateSelection: (MainStageModel.NavigationDirection) -> Boolean = { false },
     onNavigateByInitialChar: (Char) -> Boolean = { false }
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
@@ -1332,6 +1393,10 @@ private fun handleFileAreaShortcut(
             viewModel.clearSelectedEntries(device)
             true
         }
+        event.key == Key.DirectionUp -> onNavigateSelection(MainStageModel.NavigationDirection.Up)
+        event.key == Key.DirectionDown -> onNavigateSelection(MainStageModel.NavigationDirection.Down)
+        event.key == Key.DirectionLeft -> onNavigateSelection(MainStageModel.NavigationDirection.Left)
+        event.key == Key.DirectionRight -> onNavigateSelection(MainStageModel.NavigationDirection.Right)
         else -> extractInitialNavigationChar(event)?.let(onNavigateByInitialChar) == true
     }
 }
@@ -1349,19 +1414,20 @@ private fun extractInitialNavigationChar(event: KeyEvent): Char? {
     return keyChar.lowercaseChar()
 }
 
-private fun findEntryIndexByInitialChar(entries: List<DeviceFileItem>, char: Char): Int =
+private fun selectedEntryIndex(
+    entries: List<DeviceFileItem>,
+    selectedEntry: DeviceFileItem?
+) = selectedEntry?.let(entries::indexOf) ?: -1
+
+private fun findEntryIndexByInitialChar(entries: List<DeviceFileItem>, char: Char) =
     entries.indexOfFirst { entry ->
         entry.name.startsWith(char.toString(), ignoreCase = true)
     }
 
-private fun selectedEntryIndex(
-    entries: List<DeviceFileItem>,
-    selectedEntry: DeviceFileItem?
-): Int = selectedEntry?.let(entries::indexOf) ?: -1
-
 private data class EntryPositionRequest(
     val index: Int,
     val forceScroll: Boolean,
+    val preferSingleStepReveal: Boolean,
     val requestId: Long
 )
 
@@ -1372,12 +1438,14 @@ private class EntryPositionController {
     var currentRequest by mutableStateOf<EntryPositionRequest?>(null)
         private set
 
-    fun request(index: Int, forceScroll: Boolean) {
+    fun request(index: Int, forceScroll: Boolean, preferSingleStepReveal: Boolean = false) {
         if (index < 0) return
+
         nextRequestId += 1L
         currentRequest = EntryPositionRequest(
             index = index,
             forceScroll = forceScroll,
+            preferSingleStepReveal = preferSingleStepReveal,
             requestId = nextRequestId
         )
     }

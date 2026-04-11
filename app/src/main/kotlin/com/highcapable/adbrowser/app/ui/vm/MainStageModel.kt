@@ -110,6 +110,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         LoadFailed
     }
 
+    enum class NavigationDirection {
+        Up,
+        Down,
+        Left,
+        Right
+    }
+
     private data class ClipboardItemSnapshot(
         val name: String,
         val fullPath: String
@@ -850,6 +857,49 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    fun navigateSelection(
+        device: AndroidDeviceItem,
+        direction: NavigationDirection,
+        gridColumnCount: Int = 1
+    ): Int? {
+        val state = workspace(device) ?: return null
+        if (state.currentEntries.isEmpty()) return null
+
+        val columns = gridColumnCount.coerceAtLeast(1)
+        val selectedIndices = state.currentEntries
+            .mapIndexedNotNull { index, entry ->
+                index.takeIf { buildEntryFullPath(entry) in state.selectedEntryPaths }
+            }
+
+        if (selectedIndices.isEmpty()) {
+            val targetIndex = when (direction) {
+                NavigationDirection.Up,
+                NavigationDirection.Left -> state.currentEntries.lastIndex
+                NavigationDirection.Down,
+                NavigationDirection.Right -> 0
+            }
+            selectSingleEntryAtIndex(state, targetIndex)
+            return targetIndex
+        }
+
+        if (selectedIndices.size > 1) {
+            val targetIndex = resolveSelectionCollapseIndex(selectedIndices, direction, columns)
+            selectSingleEntryAtIndex(state, targetIndex)
+            return targetIndex
+        }
+
+        val currentIndex = selectedIndices.first()
+        val targetIndex = resolveDirectionalTargetIndex(
+            currentIndex = currentIndex,
+            direction = direction,
+            itemCount = state.currentEntries.size,
+            gridColumnCount = columns
+        ) ?: currentIndex
+
+        selectSingleEntryAtIndex(state, targetIndex)
+        return targetIndex
+    }
+
     fun selectEntryByGesture(
         device: AndroidDeviceItem,
         entry: DeviceFileItem,
@@ -1206,6 +1256,54 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         state.selectionAnchorPath = anchorPath
             ?.takeIf { it in validPaths }
             ?: resolvedPrimaryPath
+    }
+
+    private fun selectSingleEntryAtIndex(state: DeviceWorkspaceState, index: Int) {
+        val entry = state.currentEntries.getOrNull(index) ?: return
+        val entryPath = buildEntryFullPath(entry)
+
+        setSelection(
+            state = state,
+            selectedPaths = setOf(entryPath),
+            primaryPath = entryPath,
+            anchorPath = entryPath
+        )
+    }
+
+    private fun resolveSelectionCollapseIndex(
+        selectedIndices: List<Int>,
+        direction: NavigationDirection,
+        gridColumnCount: Int
+    ): Int {
+        fun row(index: Int) = index / gridColumnCount
+        fun column(index: Int) = index % gridColumnCount
+
+        return when (direction) {
+            NavigationDirection.Up ->
+                selectedIndices.minWithOrNull(compareBy({ row(it) }, { column(it) }, { it }))
+            NavigationDirection.Down ->
+                selectedIndices.maxWithOrNull(compareBy({ row(it) }, { column(it) }, { it }))
+            NavigationDirection.Left ->
+                selectedIndices.minWithOrNull(compareBy({ column(it) }, { row(it) }, { it }))
+            NavigationDirection.Right ->
+                selectedIndices.maxWithOrNull(compareBy({ column(it) }, { row(it) }, { it }))
+        } ?: selectedIndices.first()
+    }
+
+    private fun resolveDirectionalTargetIndex(
+        currentIndex: Int,
+        direction: NavigationDirection,
+        itemCount: Int,
+        gridColumnCount: Int
+    ): Int? {
+        val lastIndex = itemCount - 1
+
+        return when (direction) {
+            NavigationDirection.Up -> (currentIndex - gridColumnCount).takeIf { it >= 0 }
+            NavigationDirection.Down -> (currentIndex + gridColumnCount).takeIf { it <= lastIndex }
+            NavigationDirection.Left -> (currentIndex - 1).takeIf { it >= 0 }
+            NavigationDirection.Right -> (currentIndex + 1).takeIf { it <= lastIndex }
+        }
     }
 
     private fun toggleEntrySelection(state: DeviceWorkspaceState, entry: DeviceFileItem) {

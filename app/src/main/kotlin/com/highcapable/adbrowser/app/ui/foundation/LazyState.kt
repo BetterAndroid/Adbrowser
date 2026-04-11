@@ -22,8 +22,11 @@
  */
 package com.highcapable.adbrowser.app.ui.foundation
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridItemInfo
 import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.runtime.withFrameNanos
 
 fun LazyListState.isIndexVisible(index: Int): Boolean {
     if (index < 0) return false
@@ -34,3 +37,105 @@ fun LazyGridState.isIndexVisible(index: Int): Boolean {
     if (index < 0) return false
     return layoutInfo.visibleItemsInfo.any { it.index == index }
 }
+
+fun LazyListState.isIndexFullyVisible(index: Int): Boolean {
+    val item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return false
+    val viewportStart = layoutInfo.viewportStartOffset
+    val viewportEnd = layoutInfo.viewportEndOffset
+    val itemStart = item.offset
+    val itemEnd = item.offset + item.size
+
+    return itemStart >= viewportStart && itemEnd <= viewportEnd
+}
+
+fun LazyGridState.isIndexFullyVisible(index: Int): Boolean {
+    val item = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index } ?: return false
+    val viewportStart = layoutInfo.viewportStartOffset
+    val viewportEnd = layoutInfo.viewportEndOffset
+    val itemStart = item.offset.y
+    val itemEnd = item.offset.y + item.size.height
+
+    return itemStart >= viewportStart && itemEnd <= viewportEnd
+}
+
+suspend fun LazyListState.revealIndexBySingleStep(index: Int) {
+    repeat(4) {
+        if (isIndexFullyVisible(index)) return
+
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val targetItem = visibleItems.firstOrNull { it.index == index }
+        val viewportStart = layoutInfo.viewportStartOffset
+        val viewportEnd = layoutInfo.viewportEndOffset
+
+        val delta = when {
+            targetItem != null -> {
+                val itemStart = targetItem.offset
+                val itemEnd = targetItem.offset + targetItem.size
+                when {
+                    itemStart < viewportStart -> (itemStart - viewportStart).toFloat()
+                    itemEnd > viewportEnd -> (itemEnd - viewportEnd).toFloat()
+                    else -> 0f
+                }
+            }
+            visibleItems.isEmpty() -> 0f
+            index < visibleItems.first().index -> {
+                -((visibleItems.first().size + layoutInfo.mainAxisItemSpacing).toFloat())
+            }
+            else -> {
+                (visibleItems.last().size + layoutInfo.mainAxisItemSpacing).toFloat()
+            }
+        }
+
+        if (delta == 0f) {
+            scrollToItem(index)
+            return
+        }
+
+        scrollBy(delta)
+        withFrameNanos { }
+    }
+
+    if (!isIndexFullyVisible(index)) scrollToItem(index)
+}
+
+suspend fun LazyGridState.revealIndexBySingleStep(index: Int) {
+    repeat(4) {
+        if (isIndexFullyVisible(index)) return
+
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val targetItem = visibleItems.firstOrNull { it.index == index }
+        val viewportStart = layoutInfo.viewportStartOffset
+        val viewportEnd = layoutInfo.viewportEndOffset
+
+        val delta = when {
+            targetItem != null -> {
+                val itemStart = targetItem.offset.y
+                val itemEnd = targetItem.offset.y + targetItem.size.height
+
+                when {
+                    itemStart < viewportStart -> (itemStart - viewportStart).toFloat()
+                    itemEnd > viewportEnd -> (itemEnd - viewportEnd).toFloat()
+                    else -> 0f
+                }
+            }
+            visibleItems.isEmpty() -> 0f
+            index < visibleItems.first().index ->
+                -((visibleItems.visibleGridRowHeight(visibleItems.first().offset.y) + layoutInfo.mainAxisItemSpacing).toFloat())
+            else -> (visibleItems.visibleGridRowHeight(visibleItems.last().offset.y) + layoutInfo.mainAxisItemSpacing).toFloat()
+        }
+
+        if (delta == 0f) {
+            scrollToItem(index)
+            return
+        }
+
+        scrollBy(delta)
+        withFrameNanos {}
+    }
+
+    if (!isIndexFullyVisible(index)) scrollToItem(index)
+}
+
+private fun List<LazyGridItemInfo>.visibleGridRowHeight(rowOffsetY: Int) = asSequence()
+    .filter { it.offset.y == rowOffsetY }
+    .maxOfOrNull { it.size.height } ?: 0
