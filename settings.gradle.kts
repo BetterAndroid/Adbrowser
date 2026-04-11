@@ -41,7 +41,7 @@ gropify {
         }
     }
 
-    projects(":shared") {
+    projects(":core:common") {
         jvm {
             existsPropertyFiles(".gradle/git-info.properties")
             permanentKeyValues(
@@ -55,4 +55,5 @@ gropify {
 
 rootProject.name = "Adbrowser"
 
-include(":frontend", ":backend", ":shared")
+include(":app")
+include(":core:common", ":core:domain", ":core:adb", ":core:logging")
