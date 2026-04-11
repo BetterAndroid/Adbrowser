@@ -40,6 +40,7 @@ import com.highcapable.adbrowser.app.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.app.ui.stage.MainStage
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
+import java.awt.Dimension
 
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
@@ -52,6 +53,9 @@ fun MainWindow(onCloseRequest: () -> Unit) {
         val viewModel = remember { MainStageModel(appState) }
         var handledFileListRefreshVersion by remember { mutableStateOf(appState.fileListRefreshVersion) }
 
+        LaunchedEffect(Unit) {
+            window.minimumSize = MinWindowSize
+        }
         LaunchedEffect(viewModel) { viewModel.initialize() }
         LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
             val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
@@ -74,3 +78,5 @@ fun MainWindow(onCloseRequest: () -> Unit) {
         }
     }
 }
+
+private val MinWindowSize = Dimension(900, 400)
