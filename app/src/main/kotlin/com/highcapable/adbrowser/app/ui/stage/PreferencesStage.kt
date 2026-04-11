@@ -258,7 +258,7 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
         padding = PanelPadding
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(strings.preferencesFileList, fontWeight = FontWeight.SemiBold)
+            Text(strings.preferencesDisplayAndView, fontWeight = FontWeight.SemiBold)
             CheckboxRow(
                 checked = viewModel.showHiddenFiles,
                 onCheckedChange = { viewModel.showHiddenFiles = it }
@@ -271,6 +271,18 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
                 checked = viewModel.rememberLastFileViewMode,
                 onCheckedChange = { viewModel.rememberLastFileViewMode = it }
             ) { Text(strings.preferencesRememberLastFileViewMode) }
+        }
+    }
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(strings.preferencesPathAndNavigation, fontWeight = FontWeight.SemiBold)
+            CheckboxRow(
+                checked = viewModel.rememberLastDevicePath,
+                onCheckedChange = { viewModel.rememberLastDevicePath = it }
+            ) { Text(strings.preferencesRememberLastDevicePath) }
         }
     }
 }
@@ -315,6 +327,10 @@ private fun DeviceTab(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesConnection, fontWeight = FontWeight.SemiBold)
+            CheckboxRow(
+                checked = viewModel.rememberLastDevice,
+                onCheckedChange = { viewModel.rememberLastDevice = it }
+            ) { Text(strings.preferencesRememberLastDevice) }
             CheckboxRow(
                 checked = viewModel.superuser,
                 onCheckedChange = { viewModel.superuser = it }

@@ -1067,7 +1067,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         if (!requestedPath.isNullOrBlank()) return normalizePath(requestedPath)
 
         if (useRememberedPathWhenRequestedPathIsNull &&
-            settingsService.current.rememberDevicePath
+            settingsService.current.rememberLastDevicePath
         ) deviceLastPaths(device)?.let { return normalizePath(it) }
 
         return normalizePath(state.currentPath)
@@ -1369,7 +1369,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     private fun persistCurrentPath(state: DeviceWorkspaceState, device: AndroidDevice) {
-        if (!settingsService.current.rememberDevicePath) return
+        if (!settingsService.current.rememberLastDevicePath) return
 
         updateDeviceLastPaths(device, state.currentPath)
         saveSettingsAsync()

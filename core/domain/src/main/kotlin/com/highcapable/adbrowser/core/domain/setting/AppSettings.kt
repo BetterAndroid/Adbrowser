@@ -32,7 +32,7 @@ data class AppSettings(
     var language: String = "",
     var adbExecPath: String = "",
     var rememberLastDevice: Boolean = true,
-    var rememberDevicePath: Boolean = true,
+    var rememberLastDevicePath: Boolean = true,
     var useSuperuser: Boolean = false,
     var showHiddenFiles: Boolean = true,
     var rememberLastFileViewMode: Boolean = true,

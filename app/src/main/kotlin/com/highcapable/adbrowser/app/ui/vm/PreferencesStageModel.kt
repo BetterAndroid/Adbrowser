@@ -81,8 +81,10 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     var showHiddenFiles by mutableStateOf(false)
     var foldersFirst by mutableStateOf(true)
     var rememberLastFileViewMode by mutableStateOf(true)
+    var rememberLastDevicePath by mutableStateOf(true)
 
     val adbExecPath = TextFieldState("")
+    var rememberLastDevice by mutableStateOf(true)
     var superuser by mutableStateOf(false)
 
     var status by mutableStateOf<Status>(Status.None)
@@ -160,13 +162,14 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 ) {
                     settingsService.current.language = normalizeStoredLanguageTag(selectedLanguageTag)
                     settingsService.current.adbExecPath = adbExecPath.text.toString().trim()
+                    settingsService.current.rememberLastDevice = rememberLastDevice
                     settingsService.current.useSuperuser = superuser
                     settingsService.current.showHiddenFiles = showHiddenFiles
                     settingsService.current.foldersFirst = foldersFirst
                     settingsService.current.rememberLastFileViewMode = rememberLastFileViewMode
-                    if (!rememberLastFileViewMode) {
-                        settingsService.current.lastFileViewMode = AppSettings.FileViewMode.List
-                    }
+                    settingsService.current.rememberLastDevicePath = rememberLastDevicePath
+                    if (!rememberLastFileViewMode) settingsService.current.lastFileViewMode = AppSettings.FileViewMode.List
+
                     withContext(Dispatchers.IO) {
                         settingsService.save()
                     }
@@ -207,6 +210,8 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         showHiddenFiles = settings.showHiddenFiles
         foldersFirst = settings.foldersFirst
         rememberLastFileViewMode = settings.rememberLastFileViewMode
+        rememberLastDevicePath = settings.rememberLastDevicePath
+        rememberLastDevice = settings.rememberLastDevice
         superuser = settings.useSuperuser
         setAdbPath(settings.adbExecPath)
     }
