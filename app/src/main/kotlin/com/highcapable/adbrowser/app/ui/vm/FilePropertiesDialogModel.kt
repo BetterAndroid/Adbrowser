@@ -29,41 +29,46 @@ import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.adb.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.core.common.permission.FilePermission
 
 class FilePropertiesDialogModel(
     private val snapshot: FileEntrySnapshot,
-    private val loadPermissionAction: () -> OperationResult<FilePermissionInfo>,
-    private val applyPermissionAction: (String) -> OperationResult<FilePermissionInfo>
+    private val loadPermissionAction: () -> OperationResult<FilePermission.Info>,
+    private val applyPermissionAction: (String) -> OperationResult<FilePermission.Info>
 ) : ViewModel() {
 
+    /**
+     * UI-facing permission scopes used by the dialog checkbox matrix.
+     */
     enum class PermissionScope { Owner, Group, Other }
 
+    /**
+     * UI-facing permission access bits used by the dialog checkbox matrix.
+     */
     enum class PermissionAccess { Read, Write, Execute }
 
-    val modeState = TextFieldState("")
-
-    var symbolicPermission by mutableStateOf(snapshot.symbolicPermission)
-        private set
-    var errorMessageRaw by mutableStateOf<String?>(null)
-        private set
-
-    private var ownerRead by mutableStateOf(false)
-    private var ownerWrite by mutableStateOf(false)
-    private var ownerExecute by mutableStateOf(false)
-
-    private var groupRead by mutableStateOf(false)
-    private var groupWrite by mutableStateOf(false)
-    private var groupExecute by mutableStateOf(false)
-
-    private var otherRead by mutableStateOf(false)
-    private var otherWrite by mutableStateOf(false)
-    private var otherExecute by mutableStateOf(false)
+    // Keep the editable permission state in one place. Everything else in the dialog is derived
+    // from this value so text input and checkbox toggles behave consistently.
+    private var currentMode by mutableStateOf(
+        runCatching { FilePermission.toNumeric(snapshot.symbolicPermission) }.getOrDefault(0)
+    )
 
     private var initialized = false
     private var isSyncingModeField = false
-    private var isSyncingBits = false
 
+    val modeState = TextFieldState("")
+    var symbolicPermission by mutableStateOf(snapshot.symbolicPermission)
+        private set
+
+    var errorMessageRaw by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Loads the latest permission info when the dialog is shown.
+     *
+     * If backend loading fails, the dialog still falls back to the permission already present in
+     * the file snapshot so the UI remains usable and the failure can be shown inline.
+     */
     fun initialize() {
         if (initialized) return
 
@@ -75,23 +80,26 @@ class FilePropertiesDialogModel(
             syncFromMode(info.numericPermission)
             errorMessageRaw = null
         } else {
-            if (modeState.text.isBlank()) {
-                modeState.edit { replace(0, length, "") }
-            }
-            parsePermissionMode(snapshot.symbolicPermission)?.let { syncFromMode(it) }
+            if (modeState.text.isBlank()) modeState.edit { replace(0, length, "") }
+
+            runCatching { FilePermission.toNumeric(snapshot.symbolicPermission) }
+                .getOrNull()
+                ?.let { syncFromMode(it) }
             errorMessageRaw = result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN
         }
     }
 
+    /** Applies user edits from the octal mode field back into the shared permission state. */
     fun onModeInputChanged(text: String) {
+        // Ignore the callback triggered by our own programmatic field updates.
         if (isSyncingModeField) return
 
-        val mode = parsePermissionMode(text) ?: return
-        symbolicPermission = modeToSymbolic(mode)
-        syncBitsFromMode(mode)
+        val mode = FilePermission.parseMode(text) ?: return
+        syncFromMode(mode)
         errorMessageRaw = null
     }
 
+    /** Persists the currently edited permission mode through the backend action. */
     fun applyPermission() {
         val result = applyPermissionAction(modeState.text.toString().trim())
         val info = result.data
@@ -102,57 +110,42 @@ class FilePropertiesDialogModel(
         } else errorMessageRaw = result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN
     }
 
+    /** Returns the current checkbox state for one permission bit in the dialog matrix. */
     fun isPermissionBitChecked(scope: PermissionScope, access: PermissionAccess): Boolean = when (scope) {
-        PermissionScope.Owner -> when (access) {
-            PermissionAccess.Read -> ownerRead
-            PermissionAccess.Write -> ownerWrite
-            PermissionAccess.Execute -> ownerExecute
-        }
-        PermissionScope.Group -> when (access) {
-            PermissionAccess.Read -> groupRead
-            PermissionAccess.Write -> groupWrite
-            PermissionAccess.Execute -> groupExecute
-        }
-        PermissionScope.Other -> when (access) {
-            PermissionAccess.Read -> otherRead
-            PermissionAccess.Write -> otherWrite
-            PermissionAccess.Execute -> otherExecute
-        }
+        PermissionScope.Owner,
+        PermissionScope.Group,
+        PermissionScope.Other -> FilePermission.hasAccess(
+            mode = currentMode,
+            scope = scope.toCoreScope(),
+            access = access.toCoreAccess()
+        )
     }
 
+    /** Updates one checkbox bit and rebuilds the shared permission mode from it. */
     fun onPermissionBitChanged(scope: PermissionScope, access: PermissionAccess, checked: Boolean) {
-        when (scope) {
-            PermissionScope.Owner -> when (access) {
-                PermissionAccess.Read -> ownerRead = checked
-                PermissionAccess.Write -> ownerWrite = checked
-                PermissionAccess.Execute -> ownerExecute = checked
-            }
-            PermissionScope.Group -> when (access) {
-                PermissionAccess.Read -> groupRead = checked
-                PermissionAccess.Write -> groupWrite = checked
-                PermissionAccess.Execute -> groupExecute = checked
-            }
-            PermissionScope.Other -> when (access) {
-                PermissionAccess.Read -> otherRead = checked
-                PermissionAccess.Write -> otherWrite = checked
-                PermissionAccess.Execute -> otherExecute = checked
-            }
-        }
-
-        if (isSyncingBits) return
-
-        val mode = buildModeFromBits()
-        symbolicPermission = modeToSymbolic(mode)
-        syncModeField(mode)
+        val mode = FilePermission.setAccess(
+            mode = currentMode,
+            scope = scope.toCoreScope(),
+            access = access.toCoreAccess(),
+            enabled = checked
+        )
+        syncFromMode(mode)
         errorMessageRaw = null
     }
 
+    /** Pushes a new mode into every derived dialog representation. */
     private fun syncFromMode(mode: Int) {
-        symbolicPermission = modeToSymbolic(mode)
+        currentMode = mode
+        symbolicPermission = FilePermission.toSymbolic(mode)
         syncModeField(mode)
-        syncBitsFromMode(mode)
     }
 
+    /**
+     * Updates the mode text field without re-entering [onModeInputChanged].
+     *
+     * Compose text state emits changes for both user input and programmatic edits, so this guard
+     * prevents a harmless sync write from being interpreted as another manual edit cycle.
+     */
     private fun syncModeField(mode: Int) {
         isSyncingModeField = true
         modeState.edit {
@@ -161,63 +154,15 @@ class FilePropertiesDialogModel(
         isSyncingModeField = false
     }
 
-    private fun syncBitsFromMode(mode: Int) {
-        val owner = mode / 100
-        val group = (mode / 10) % 10
-        val other = mode % 10
-
-        isSyncingBits = true
-
-        ownerRead = (owner and 4) != 0
-        ownerWrite = (owner and 2) != 0
-        ownerExecute = (owner and 1) != 0
-
-        groupRead = (group and 4) != 0
-        groupWrite = (group and 2) != 0
-        groupExecute = (group and 1) != 0
-
-        otherRead = (other and 4) != 0
-        otherWrite = (other and 2) != 0
-        otherExecute = (other and 1) != 0
-
-        isSyncingBits = false
+    private fun PermissionScope.toCoreScope() = when (this) {
+        PermissionScope.Owner -> FilePermission.Scope.Owner
+        PermissionScope.Group -> FilePermission.Scope.Group
+        PermissionScope.Other -> FilePermission.Scope.Other
     }
 
-    private fun buildModeFromBits(): Int {
-        val owner = (if (ownerRead) 4 else 0) + (if (ownerWrite) 2 else 0) + (if (ownerExecute) 1 else 0)
-        val group = (if (groupRead) 4 else 0) + (if (groupWrite) 2 else 0) + (if (groupExecute) 1 else 0)
-        val other = (if (otherRead) 4 else 0) + (if (otherWrite) 2 else 0) + (if (otherExecute) 1 else 0)
-
-        return owner * 100 + group * 10 + other
-    }
-
-    private fun parsePermissionMode(modeText: String?): Int? {
-        val parsed = modeText?.trim()?.toIntOrNull() ?: return null
-        if (parsed !in 0..777) return null
-
-        val owner = parsed / 100
-        val group = (parsed / 10) % 10
-        val other = parsed % 10
-
-        @Suppress("KotlinConstantConditions")
-        if (owner > 7 || group > 7 || other > 7) return null
-
-        return parsed
-    }
-
-    private fun modeToSymbolic(mode: Int): String {
-        val owner = mode / 100
-        val group = (mode / 10) % 10
-        val other = mode % 10
-
-        return "${octalToRwx(owner)}${octalToRwx(group)}${octalToRwx(other)}"
-    }
-
-    private fun octalToRwx(value: Int): String {
-        val read = if ((value and 4) != 0) 'r' else '-'
-        val write = if ((value and 2) != 0) 'w' else '-'
-        val execute = if ((value and 1) != 0) 'x' else '-'
-
-        return "$read$write$execute"
+    private fun PermissionAccess.toCoreAccess() = when (this) {
+        PermissionAccess.Read -> FilePermission.Access.Read
+        PermissionAccess.Write -> FilePermission.Access.Write
+        PermissionAccess.Execute -> FilePermission.Access.Execute
     }
 }

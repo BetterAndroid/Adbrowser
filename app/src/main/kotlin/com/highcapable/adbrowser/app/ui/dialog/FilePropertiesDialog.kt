@@ -49,7 +49,7 @@ import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionS
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.adb.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.core.common.permission.FilePermission
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.CheckboxRow
 import org.jetbrains.jewel.ui.component.DefaultButton
@@ -63,8 +63,8 @@ import java.time.format.DateTimeFormatter
 fun FilePropertiesDialog(
     snapshot: FileEntrySnapshot,
     onCloseRequest: () -> Unit,
-    loadPermission: () -> OperationResult<FilePermissionInfo>,
-    applyPermission: (String) -> OperationResult<FilePermissionInfo>
+    loadPermission: () -> OperationResult<FilePermission.Info>,
+    applyPermission: (String) -> OperationResult<FilePermission.Info>
 ) {
     val viewModel = remember(snapshot, loadPermission, applyPermission) {
         FilePropertiesDialogModel(

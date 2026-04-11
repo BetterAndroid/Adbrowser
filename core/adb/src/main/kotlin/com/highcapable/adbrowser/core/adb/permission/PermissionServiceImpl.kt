@@ -24,9 +24,9 @@ package com.highcapable.adbrowser.core.adb.permission
 
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
-import com.highcapable.adbrowser.core.adb.permission.model.FilePermissionInfo
 import com.highcapable.adbrowser.core.adb.shell.AdbShellCommandExecutor
 import com.highcapable.adbrowser.core.common.di.AdbScope
+import com.highcapable.adbrowser.core.common.permission.FilePermission
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
 import me.tatarka.inject.annotations.Inject
@@ -48,7 +48,7 @@ class PermissionServiceImpl(
 
     private val runner = OperationRunner(logService, CATEGORY)
 
-    override suspend fun getPermission(device: AndroidDevice, path: String) = runner.exec<FilePermissionInfo> {
+    override suspend fun getPermission(device: AndroidDevice, path: String) = runner.exec<FilePermission.Info> {
         logService.log(LogLevel.Trace, CATEGORY, "Reading permission for '$path'.")
         val response = shellCommandExecutor.executeFileOperation(device, command = "ls -ld '${escapeShell(path)}'")
 
@@ -73,7 +73,7 @@ class PermissionServiceImpl(
 
     private fun escapeShell(value: String) = value.replace("'", "'\\''")
 
-    private fun parsePermission(lsOutput: String): FilePermissionInfo {
+    private fun parsePermission(lsOutput: String): FilePermission.Info {
         val line = lsOutput
             .lineSequence()
             .map { it.trim() }
@@ -85,29 +85,7 @@ class PermissionServiceImpl(
 
         val raw = tokens.first()
         val symbolic = raw.substring(1, 10)
-        val numeric = toNumericPermission(symbolic)
 
-        return FilePermissionInfo(symbolicPermission = symbolic, numericPermission = numeric)
-    }
-
-    private fun toNumericPermission(symbolic: String): Int {
-        require(symbolic.length == 9) {
-            "Permission string must be 9 chars."
-        }
-
-        val owner = bitsToOctal(symbolic[0], symbolic[1], symbolic[2])
-        val group = bitsToOctal(symbolic[3], symbolic[4], symbolic[5])
-        val other = bitsToOctal(symbolic[6], symbolic[7], symbolic[8])
-
-        return owner * 100 + group * 10 + other
-    }
-
-    private fun bitsToOctal(read: Char, write: Char, execute: Char): Int {
-        var value = 0
-        if (read == 'r') value += 4
-        if (write == 'w') value += 2
-        if (execute == 'x' || execute == 's' || execute == 't') value += 1
-
-        return value
+        return FilePermission.fromSymbolic(symbolic)
     }
 }

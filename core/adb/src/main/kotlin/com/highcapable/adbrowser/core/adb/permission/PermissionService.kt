@@ -24,7 +24,7 @@ package com.highcapable.adbrowser.core.adb.permission
 
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.adb.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.core.common.permission.FilePermission
 
 /**
  * Handles permission query and update operations for files.
@@ -34,7 +34,7 @@ interface PermissionService {
     /**
      * Reads permission info from a device file path.
      */
-    suspend fun getPermission(device: AndroidDevice, path: String): OperationResult<FilePermissionInfo>
+    suspend fun getPermission(device: AndroidDevice, path: String): OperationResult<FilePermission.Info>
 
     /**
      * Updates file mode on the target device.

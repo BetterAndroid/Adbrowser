@@ -37,7 +37,7 @@ import com.highcapable.adbrowser.app.ui.vm.model.SelectionOption
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.adb.permission.model.FilePermissionInfo
+import com.highcapable.adbrowser.core.common.permission.FilePermission
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -1142,8 +1142,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         snapshot: FileEntrySnapshot,
         modeText: String,
         reportStatus: Boolean = true
-    ): OperationResult<FilePermissionInfo> {
-        val mode = parsePermissionMode(modeText)
+    ): OperationResult<FilePermission.Info> {
+        val mode = FilePermission.parseMode(modeText)
         if (mode == null) {
             if (reportStatus) setStatus(StatusMessage.Key.DialogPropertiesInvalidPermission)
             return OperationResult.failure(INVALID_PERMISSION_TOKEN)
@@ -1712,21 +1712,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 "not permitted" in message -> FileListHint.PermissionDenied
             else -> FileListHint.LoadFailed
         }
-    }
-
-    @Suppress("KotlinConstantConditions")
-    private fun parsePermissionMode(modeText: String): Int? {
-        val value = modeText.trim()
-        val parsed = value.toIntOrNull() ?: return null
-        if (parsed !in 0..777) return null
-
-        // Values like 888 pass an integer parse but are not valid octal permission triples.
-        val owner = parsed / 100
-        val group = (parsed / 10) % 10
-        val other = parsed % 10
-        if (owner > 7 || group > 7 || other > 7) return null
-
-        return parsed
     }
 
     private fun ensureDeviceSelected(): Boolean {
