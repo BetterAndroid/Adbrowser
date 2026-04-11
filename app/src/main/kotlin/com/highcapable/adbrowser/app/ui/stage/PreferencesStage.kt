@@ -268,9 +268,9 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
                 onCheckedChange = { viewModel.foldersFirst = it }
             ) { Text(strings.preferencesFoldersFirst) }
             CheckboxRow(
-                checked = viewModel.rememberLastDisplayStyle,
-                onCheckedChange = { viewModel.rememberLastDisplayStyle = it }
-            ) { Text(strings.preferencesRememberLastDisplayStyle) }
+                checked = viewModel.rememberLastFileViewMode,
+                onCheckedChange = { viewModel.rememberLastFileViewMode = it }
+            ) { Text(strings.preferencesRememberLastFileViewMode) }
         }
     }
 }

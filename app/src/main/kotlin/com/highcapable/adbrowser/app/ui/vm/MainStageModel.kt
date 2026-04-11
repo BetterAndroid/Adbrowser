@@ -256,7 +256,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         sortModes += SelectionOption("modified", "Modified")
 
         selectedSortMode = sortModes.firstOrNull()
-        applyDisplayStylePreference()
+        applyFileViewModePreference()
         normalizeFileColumnWidths()
     }
 
@@ -281,7 +281,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         fileColumnWidthModifiedPx = settings.fileColumnWidthModified.toFloat()
         fileColumnWidthPermissionPx = settings.fileColumnWidthPermission.toFloat()
         normalizeFileColumnWidths()
-        applyDisplayStylePreference()
+        applyFileViewModePreference()
         if (refreshFileList)
             selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
     }
@@ -651,7 +651,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun onViewModeSelected(option: SelectionOption) {
         selectedViewMode = option
-        if (settingsService.current.rememberLastDisplayStyle) {
+        if (settingsService.current.rememberLastFileViewMode) {
             settingsService.current.lastFileViewMode = if (option.key == "icons")
                 AppSettings.FileViewMode.Grid
             else AppSettings.FileViewMode.List
@@ -1297,8 +1297,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         rememberedSelectedDevice() ?: devices.firstOrNull()
     else devices.firstOrNull()
 
-    private fun applyDisplayStylePreference() {
-        val target = if (settingsService.current.rememberLastDisplayStyle)
+    private fun applyFileViewModePreference() {
+        val target = if (settingsService.current.rememberLastFileViewMode)
             settingsService.current.lastFileViewMode
         else AppSettings.FileViewMode.List
 

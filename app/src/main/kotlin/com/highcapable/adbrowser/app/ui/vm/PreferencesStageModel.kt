@@ -80,7 +80,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
 
     var showHiddenFiles by mutableStateOf(false)
     var foldersFirst by mutableStateOf(true)
-    var rememberLastDisplayStyle by mutableStateOf(true)
+    var rememberLastFileViewMode by mutableStateOf(true)
 
     val adbExecPath = TextFieldState("")
     var superuser by mutableStateOf(false)
@@ -153,7 +153,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 val current = settingsService.current
                 val shouldRefreshFileList = current.showHiddenFiles != showHiddenFiles ||
                     current.foldersFirst != foldersFirst ||
-                    current.rememberLastDisplayStyle != rememberLastDisplayStyle
+                    current.rememberLastFileViewMode != rememberLastFileViewMode
 
                 val saved = runPersistActionAsync(
                     successStatus = Status.PreferencesSaved
@@ -163,8 +163,8 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                     settingsService.current.useSuperuser = superuser
                     settingsService.current.showHiddenFiles = showHiddenFiles
                     settingsService.current.foldersFirst = foldersFirst
-                    settingsService.current.rememberLastDisplayStyle = rememberLastDisplayStyle
-                    if (!rememberLastDisplayStyle) {
+                    settingsService.current.rememberLastFileViewMode = rememberLastFileViewMode
+                    if (!rememberLastFileViewMode) {
                         settingsService.current.lastFileViewMode = AppSettings.FileViewMode.List
                     }
                     withContext(Dispatchers.IO) {
@@ -206,7 +206,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         selectedLanguageTag = normalizeStoredLanguageTag(settings.language)
         showHiddenFiles = settings.showHiddenFiles
         foldersFirst = settings.foldersFirst
-        rememberLastDisplayStyle = settings.rememberLastDisplayStyle
+        rememberLastFileViewMode = settings.rememberLastFileViewMode
         superuser = settings.useSuperuser
         setAdbPath(settings.adbExecPath)
     }

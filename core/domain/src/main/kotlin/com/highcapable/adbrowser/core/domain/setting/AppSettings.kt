@@ -35,7 +35,7 @@ data class AppSettings(
     var rememberDevicePath: Boolean = true,
     var useSuperuser: Boolean = false,
     var showHiddenFiles: Boolean = true,
-    var rememberLastDisplayStyle: Boolean = true,
+    var rememberLastFileViewMode: Boolean = true,
     var lastFileViewMode: FileViewMode = FileViewMode.List,
     var foldersFirst: Boolean = true,
     var lastDeviceSerial: String = "",

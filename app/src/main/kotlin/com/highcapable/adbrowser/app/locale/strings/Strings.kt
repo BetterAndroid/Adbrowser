@@ -140,7 +140,7 @@ data class Strings(
     val preferencesFileList: String,
     val preferencesShowHiddenFiles: String,
     val preferencesFoldersFirst: String,
-    val preferencesRememberLastDisplayStyle: String,
+    val preferencesRememberLastFileViewMode: String,
     val preferencesEnvironment: String,
     val preferencesConnection: String,
     val preferencesResetOptions: String,
