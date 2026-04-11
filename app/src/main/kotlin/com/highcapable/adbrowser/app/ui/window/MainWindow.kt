@@ -21,6 +21,7 @@
  * This file is created by fankes on 2025/6/4.
  */
 @file:Suppress("AssignedValueIsNeverRead")
+@file:OptIn(kotlinx.coroutines.FlowPreview::class)
 
 package com.highcapable.adbrowser.app.ui.window
 
@@ -31,36 +32,103 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.input.ComponentAdapter
+import com.highcapable.adbrowser.app.ui.input.WindowBounds
+import com.highcapable.adbrowser.app.ui.input.currentBounds
 import com.highcapable.adbrowser.app.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.app.ui.stage.MainStage
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
+import com.highcapable.adbrowser.core.domain.setting.AppSettings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.withContext
 import java.awt.Dimension
 
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
+    val appState = LocalAppState.current
+    val settingsService = appState.appServices.settingsService
+    val settings = settingsService.current
+    val initialPosition = remember(settings.mainWindowPosX, settings.mainWindowPosY) {
+        settings.savedMainWindowPosition()
+    }
+    val windowState = rememberWindowState(
+        width = settings.mainWindowWidth.dp,
+        height = settings.mainWindowHeight.dp,
+        position = initialPosition
+    )
+
     Window(
         onCloseRequest = onCloseRequest,
         title = strings.mainTitle,
-        state = rememberWindowState(width = 1220.dp, height = 820.dp)
+        state = windowState
     ) {
-        val appState = LocalAppState.current
         val viewModel = remember { MainStageModel(appState) }
         var handledFileListRefreshVersion by remember { mutableStateOf(appState.fileListRefreshVersion) }
+        var liveWindowBounds by remember { mutableStateOf<WindowBounds?>(null) }
 
         LaunchedEffect(Unit) {
             window.minimumSize = MinWindowSize
         }
+        DisposableEffect(window) {
+            val adapter = ComponentAdapter(
+                componentMoved = {
+                    liveWindowBounds = window.currentBounds()
+                },
+                componentResized = {
+                    liveWindowBounds = window.currentBounds()
+                }
+            )
+
+            window.addComponentListener(adapter)
+            liveWindowBounds = window.currentBounds()
+
+            onDispose {
+                window.removeComponentListener(adapter)
+            }
+        }
         LaunchedEffect(viewModel) { viewModel.initialize() }
+        LaunchedEffect(appState.settingsSyncVersion) {
+            val current = settingsService.current
+            val targetSize = DpSize(current.mainWindowWidth.dp, current.mainWindowHeight.dp)
+            if (windowState.size != targetSize) windowState.size = targetSize
+
+            windowState.position = current.savedMainWindowPosition()
+        }
         LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
             val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
             if (refreshFileList) handledFileListRefreshVersion = appState.fileListRefreshVersion
             viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
+        }
+        LaunchedEffect(Unit) {
+            snapshotFlow { liveWindowBounds }
+                .filterNotNull()
+                .filter { bounds -> bounds.width > 0 && bounds.height > 0 }
+                .distinctUntilChanged()
+                .debounce(250)
+                .collect { bounds ->
+                    settingsService.current.mainWindowWidth = bounds.width.toDouble()
+                    settingsService.current.mainWindowHeight = bounds.height.toDouble()
+                    settingsService.current.mainWindowPosX = bounds.x.toDouble()
+                    settingsService.current.mainWindowPosY = bounds.y.toDouble()
+
+                    withContext(Dispatchers.IO) {
+                        settingsService.save()
+                    }
+                }
         }
         DisposableEffect(viewModel) {
             onDispose { viewModel.dispose() }
@@ -77,6 +145,15 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             )
         }
     }
+}
+
+private fun AppSettings.savedMainWindowPosition(): WindowPosition {
+    val mainWindowPosX = mainWindowPosX
+    val mainWindowPosY = mainWindowPosY
+
+    return if (mainWindowPosX != null && mainWindowPosY != null)
+        WindowPosition(mainWindowPosX.dp, mainWindowPosY.dp)
+    else WindowPosition.Aligned(Alignment.Center)
 }
 
 private val MinWindowSize = Dimension(900, 400)

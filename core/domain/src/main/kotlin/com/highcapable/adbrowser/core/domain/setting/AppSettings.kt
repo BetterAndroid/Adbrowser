@@ -45,8 +45,18 @@ data class AppSettings(
     var fileColumnWidthName: Double = 260.0,
     var fileColumnWidthSize: Double = 140.0,
     var fileColumnWidthModified: Double = 240.0,
-    var fileColumnWidthPermission: Double = 150.0
+    var fileColumnWidthPermission: Double = 150.0,
+    var mainWindowWidth: Double = DEFAULT_MAIN_WINDOW_WIDTH,
+    var mainWindowHeight: Double = DEFAULT_MAIN_WINDOW_HEIGHT,
+    var mainWindowPosX: Double? = null,
+    var mainWindowPosY: Double? = null
 ) {
+
+    companion object {
+
+        const val DEFAULT_MAIN_WINDOW_WIDTH = 1220.0
+        const val DEFAULT_MAIN_WINDOW_HEIGHT = 820.0
+    }
 
     /**
      * File view mode for file list display.

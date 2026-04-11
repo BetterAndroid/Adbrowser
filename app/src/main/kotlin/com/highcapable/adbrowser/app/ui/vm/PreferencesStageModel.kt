@@ -66,6 +66,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         data object None : Status
         data object SidebarSpacingReset : Status
         data object FileColumnWidthsReset : Status
+        data object MainWindowBoundsReset : Status
         data object PreferencesSaved : Status
         data object Cancelled : Status
         data object AdbPathNotFound : Status
@@ -95,6 +96,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         is Status.None,
         is Status.SidebarSpacingReset,
         is Status.FileColumnWidthsReset,
+        is Status.MainWindowBoundsReset,
         is Status.PreferencesSaved,
         is Status.Cancelled -> StatusCategory.Normal
         is Status.AdbPathNotFound,
@@ -125,6 +127,19 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
             settingsService.current.fileColumnWidthSize = DEFAULT_FILE_COLUMN_WIDTH_SIZE
             settingsService.current.fileColumnWidthModified = DEFAULT_FILE_COLUMN_WIDTH_MODIFIED
             settingsService.current.fileColumnWidthPermission = DEFAULT_FILE_COLUMN_WIDTH_PERMISSION
+            settingsService.save()
+        }
+        if (success) appState.sync()
+    }
+
+    fun resetMainWindowBounds() {
+        val success = runPersistAction(
+            successStatus = Status.MainWindowBoundsReset
+        ) {
+            settingsService.current.mainWindowWidth = AppSettings.DEFAULT_MAIN_WINDOW_WIDTH
+            settingsService.current.mainWindowHeight = AppSettings.DEFAULT_MAIN_WINDOW_HEIGHT
+            settingsService.current.mainWindowPosX = null
+            settingsService.current.mainWindowPosY = null
             settingsService.save()
         }
         if (success) appState.sync()

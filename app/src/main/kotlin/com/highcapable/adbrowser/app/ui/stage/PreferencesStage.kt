@@ -246,6 +246,9 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
                 DefaultButton(onClick = viewModel::resetFileColumnWidths) {
                     Text(strings.preferencesResetFileColumnWidths)
                 }
+                DefaultButton(onClick = viewModel::resetMainWindowBounds) {
+                    Text(strings.preferencesResetMainWindowBounds)
+                }
             }
         }
     }
@@ -367,6 +370,7 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
     PreferencesStageModel.Status.None -> ""
     PreferencesStageModel.Status.SidebarSpacingReset -> strings.preferencesStatusSidebarSpacingReset
     PreferencesStageModel.Status.FileColumnWidthsReset -> strings.preferencesStatusFileColumnWidthsReset
+    PreferencesStageModel.Status.MainWindowBoundsReset -> strings.preferencesStatusMainWindowBoundsReset
     PreferencesStageModel.Status.PreferencesSaved -> strings.statusPreferencesSaved
     PreferencesStageModel.Status.Cancelled -> strings.preferencesStatusCancelled
     PreferencesStageModel.Status.AdbPathNotFound -> strings.preferencesStatusAdbPathNotFound
