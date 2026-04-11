@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import com.highcapable.adbrowser.app.ui.component.DialogActionRow
 import com.highcapable.adbrowser.app.ui.component.DialogScaffold
 import org.jetbrains.jewel.ui.component.Text
+import java.awt.Window
 
 @Composable
 fun ConfirmDialog(
@@ -34,11 +35,13 @@ fun ConfirmDialog(
     confirmText: String,
     cancelText: String,
     onCloseRequest: () -> Unit,
+    ownerWindow: Window? = null,
     onConfirm: () -> Boolean
 ) {
     DialogScaffold(
         title = title,
-        onCloseRequest = onCloseRequest
+        onCloseRequest = onCloseRequest,
+        ownerWindow = ownerWindow
     ) {
         Text(message)
 

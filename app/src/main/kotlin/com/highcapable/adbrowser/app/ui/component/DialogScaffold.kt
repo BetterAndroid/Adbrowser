@@ -31,12 +31,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
+import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
@@ -44,14 +47,16 @@ import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
+import java.awt.Window
 
 @Composable
 fun DialogScaffold(
     title: String,
     onCloseRequest: () -> Unit,
+    ownerWindow: Window? = null,
     width: Dp = 460.dp,
     height: Dp = Dp.Unspecified,
-    content: @Composable () -> Unit
+    content: @Composable DialogWindowScope.() -> Unit
 ) {
     DialogWindow(
         onCloseRequest = onCloseRequest,
@@ -60,6 +65,15 @@ fun DialogScaffold(
         state = rememberDialogState(width = width, height = height)
     ) {
         val appState = LocalAppState.current
+
+        LaunchedEffect(window, ownerWindow) {
+            if (ownerWindow == null) return@LaunchedEffect
+
+            // DialogWindow centers by screen by default. Waiting until the first frame is laid out
+            // lets AWT know the dialog's final measured size before we center it over the owner window.
+            withFrameNanos {}
+            window.setLocationRelativeTo(ownerWindow)
+        }
 
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             Column(

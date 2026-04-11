@@ -55,6 +55,7 @@ import org.jetbrains.jewel.ui.component.CheckboxRow
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import java.awt.Window
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -63,7 +64,8 @@ fun FilePropertiesDialog(
     snapshot: FileEntrySnapshot,
     onCloseRequest: () -> Unit,
     loadPermission: () -> OperationResult<FilePermission.Info>,
-    applyPermission: (String) -> OperationResult<FilePermission.Info>
+    applyPermission: (String) -> OperationResult<FilePermission.Info>,
+    ownerWindow: Window? = null
 ) {
     val viewModel = remember(snapshot, loadPermission, applyPermission) {
         FilePropertiesDialogModel(
@@ -98,6 +100,7 @@ fun FilePropertiesDialog(
     DialogScaffold(
         title = strings.dialogPropertiesTitle,
         onCloseRequest = onCloseRequest,
+        ownerWindow = ownerWindow,
         width = 620.dp
     ) {
         PropertyRow(strings.dialogPropertiesFieldName, snapshot.name)

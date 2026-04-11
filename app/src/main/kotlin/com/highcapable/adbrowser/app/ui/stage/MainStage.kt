@@ -151,7 +151,7 @@ fun FrameWindowScope.MainStage(
         viewModel = viewModel,
         modifier = modifier
     )
-    RenderDialogs(viewModel)
+    RenderDialogs(viewModel = viewModel)
 }
 
 @Composable
@@ -936,7 +936,7 @@ private fun MenuScope.blankFileContextMenu(
 }
 
 @Composable
-private fun RenderDialogs(viewModel: MainStageModel) {
+private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
     when (val state = viewModel.dialogState) {
         MainStageModel.DialogState.None -> Unit
         MainStageModel.DialogState.NewFolder ->
@@ -947,6 +947,7 @@ private fun RenderDialogs(viewModel: MainStageModel) {
                 cancelText = strings.dialogCommonCancel,
                 invalidInputText = strings.dialogInputInvalid,
                 onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
                 onConfirm = viewModel::confirmCreateFolder
             )
         is MainStageModel.DialogState.Rename ->
@@ -957,6 +958,7 @@ private fun RenderDialogs(viewModel: MainStageModel) {
                 cancelText = strings.dialogCommonCancel,
                 invalidInputText = strings.dialogInputInvalid,
                 onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
                 onConfirm = viewModel::confirmRenameSelectedEntry,
                 initialValue = state.initialName
             )
@@ -969,6 +971,7 @@ private fun RenderDialogs(viewModel: MainStageModel) {
                 confirmText = strings.dialogDeleteConfirmButton,
                 cancelText = strings.dialogCommonCancel,
                 onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
                 onConfirm = viewModel::confirmDeleteSelectedEntry
             )
         is MainStageModel.DialogState.Properties ->
@@ -976,7 +979,8 @@ private fun RenderDialogs(viewModel: MainStageModel) {
                 snapshot = state.snapshot,
                 onCloseRequest = viewModel::dismissDialog,
                 loadPermission = { viewModel.loadPermission(state.snapshot) },
-                applyPermission = { viewModel.applyPermission(state.snapshot, it, reportStatus = false) }
+                applyPermission = { viewModel.applyPermission(state.snapshot, it, reportStatus = false) },
+                ownerWindow = window
             )
     }
 }

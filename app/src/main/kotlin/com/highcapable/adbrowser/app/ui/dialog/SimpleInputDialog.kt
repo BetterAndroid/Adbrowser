@@ -44,6 +44,7 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import java.awt.Window
 
 @Composable
 fun SimpleInputDialog(
@@ -54,6 +55,7 @@ fun SimpleInputDialog(
     invalidInputText: String,
     onCloseRequest: () -> Unit,
     onConfirm: (String) -> Boolean,
+    ownerWindow: Window? = null,
     initialValue: String = "",
     selectAllOnOpen: Boolean = true,
     validate: (String) -> Boolean = { it.isNotBlank() }
@@ -70,6 +72,7 @@ fun SimpleInputDialog(
     DialogScaffold(
         title = title,
         onCloseRequest = onCloseRequest,
+        ownerWindow = ownerWindow,
         width = 480.dp
     ) {
         Text(prompt)
