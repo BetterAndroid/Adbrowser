@@ -1053,9 +1053,15 @@ private class FileAreaInteractionState {
 
     fun dismissContextMenu() {
         contextMenuState = null
+        consumeNextBlankPrimaryPress = false
     }
 
     fun dismissContextMenuConsumingNextBlankPress() {
+        if (contextMenuState == null) {
+            consumeNextBlankPrimaryPress = false
+            return
+        }
+
         contextMenuState = null
         consumeNextBlankPrimaryPress = true
     }
