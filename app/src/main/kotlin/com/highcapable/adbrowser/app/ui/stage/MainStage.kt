@@ -369,7 +369,6 @@ private fun FileListView(
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
 
     val entries = viewModel.entriesOf(device)
-    val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(entryPositionController.currentRequest, entries) {
         val request = entryPositionController.currentRequest ?: return@LaunchedEffect
@@ -459,8 +458,7 @@ private fun FileListView(
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                    if (canShowBlankContextMenu)
-                        interactionState.openBlankContextMenu(position)
+                    interactionState.openBlankContextMenu(position)
                 }
         ) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
@@ -555,7 +553,6 @@ private fun FileIconView(
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
 
     val entries = viewModel.entriesOf(device)
-    val canShowBlankContextMenu = viewModel.canShowBlankFileContextMenu(device)
 
     LaunchedEffect(device, directoryChangeVersion) {
         if (directoryChangeVersion == handledDirectoryChangeVersion) return@LaunchedEffect
@@ -618,8 +615,7 @@ private fun FileIconView(
                 }
             )
             .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                if (canShowBlankContextMenu)
-                    interactionState.openBlankContextMenu(position)
+                interactionState.openBlankContextMenu(position)
             }
     ) {
         LazyVerticalGrid(
@@ -706,8 +702,6 @@ private fun FileBlankContextMenuPopup(
     onDismissRequest: () -> Unit,
     onDismissByOutsidePress: () -> Unit
 ) {
-    if (!viewModel.canShowBlankFileContextMenu(device)) return
-
     val blankState = state as? FileContextMenuState.Blank ?: return
 
     PopupMenu(
@@ -815,6 +809,7 @@ private fun MenuScope.blankFileContextMenu(
     device: AndroidDeviceItem,
     onDismissRequest: () -> Unit
 ) {
+    val canShowBlankFileContextMenu = viewModel.canShowBlankFileContextMenu(device)
     val hasEntries = viewModel.entriesOf(device).isNotEmpty()
     val hasSelectedDevice = viewModel.isSelectedWorkspace(device)
 
@@ -829,34 +824,36 @@ private fun MenuScope.blankFileContextMenu(
         iconKey = AllIconsKeys.Actions.Refresh,
         onClick = { perform(viewModel::refreshEntries) }
     ) { Text(strings.menuRefresh) }
-    separator()
-    selectableItem(
-        selected = false,
-        enabled = hasSelectedDevice,
-        iconKey = AllIconsKeys.Actions.NewFolder,
-        onClick = { perform(viewModel::createNewFolder) }
-    ) { Text(strings.menuNewFolder) }
-    separator()
-    if (viewModel.canPasteEntry) {
+    if (canShowBlankFileContextMenu) {
+        separator()
+        selectableItem(
+            selected = false,
+            enabled = hasSelectedDevice,
+            iconKey = AllIconsKeys.Actions.NewFolder,
+            onClick = { perform(viewModel::createNewFolder) }
+        ) { Text(strings.menuNewFolder) }
+        separator()
+        if (viewModel.canPasteEntry) {
+            selectableItemWithActionType(
+                selected = false,
+                iconKey = AllIconsKeys.Actions.MenuPaste,
+                actionType = PasteMenuItemOptionAction,
+                onClick = { perform(viewModel::pasteToCurrentPath) }
+            ) { Text(strings.menuPaste) }
+            separator()
+        }
         selectableItemWithActionType(
             selected = false,
-            iconKey = AllIconsKeys.Actions.MenuPaste,
-            actionType = PasteMenuItemOptionAction,
-            onClick = { perform(viewModel::pasteToCurrentPath) }
-        ) { Text(strings.menuPaste) }
-        separator()
+            enabled = hasEntries,
+            actionType = SelectAllMenuItemOptionAction,
+            onClick = { perform(viewModel::selectAllEntries) }
+        ) { Text(strings.menuSelectAll) }
+        selectableItem(
+            selected = false,
+            enabled = hasEntries,
+            onClick = { perform(viewModel::inverseSelectEntries) }
+        ) { Text(strings.menuInverseSelect) }
     }
-    selectableItemWithActionType(
-        selected = false,
-        enabled = hasEntries,
-        actionType = SelectAllMenuItemOptionAction,
-        onClick = { perform(viewModel::selectAllEntries) }
-    ) { Text(strings.menuSelectAll) }
-    selectableItem(
-        selected = false,
-        enabled = hasEntries,
-        onClick = { perform(viewModel::inverseSelectEntries) }
-    ) { Text(strings.menuInverseSelect) }
 }
 
 @Composable
