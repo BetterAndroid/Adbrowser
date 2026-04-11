@@ -38,8 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
-import com.highcapable.adbrowser.app.ui.component.DialogActionRow
-import com.highcapable.adbrowser.app.ui.component.DialogScaffold
+import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
+import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text

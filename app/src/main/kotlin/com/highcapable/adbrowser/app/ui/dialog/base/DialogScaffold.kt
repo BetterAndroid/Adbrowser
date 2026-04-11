@@ -20,7 +20,7 @@
  *
  * This file is created by fankes on 2026/4/5.
  */
-package com.highcapable.adbrowser.app.ui.component
+package com.highcapable.adbrowser.app.ui.dialog.base
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

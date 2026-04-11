@@ -39,8 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.lyricist.strings
-import com.highcapable.adbrowser.app.ui.component.DialogActionRow
-import com.highcapable.adbrowser.app.ui.component.DialogScaffold
+import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
+import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionAccess
