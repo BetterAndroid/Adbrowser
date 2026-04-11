@@ -27,17 +27,21 @@ package com.highcapable.adbrowser.app.ui.dialog
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.selectAll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.component.DialogActionRow
 import com.highcapable.adbrowser.app.ui.component.DialogScaffold
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 
@@ -51,16 +55,22 @@ fun SimpleInputDialog(
     onCloseRequest: () -> Unit,
     onConfirm: (String) -> Boolean,
     initialValue: String = "",
+    selectAllOnOpen: Boolean = true,
     validate: (String) -> Boolean = { it.isNotBlank() }
 ) {
     val state = remember(initialValue) { TextFieldState(initialValue) }
+    val focusRequester = remember { FocusRequester() }
     var showInvalid by remember { mutableStateOf(false) }
+
+    LaunchedEffect(focusRequester, initialValue, selectAllOnOpen) {
+        focusRequester.requestFocus()
+        if (selectAllOnOpen && initialValue.isNotBlank()) state.edit { selectAll() }
+    }
 
     DialogScaffold(
         title = title,
         onCloseRequest = onCloseRequest,
-        width = 480.dp,
-        height = 220.dp
+        width = 480.dp
     ) {
         Text(prompt)
 
@@ -68,20 +78,13 @@ fun SimpleInputDialog(
             state = state,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusRequester(focusRequester)
                 .height(AdbrowserTheme.DefaultTextFieldHeight)
         )
 
-        if (showInvalid)
-            Text(
-                text = invalidInputText,
-                color = Color(0xFFE46868)
-            )
-
         DialogActionRow(
-            cancelText = cancelText,
-            confirmText = confirmText,
-            onCancel = onCloseRequest,
-            onConfirm = {
+            primaryText = confirmText,
+            onPrimary = {
                 val value = state.text.toString().trim()
                 if (!validate(value)) {
                     showInvalid = true
@@ -90,7 +93,11 @@ fun SimpleInputDialog(
 
                 showInvalid = false
                 if (onConfirm(value)) onCloseRequest()
-            }
+            },
+            secondaryText = cancelText,
+            onSecondary = onCloseRequest,
+            leadingText = if (showInvalid) invalidInputText else "",
+            leadingTextColor = JewelTheme.globalColors.text.error
         )
     }
 }

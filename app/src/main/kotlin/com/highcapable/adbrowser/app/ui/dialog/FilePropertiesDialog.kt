@@ -24,7 +24,6 @@ package com.highcapable.adbrowser.app.ui.dialog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.lyricist.strings
+import com.highcapable.adbrowser.app.ui.component.DialogActionRow
 import com.highcapable.adbrowser.app.ui.component.DialogScaffold
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel
@@ -52,7 +52,6 @@ import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.permission.FilePermission
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.CheckboxRow
-import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
@@ -99,8 +98,7 @@ fun FilePropertiesDialog(
     DialogScaffold(
         title = strings.dialogPropertiesTitle,
         onCloseRequest = onCloseRequest,
-        width = 620.dp,
-        height = 420.dp
+        width = 620.dp
     ) {
         PropertyRow(strings.dialogPropertiesFieldName, snapshot.name)
         PropertyRow(strings.dialogPropertiesFieldPath, snapshot.fullPath, valueWrap = true)
@@ -175,24 +173,12 @@ fun FilePropertiesDialog(
         )
 
         val errorText = viewModel.errorMessageRaw?.let(resolveDialogErrorText).orEmpty()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (errorText.isNotBlank()) {
-                Text(
-                    text = errorText,
-                    color = Color(0xFFE46868),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else Spacer(Modifier.weight(1f))
-            DefaultButton(onClick = onCloseRequest) {
-                Text(strings.dialogPropertiesClose)
-            }
-        }
+        DialogActionRow(
+            primaryText = strings.dialogPropertiesClose,
+            onPrimary = onCloseRequest,
+            leadingText = errorText,
+            leadingTextColor = Color(0xFFE46868)
+        )
     }
 }
 

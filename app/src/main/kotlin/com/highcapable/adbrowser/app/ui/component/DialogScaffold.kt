@@ -26,18 +26,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
@@ -47,7 +50,7 @@ fun DialogScaffold(
     title: String,
     onCloseRequest: () -> Unit,
     width: Dp = 460.dp,
-    height: Dp = 240.dp,
+    height: Dp = Dp.Unspecified,
     content: @Composable () -> Unit
 ) {
     DialogWindow(
@@ -61,8 +64,9 @@ fun DialogScaffold(
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 content()
@@ -73,25 +77,46 @@ fun DialogScaffold(
 
 @Composable
 fun DialogActionRow(
-    cancelText: String,
-    confirmText: String,
-    onCancel: () -> Unit,
-    onConfirm: () -> Unit,
-    confirmEnabled: Boolean = true
+    primaryText: String,
+    onPrimary: () -> Unit,
+    modifier: Modifier = Modifier,
+    secondaryText: String? = null,
+    onSecondary: (() -> Unit)? = null,
+    leadingText: String = "",
+    leadingTextColor: Color = JewelTheme.contentColor,
+    primaryEnabled: Boolean = true,
+    secondaryEnabled: Boolean = true,
+    primaryButtonWidth: Dp = 80.dp,
+    secondaryButtonWidth: Dp = 80.dp
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.Bottom
     ) {
-        OutlinedButton(onClick = onCancel) {
-            Text(cancelText)
+        Text(
+            text = leadingText,
+            color = leadingTextColor,
+            modifier = Modifier
+                .padding(end = 10.dp)
+                .weight(1f)
+        )
+        if (secondaryText != null && onSecondary != null) {
+            OutlinedButton(
+                enabled = secondaryEnabled,
+                onClick = onSecondary,
+                modifier = Modifier.width(secondaryButtonWidth)
+            ) {
+                Text(secondaryText)
+            }
+            Spacer(Modifier.width(12.dp))
         }
-        Spacer(Modifier.width(8.dp))
         DefaultButton(
-            onClick = onConfirm,
-            enabled = confirmEnabled
+            onClick = onPrimary,
+            enabled = primaryEnabled,
+            modifier = Modifier.width(primaryButtonWidth)
         ) {
-            Text(confirmText)
+            Text(primaryText)
         }
     }
 }

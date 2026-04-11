@@ -23,7 +23,6 @@
 package com.highcapable.adbrowser.app.ui.dialog
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.component.DialogActionRow
 import com.highcapable.adbrowser.app.ui.component.DialogScaffold
 import org.jetbrains.jewel.ui.component.Text
@@ -39,19 +38,17 @@ fun ConfirmDialog(
 ) {
     DialogScaffold(
         title = title,
-        onCloseRequest = onCloseRequest,
-        width = 460.dp,
-        height = 190.dp
+        onCloseRequest = onCloseRequest
     ) {
         Text(message)
 
         DialogActionRow(
-            cancelText = cancelText,
-            confirmText = confirmText,
-            onCancel = onCloseRequest,
-            onConfirm = {
+            primaryText = confirmText,
+            onPrimary = {
                 if (onConfirm()) onCloseRequest()
-            }
+            },
+            secondaryText = cancelText,
+            onSecondary = onCloseRequest
         )
     }
 }
