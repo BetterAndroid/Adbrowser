@@ -35,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -51,6 +50,7 @@ import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.permission.FilePermission
 import kotlinx.coroutines.flow.distinctUntilChanged
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CheckboxRow
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
@@ -180,7 +180,7 @@ fun FilePropertiesDialog(
             primaryText = strings.dialogPropertiesClose,
             onPrimary = onCloseRequest,
             leadingText = errorText,
-            leadingTextColor = Color(0xFFE46868)
+            leadingTextColor = JewelTheme.globalColors.text.error
         )
     }
 }

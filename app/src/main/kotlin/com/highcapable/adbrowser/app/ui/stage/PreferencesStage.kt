@@ -38,7 +38,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +47,7 @@ import com.highcapable.adbrowser.app.locale.languageOptions
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
+import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.CheckboxRow
 import org.jetbrains.jewel.ui.component.DefaultButton
@@ -113,7 +113,7 @@ fun FrameWindowScope.PreferencesStage(
             val statusMessage = preferencesStatusMessage(viewModel.status)
             val statusColor = when (viewModel.statusCategory) {
                 PreferencesStageModel.StatusCategory.Normal -> colors.pathBreadcrumbForeground
-                PreferencesStageModel.StatusCategory.Error -> StatusErrorColor
+                PreferencesStageModel.StatusCategory.Error -> JewelTheme.globalColors.text.error
             }
 
             Text(
@@ -394,5 +394,3 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
 private val TabLabelFontSize = 20.sp
 private val TabLabelFontWeight = FontWeight.Normal
 private val PanelPadding = PaddingValues(14.dp)
-
-private val StatusErrorColor = Color(0xFFB94747)
