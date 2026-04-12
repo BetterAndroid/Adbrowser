@@ -23,6 +23,17 @@
 package com.highcapable.adbrowser.core.common.utils.extension
 
 /**
+ * Simple string formatter that replaces placeholders like {0}, {1}, etc. with the provided arguments.
+ */
+fun String.formatWithArgs(vararg args: Any): String {
+    var result = this
+    args.forEachIndexed { index, value ->
+        result = result.replace("{$index}", value.toString())
+    }
+    return result
+}
+
+/**
  * Escape single quotes in a string.
  */
 fun String.escapeQuotes() = replace("'", "'\\''")

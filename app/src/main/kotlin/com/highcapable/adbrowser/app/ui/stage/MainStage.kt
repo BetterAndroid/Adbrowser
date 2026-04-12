@@ -121,11 +121,11 @@ import com.highcapable.adbrowser.app.ui.geometry.intersects
 import com.highcapable.adbrowser.app.ui.geometry.normalizedRect
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
-import com.highcapable.adbrowser.app.ui.utils.extension.formatWithArgs
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
+import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
