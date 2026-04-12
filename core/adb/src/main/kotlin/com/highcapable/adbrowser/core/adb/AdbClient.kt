@@ -28,7 +28,7 @@ import com.highcapable.adbrowser.core.adb.model.OperationResult
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Defines ADB communication capabilities used by upper MVVM layers.
+ * Defines ADB communication capabilities used by upper layers.
  */
 interface AdbClient {
 
@@ -56,7 +56,7 @@ interface AdbClient {
     fun observeDevices(pollIntervalMillis: Long = 1500L): Flow<OperationResult<List<AndroidDevice>>>
 
     /**
-     * Executes an adb shell command for the target device.
+     * Executes an adb command for the target device.
      */
-    suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse
+    suspend fun executeCommand(device: AndroidDevice, vararg command: String): AdbResponse
 }

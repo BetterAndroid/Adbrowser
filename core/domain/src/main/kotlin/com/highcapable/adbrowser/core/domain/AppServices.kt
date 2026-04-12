@@ -45,9 +45,9 @@ class AppServices {
 
     val adbClient by lazy { adb.provideAdbClient() }
 
-    val fileSystemService by lazy { adb.provideFileSystemService() }
+    val shellExecutor by lazy { adb.provideAdbShellExecutor() }
 
-    val shellCommandExecutor by lazy { adb.provideAdbShellCommandExecutor() }
+    val fileSystemService by lazy { adb.provideFileSystemService() }
 
     val permissionService by lazy { adb.providePermissionService() }
 
@@ -58,7 +58,7 @@ class AppServices {
      */
     suspend fun initialize() {
         adbClient.execPath = { settingsService.current.adbExecPath }
-        shellCommandExecutor.useSuperuser = { settingsService.current.useSuperuser }
+        shellExecutor.useSuperuser = { settingsService.current.useSuperuser }
 
         settingsService.load()
     }

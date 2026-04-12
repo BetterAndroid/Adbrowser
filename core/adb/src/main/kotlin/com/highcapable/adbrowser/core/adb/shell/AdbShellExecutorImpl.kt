@@ -35,11 +35,13 @@ import me.tatarka.inject.annotations.Inject
  */
 @AdbScope
 @Inject
-class AdbShellCommandExecutorImpl(private val adbClient: AdbClient, private val logService: LogService) : AdbShellCommandExecutor {
+class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logService: LogService) : AdbShellExecutor {
 
     private companion object {
 
         const val CATEGORY = "ADB Shell"
+
+        const val SHELL_PREFIX = "shell"
 
         val suFallbackIndicators = listOf(
             "su: inaccessible or not found",
@@ -51,22 +53,19 @@ class AdbShellCommandExecutorImpl(private val adbClient: AdbClient, private val 
 
     override var useSuperuser: () -> Boolean = { false }
 
-    /**
-     * Executes command with `su -c` first when superuser mode is enabled, then falls back.
-     */
-    override suspend fun executeFileOperation(device: AndroidDevice, command: String): AdbResponse {
-        if (!useSuperuser()) return adbClient.executeShell(device, command)
+    override suspend fun execute(device: AndroidDevice, vararg command: String): AdbResponse {
+        if (!useSuperuser()) return executeShell(device, *command)
 
         return try {
-            val suCommand = "su -c \"${escapeForDoubleQuotedShell(command)}\""
-            val suResponse = adbClient.executeShell(device, suCommand)
+            val suCommand = """su -c "${escapeCommand(*command)}""""
+            val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, suCommand)
             if (shouldFallbackToNormalShell(suResponse)) {
                 logService.log(
                     LogLevel.Warning,
                     CATEGORY,
                     "su is unavailable on ${device.serial}. Fallback to normal shell."
                 )
-                adbClient.executeShell(device, command)
+                executeShell(device, *command)
             } else suResponse
         } catch (t: Throwable) {
             logService.log(
@@ -74,15 +73,16 @@ class AdbShellCommandExecutorImpl(private val adbClient: AdbClient, private val 
                 CATEGORY,
                 "su execution failed: ${t.message ?: t::class.simpleName}. Fallback to normal shell."
             )
-            adbClient.executeShell(device, command)
+            executeShell(device, *command)
         }
     }
 
-    private fun escapeForDoubleQuotedShell(value: String) = value
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("$", "\\$")
-        .replace("`", "\\`")
+    private suspend fun executeShell(device: AndroidDevice, vararg command: String) =
+        adbClient.executeCommand(device, SHELL_PREFIX, *command)
+
+    private fun escapeCommand(vararg values: String) = values.joinToString(" ") {
+        it.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`")
+    }
 
     private fun shouldFallbackToNormalShell(response: AdbResponse): Boolean {
         if (response.isOk) return false

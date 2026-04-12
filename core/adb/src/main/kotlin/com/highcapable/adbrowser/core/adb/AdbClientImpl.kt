@@ -99,7 +99,7 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
             return OperationResult.error("ADB executable is not executable.")
 
         val response = runAdb(
-            arguments = listOf("version"),
+            arguments = arrayOf("version"),
             pathValue = pathValue,
             timeoutMs = ADB_VALIDATE_TIMEOUT_MS
         )
@@ -184,9 +184,9 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
         }
     }
 
-    override suspend fun executeShell(device: AndroidDevice, command: String): AdbResponse {
-        logService.log(LogLevel.Trace, CATEGORY, "$device $ $command")
-        val response = runAdb(listOf("-s", device.serial, "shell", command))
+    override suspend fun executeCommand(device: AndroidDevice, vararg command: String): AdbResponse {
+        logService.log(LogLevel.Trace, CATEGORY, "$device $ ${command.joinToString(" ")}")
+        val response = runAdb("-s", device.serial, *command)
 
         return response
     }
@@ -194,13 +194,13 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
     /**
      * Executes "adb devices -l" and captures the output for device parsing.
      */
-    private suspend fun obtainListDevices() = runAdb(listOf("devices", "-l"))
+    private suspend fun obtainListDevices() = runAdb("devices", "-l")
 
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
      */
     private suspend fun runAdb(
-        arguments: List<String>,
+        vararg arguments: String,
         pathValue: String = execPath(),
         timeoutMs: Long? = null
     ) = withContext(Dispatchers.IO) {
@@ -336,7 +336,7 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
     }
 
     private suspend fun fetchDeviceExtra(serial: String): DeviceExtra {
-        val response = runAdb(listOf("-s", serial, "shell", DEVICE_PROPS_COMMAND))
+        val response = runAdb("-s", serial, "shell", DEVICE_PROPS_COMMAND)
         if (!response.isOk) {
             logService.log(
                 LogLevel.Warning,

@@ -25,7 +25,7 @@ package com.highcapable.adbrowser.core.adb.fs
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
-import com.highcapable.adbrowser.core.adb.shell.AdbShellCommandExecutor
+import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
 import com.highcapable.adbrowser.core.common.di.AdbScope
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
@@ -43,7 +43,7 @@ import java.util.Locale
  */
 @AdbScope
 @Inject
-class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExecutor, private val logService: LogService) : FileSystemService {
+class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, private val logService: LogService) : FileSystemService {
 
     private companion object {
 
@@ -77,7 +77,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
     override suspend fun list(device: AndroidDevice, path: String) = runner.exec<List<DeviceFileEntry>> {
         logService.log(LogLevel.Trace, CATEGORY, "List path '$path' for '$device'.")
         val listPath = normalizeDirectoryListPath(path)
-        val response = shellCommandExecutor.executeFileOperation(device, "ls -la '${escapeShell(listPath)}'")
+        val response = shellCommandExecutor.execute(device, "ls -la '${escapeCommand(listPath)}'")
 
         if (response.isOk) {
             val entries = parseLsOutput(path, response.standardOutput).toMutableList()
@@ -97,16 +97,16 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
     }
 
     override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String) = runner.exec {
-        val parent = escapeShell(parentPath.trimEnd('/'))
-        val name = escapeShell(folderName)
-        val response = shellCommandExecutor.executeFileOperation(device, "mkdir -p '$parent/$name'")
+        val parent = escapeCommand(parentPath.trimEnd('/'))
+        val name = escapeCommand(folderName)
+        val response = shellCommandExecutor.execute(device, "mkdir -p '$parent/$name'")
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$folderName' under '$parentPath'.")
         null to response
     }
 
     override suspend fun delete(device: AndroidDevice, path: String) = runner.exec {
-        val response = shellCommandExecutor.executeFileOperation(device, "rm -rf '${escapeShell(path)}'")
+        val response = shellCommandExecutor.execute(device, "rm -rf '${escapeCommand(path)}'")
 
         if (response.isOk) logService.log(LogLevel.Warning, CATEGORY, "Deleted path '$path'.")
         null to response
@@ -114,9 +114,9 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
 
     override suspend fun rename(device: AndroidDevice, path: String, newName: String) = runner.exec {
         val targetPath = buildTargetPath(path, newName)
-        val response = shellCommandExecutor.executeFileOperation(
+        val response = shellCommandExecutor.execute(
             device,
-            "mv '${escapeShell(path)}' '${escapeShell(targetPath)}'"
+            "mv '${escapeCommand(path)}' '${escapeCommand(targetPath)}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$path' to '$targetPath'.")
@@ -124,9 +124,9 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
     }
 
     override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
-        val response = shellCommandExecutor.executeFileOperation(
+        val response = shellCommandExecutor.execute(
             device,
-            "cp -a '${escapeShell(sourcePath)}' '${escapeShell(targetPath)}'"
+            "cp -a '${escapeCommand(sourcePath)}' '${escapeCommand(targetPath)}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Copied '$sourcePath' to '$targetPath'.")
@@ -134,16 +134,16 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
     }
 
     override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
-        val response = shellCommandExecutor.executeFileOperation(
+        val response = shellCommandExecutor.execute(
             device,
-            "mv '${escapeShell(sourcePath)}' '${escapeShell(targetPath)}'"
+            "mv '${escapeCommand(sourcePath)}' '${escapeCommand(targetPath)}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Moved '$sourcePath' to '$targetPath'.")
         null to response
     }
 
-    private fun escapeShell(value: String): String = value.replace("'", "'\\''")
+    private fun escapeCommand(value: String): String = value.replace("'", "'\\''")
 
     private fun normalizeDirectoryListPath(path: String): String {
         if (path.isBlank() || path == "/") return "/"
@@ -247,7 +247,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
         val chunkSize = 32
         symlinkIndexes.chunked(chunkSize).forEach { batch ->
             val command = buildSymlinkDirectoryCheckCommand(entries, batch)
-            val response = runCatching { shellCommandExecutor.executeFileOperation(device, command) }.getOrNull()
+            val response = runCatching { shellCommandExecutor.execute(device, command) }.getOrNull()
             if (response == null || !response.isOk) {
                 logService.log(LogLevel.Warning, CATEGORY, "Symlink directory check skipped for batch due to command error.")
                 return@forEach
@@ -262,7 +262,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellCommandExe
         for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
             val entry = entries[entryIndex]
             val fullPath = if (entry.path == "/") "/${entry.name}" else "${entry.path.trimEnd('/')}/${entry.name}"
-            val escaped = escapeShell(fullPath)
+            val escaped = escapeCommand(fullPath)
             segments += "if [ -d '$escaped' ]; then echo '$localIndex:1'; else echo '$localIndex:0'; fi"
         }
 

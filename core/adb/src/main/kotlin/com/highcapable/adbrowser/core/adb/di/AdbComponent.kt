@@ -28,8 +28,8 @@ import com.highcapable.adbrowser.core.adb.fs.FileSystemService
 import com.highcapable.adbrowser.core.adb.fs.FileSystemServiceImpl
 import com.highcapable.adbrowser.core.adb.permission.PermissionService
 import com.highcapable.adbrowser.core.adb.permission.PermissionServiceImpl
-import com.highcapable.adbrowser.core.adb.shell.AdbShellCommandExecutor
-import com.highcapable.adbrowser.core.adb.shell.AdbShellCommandExecutorImpl
+import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
+import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutorImpl
 import com.highcapable.adbrowser.core.common.di.AdbScope
 import com.highcapable.adbrowser.core.logging.di.LoggingComponent
 import me.tatarka.inject.annotations.Component
@@ -45,7 +45,7 @@ abstract class AdbComponent(
 ) {
 
     abstract fun provideAdbClient(): AdbClient
-    abstract fun provideAdbShellCommandExecutor(): AdbShellCommandExecutor
+    abstract fun provideAdbShellExecutor(): AdbShellExecutor
     abstract fun provideFileSystemService(): FileSystemService
     abstract fun providePermissionService(): PermissionService
 
@@ -53,7 +53,7 @@ abstract class AdbComponent(
     fun provideAdbClient(impl: AdbClientImpl): AdbClient = impl
 
     @Provides
-    fun provideAdbShellCommandExecutor(impl: AdbShellCommandExecutorImpl): AdbShellCommandExecutor = impl
+    fun provideAdbShellExecutor(impl: AdbShellExecutorImpl): AdbShellExecutor = impl
 
     @Provides
     fun provideFileSystemService(impl: FileSystemServiceImpl): FileSystemService = impl

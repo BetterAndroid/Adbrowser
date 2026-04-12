@@ -28,7 +28,7 @@ import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 /**
  * Defines command execution behavior for device shell file operations.
  */
-interface AdbShellCommandExecutor {
+interface AdbShellExecutor {
 
     /**
      * Returns true if superuser fallback is enabled in settings, false otherwise.
@@ -36,7 +36,7 @@ interface AdbShellCommandExecutor {
     var useSuperuser: () -> Boolean
 
     /**
-     * Executes shell command for file operations with the configured privilege strategy.
+     * Executes shell command for operations with the configured privilege strategy.
      */
-    suspend fun executeFileOperation(device: AndroidDevice, command: String): AdbResponse
+    suspend fun execute(device: AndroidDevice, vararg command: String): AdbResponse
 }
