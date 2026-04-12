@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.app.ui.vm.model
 
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
+import com.highcapable.adbrowser.core.common.utils.extension.toFriendlyFileSize
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -37,11 +38,19 @@ data class DeviceFileItem(
     val isSymbolicLink: Boolean = false
 ) {
 
-    val sizeText: String
-        get() = if (isDirectory) "-" else "%,d".format(sizeBytes)
+    /**
+     * File entries are replaced wholesale on refresh, so a per-instance lazy cache avoids repeated
+     * formatting work without risking stale values after backend updates.
+     */
+    val friendlySizeText by lazy { sizeBytes.toFriendlyFileSize() }
 
-    val modifiedText: String
-        get() = DateFormatter.format(modifiedAt.atZone(ZoneId.systemDefault()))
+    /**
+     * File entries are replaced wholesale on refresh, so a per-instance lazy cache avoids repeated
+     * formatting work without risking stale values after backend updates.
+     */
+    val modifiedText: String by lazy {
+        DateFormatter.format(modifiedAt.atZone(ZoneId.systemDefault()))
+    }
 
     companion object {
 

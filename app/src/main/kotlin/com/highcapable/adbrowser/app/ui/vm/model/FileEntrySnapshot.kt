@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.app.ui.vm.model
 
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
+import com.highcapable.adbrowser.core.common.utils.extension.toFriendlyFileSize
 import java.time.Instant
 
 data class FileEntrySnapshot(
@@ -34,4 +35,11 @@ data class FileEntrySnapshot(
     val sizeBytes: Long,
     val modifiedAt: Instant,
     val symbolicPermission: String
-)
+) {
+
+    /**
+     * Dialog snapshots are immutable and short-lived, so lazy formatting keeps the display string
+     * cheap while still ensuring repeated recompositions reuse the same computed value.
+     */
+    val friendlySizeText by lazy { sizeBytes.toFriendlyFileSize() }
+}

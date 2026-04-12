@@ -115,7 +115,7 @@ fun FilePropertiesDialog(
         )
         PropertyRow(
             strings.dialogPropertiesFieldSize,
-            if (snapshot.isDirectory) "-" else "%,d".format(snapshot.sizeBytes)
+            snapshot.friendlySizeText
         )
         PropertyRow(
             strings.dialogPropertiesFieldModified,

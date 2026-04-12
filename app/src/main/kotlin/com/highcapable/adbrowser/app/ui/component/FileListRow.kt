@@ -162,7 +162,7 @@ fun FileListRow(
                         )
                     }
                     Spacer(Modifier.width(10.dp))
-                    FileRowText(text = item.sizeText, width = sizeWidth, color = foreground)
+                    FileRowText(text = item.friendlySizeText, width = sizeWidth, color = foreground)
                     Spacer(Modifier.width(10.dp))
                     FileRowText(text = item.modifiedText, width = modifiedWidth, color = foreground)
                     Spacer(Modifier.width(10.dp))
