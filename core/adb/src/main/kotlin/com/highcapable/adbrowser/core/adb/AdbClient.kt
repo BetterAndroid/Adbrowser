@@ -58,5 +58,5 @@ interface AdbClient {
     /**
      * Executes an adb command for the target device.
      */
-    suspend fun executeCommand(device: AndroidDevice, vararg command: String): AdbResponse
+    suspend fun executeCommand(device: AndroidDevice, vararg command: Any): AdbResponse
 }

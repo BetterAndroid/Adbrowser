@@ -22,7 +22,7 @@
  */
 @file:Suppress("KotlinConstantConditions")
 
-package com.highcapable.adbrowser.core.common.permission
+package com.highcapable.adbrowser.core.common.fs
 
 /**
  * Shared file permission helpers used by both frontend and backend layers.

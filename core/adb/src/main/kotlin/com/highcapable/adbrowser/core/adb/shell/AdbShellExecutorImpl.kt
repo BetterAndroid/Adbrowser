@@ -26,6 +26,7 @@ import com.highcapable.adbrowser.core.adb.AdbClient
 import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.common.di.AdbScope
+import com.highcapable.adbrowser.core.common.utils.extension.escapeSpecialChars
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
 import me.tatarka.inject.annotations.Inject
@@ -53,12 +54,13 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
 
     override var useSuperuser: () -> Boolean = { false }
 
-    override suspend fun execute(device: AndroidDevice, vararg command: String): AdbResponse {
+    override suspend fun execute(device: AndroidDevice, vararg command: Any): AdbResponse {
         if (!useSuperuser()) return executeShell(device, *command)
 
         return try {
-            val suCommand = """su -c "${escapeCommand(*command)}""""
-            val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, suCommand)
+            val suCommand = """"${command.joinToString(" ") { it.toString().escapeSpecialChars() }}""""
+            val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, "su", "-c", suCommand)
+
             if (shouldFallbackToNormalShell(suResponse)) {
                 logService.log(
                     LogLevel.Warning,
@@ -77,12 +79,8 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
         }
     }
 
-    private suspend fun executeShell(device: AndroidDevice, vararg command: String) =
+    private suspend fun executeShell(device: AndroidDevice, vararg command: Any) =
         adbClient.executeCommand(device, SHELL_PREFIX, *command)
-
-    private fun escapeCommand(vararg values: String) = values.joinToString(" ") {
-        it.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`")
-    }
 
     private fun shouldFallbackToNormalShell(response: AdbResponse): Boolean {
         if (response.isOk) return false

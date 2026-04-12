@@ -184,9 +184,9 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
         }
     }
 
-    override suspend fun executeCommand(device: AndroidDevice, vararg command: String): AdbResponse {
-        logService.log(LogLevel.Trace, CATEGORY, "$device $ ${command.joinToString(" ")}")
-        val response = runAdb("-s", device.serial, *command)
+    override suspend fun executeCommand(device: AndroidDevice, vararg command: Any): AdbResponse {
+        logService.log(LogLevel.Trace, CATEGORY, "$device ${command.joinToString(" ")}")
+        val response = runAdb("-s", device.serial, *command.map { it.toString() }.toTypedArray())
 
         return response
     }

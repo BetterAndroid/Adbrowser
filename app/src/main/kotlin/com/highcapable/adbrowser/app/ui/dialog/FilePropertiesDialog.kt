@@ -48,7 +48,7 @@ import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionS
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.common.permission.FilePermission
+import com.highcapable.adbrowser.core.common.fs.FilePermission
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CheckboxRow

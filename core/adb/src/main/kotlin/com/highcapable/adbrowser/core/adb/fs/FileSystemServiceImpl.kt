@@ -27,6 +27,7 @@ import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
 import com.highcapable.adbrowser.core.common.di.AdbScope
+import com.highcapable.adbrowser.core.common.utils.extension.escapeQuotes
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
 import me.tatarka.inject.annotations.Inject
@@ -76,8 +77,8 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
 
     override suspend fun list(device: AndroidDevice, path: String) = runner.exec<List<DeviceFileEntry>> {
         logService.log(LogLevel.Trace, CATEGORY, "List path '$path' for '$device'.")
-        val listPath = normalizeDirectoryListPath(path)
-        val response = shellCommandExecutor.execute(device, "ls -la '${escapeCommand(listPath)}'")
+        val listPath = normalizeDirectoryListPath(path).escapeQuotes()
+        val response = shellCommandExecutor.execute(device, "ls", "-la", "'$listPath'")
 
         if (response.isOk) {
             val entries = parseLsOutput(path, response.standardOutput).toMutableList()
@@ -97,16 +98,16 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     }
 
     override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String) = runner.exec {
-        val parent = escapeCommand(parentPath.trimEnd('/'))
-        val name = escapeCommand(folderName)
-        val response = shellCommandExecutor.execute(device, "mkdir -p '$parent/$name'")
+        val parent = parentPath.trimEnd('/').escapeQuotes()
+        val name = folderName.escapeQuotes()
+        val response = shellCommandExecutor.execute(device, "mkdir", "-p", "'$parent/$name'")
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$folderName' under '$parentPath'.")
         null to response
     }
 
     override suspend fun delete(device: AndroidDevice, path: String) = runner.exec {
-        val response = shellCommandExecutor.execute(device, "rm -rf '${escapeCommand(path)}'")
+        val response = shellCommandExecutor.execute(device, "rm", "-rf", "'${path.escapeQuotes()}'")
 
         if (response.isOk) logService.log(LogLevel.Warning, CATEGORY, "Deleted path '$path'.")
         null to response
@@ -116,7 +117,9 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
         val targetPath = buildTargetPath(path, newName)
         val response = shellCommandExecutor.execute(
             device,
-            "mv '${escapeCommand(path)}' '${escapeCommand(targetPath)}'"
+            "mv",
+            "'${path.escapeQuotes()}'",
+            "'${targetPath.escapeQuotes()}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$path' to '$targetPath'.")
@@ -126,7 +129,10 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
         val response = shellCommandExecutor.execute(
             device,
-            "cp -a '${escapeCommand(sourcePath)}' '${escapeCommand(targetPath)}'"
+            "cp",
+            "-a",
+            "'${sourcePath.escapeQuotes()}'",
+            "'${targetPath.escapeQuotes()}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Copied '$sourcePath' to '$targetPath'.")
@@ -136,14 +142,14 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
         val response = shellCommandExecutor.execute(
             device,
-            "mv '${escapeCommand(sourcePath)}' '${escapeCommand(targetPath)}'"
+            "mv",
+            "'${sourcePath.escapeQuotes()}'",
+            "'${targetPath.escapeQuotes()}'"
         )
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Moved '$sourcePath' to '$targetPath'.")
         null to response
     }
-
-    private fun escapeCommand(value: String): String = value.replace("'", "'\\''")
 
     private fun normalizeDirectoryListPath(path: String): String {
         if (path.isBlank() || path == "/") return "/"
@@ -262,7 +268,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
         for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
             val entry = entries[entryIndex]
             val fullPath = if (entry.path == "/") "/${entry.name}" else "${entry.path.trimEnd('/')}/${entry.name}"
-            val escaped = escapeCommand(fullPath)
+            val escaped = fullPath.escapeQuotes()
             segments += "if [ -d '$escaped' ]; then echo '$localIndex:1'; else echo '$localIndex:0'; fi"
         }
 

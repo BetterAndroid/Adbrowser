@@ -29,7 +29,7 @@ import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.common.permission.FilePermission
+import com.highcapable.adbrowser.core.common.fs.FilePermission
 
 class FilePropertiesDialogModel(
     private val snapshot: FileEntrySnapshot,

@@ -24,7 +24,7 @@ package com.highcapable.adbrowser.core.adb.permission
 
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.common.permission.FilePermission
+import com.highcapable.adbrowser.core.common.fs.FilePermission
 
 /**
  * Handles permission query and update operations for files.

@@ -37,7 +37,7 @@ import com.highcapable.adbrowser.app.ui.vm.model.SelectionOption
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
-import com.highcapable.adbrowser.core.common.permission.FilePermission
+import com.highcapable.adbrowser.core.common.fs.FilePermission
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

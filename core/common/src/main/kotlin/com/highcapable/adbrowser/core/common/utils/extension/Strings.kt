@@ -18,25 +18,19 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/2.
+ * This file is created by fankes on 2026/4/12.
  */
-package com.highcapable.adbrowser.core.adb.shell
-
-import com.highcapable.adbrowser.core.adb.model.AdbResponse
-import com.highcapable.adbrowser.core.adb.model.AndroidDevice
+package com.highcapable.adbrowser.core.common.utils.extension
 
 /**
- * Defines command execution behavior for device shell file operations.
+ * Escape single quotes in a string.
  */
-interface AdbShellExecutor {
+fun String.escapeQuotes() = replace("'", "'\\''")
 
-    /**
-     * Returns true if superuser fallback is enabled in settings, false otherwise.
-     */
-    var useSuperuser: () -> Boolean
-
-    /**
-     * Executes shell command for operations with the configured privilege strategy.
-     */
-    suspend fun execute(device: AndroidDevice, vararg command: Any): AdbResponse
-}
+/**
+ * Escape special characters in a string.
+ */
+fun String.escapeSpecialChars() = replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+    .replace("$", "\\$")
+    .replace("`", "\\`")
