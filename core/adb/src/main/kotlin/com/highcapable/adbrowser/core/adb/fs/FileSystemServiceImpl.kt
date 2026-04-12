@@ -22,11 +22,11 @@
  */
 package com.highcapable.adbrowser.core.adb.fs
 
+import com.highcapable.adbrowser.core.adb.di.AdbScope
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
-import com.highcapable.adbrowser.core.common.di.AdbScope
 import com.highcapable.adbrowser.core.common.utils.extension.escapeQuotes
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService

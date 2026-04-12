@@ -23,7 +23,6 @@
 package com.highcapable.adbrowser.core.domain.di
 
 import com.highcapable.adbrowser.core.adb.di.AdbComponent
-import com.highcapable.adbrowser.core.common.di.DomainScope
 import com.highcapable.adbrowser.core.domain.setting.AppSettingsService
 import com.highcapable.adbrowser.core.domain.setting.AppSettingsServiceImpl
 import com.highcapable.adbrowser.core.logging.di.LoggingComponent

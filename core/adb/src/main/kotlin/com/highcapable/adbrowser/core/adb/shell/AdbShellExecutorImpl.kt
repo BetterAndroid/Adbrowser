@@ -23,9 +23,9 @@
 package com.highcapable.adbrowser.core.adb.shell
 
 import com.highcapable.adbrowser.core.adb.AdbClient
+import com.highcapable.adbrowser.core.adb.di.AdbScope
 import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
-import com.highcapable.adbrowser.core.common.di.AdbScope
 import com.highcapable.adbrowser.core.common.utils.extension.escapeSpecialChars
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService

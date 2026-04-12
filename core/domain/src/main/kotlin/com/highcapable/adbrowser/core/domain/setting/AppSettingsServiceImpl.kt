@@ -22,7 +22,7 @@
  */
 package com.highcapable.adbrowser.core.domain.setting
 
-import com.highcapable.adbrowser.core.common.di.DomainScope
+import com.highcapable.adbrowser.core.domain.di.DomainScope
 import com.highcapable.adbrowser.core.domain.generated.AdbrowserProperties
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService

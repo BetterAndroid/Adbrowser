@@ -22,7 +22,6 @@
  */
 package com.highcapable.adbrowser.core.logging.di
 
-import com.highcapable.adbrowser.core.common.di.LoggingScope
 import com.highcapable.adbrowser.core.logging.LogService
 import com.highcapable.adbrowser.core.logging.LogServiceImpl
 import me.tatarka.inject.annotations.Component

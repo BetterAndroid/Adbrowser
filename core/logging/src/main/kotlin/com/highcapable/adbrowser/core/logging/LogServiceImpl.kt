@@ -22,7 +22,7 @@
  */
 package com.highcapable.adbrowser.core.logging
 
-import com.highcapable.adbrowser.core.common.di.LoggingScope
+import com.highcapable.adbrowser.core.logging.di.LoggingScope
 import me.tatarka.inject.annotations.Inject
 import java.time.Instant
 import java.util.Collections

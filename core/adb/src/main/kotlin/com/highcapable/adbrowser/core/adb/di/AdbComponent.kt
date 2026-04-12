@@ -30,7 +30,6 @@ import com.highcapable.adbrowser.core.adb.permission.PermissionService
 import com.highcapable.adbrowser.core.adb.permission.PermissionServiceImpl
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutorImpl
-import com.highcapable.adbrowser.core.common.di.AdbScope
 import com.highcapable.adbrowser.core.logging.di.LoggingComponent
 import me.tatarka.inject.annotations.Component
 import me.tatarka.inject.annotations.Provides
