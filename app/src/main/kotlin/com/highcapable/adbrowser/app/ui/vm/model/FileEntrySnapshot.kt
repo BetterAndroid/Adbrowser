@@ -41,5 +41,5 @@ data class FileEntrySnapshot(
      * Dialog snapshots are immutable and short-lived, so lazy formatting keeps the display string
      * cheap while still ensuring repeated recompositions reuse the same computed value.
      */
-    val friendlySizeText by lazy { sizeBytes.toFriendlyFileSize() }
+    val friendlySizeText by lazy { if (isDirectory) "-" else sizeBytes.toFriendlyFileSize() }
 }

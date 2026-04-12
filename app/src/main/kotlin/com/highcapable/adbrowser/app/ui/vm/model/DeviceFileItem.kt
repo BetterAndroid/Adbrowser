@@ -42,7 +42,7 @@ data class DeviceFileItem(
      * File entries are replaced wholesale on refresh, so a per-instance lazy cache avoids repeated
      * formatting work without risking stale values after backend updates.
      */
-    val friendlySizeText by lazy { sizeBytes.toFriendlyFileSize() }
+    val friendlySizeText by lazy { if (isDirectory) "-" else sizeBytes.toFriendlyFileSize() }
 
     /**
      * File entries are replaced wholesale on refresh, so a per-instance lazy cache avoids repeated
