@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -103,8 +104,16 @@ fun FilePropertiesDialog(
         ownerWindow = ownerWindow,
         width = 620.dp
     ) {
-        PropertyRow(strings.dialogPropertiesFieldName, snapshot.name)
-        PropertyRow(strings.dialogPropertiesFieldPath, snapshot.fullPath, valueWrap = true)
+        PropertyRow(
+            strings.dialogPropertiesFieldName,
+            snapshot.name,
+            selectableValue = true
+        )
+        PropertyRow(
+            strings.dialogPropertiesFieldPath,
+            snapshot.fullPath,
+            selectableValue = true
+        )
         PropertyRow(
             strings.dialogPropertiesFieldType,
             when {
@@ -186,20 +195,34 @@ fun FilePropertiesDialog(
 }
 
 @Composable
-private fun PropertyRow(label: String, value: String, valueWrap: Boolean = false) {
+private fun PropertyRow(
+    label: String,
+    value: String,
+    selectableValue: Boolean = false
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
             modifier = Modifier.width(140.dp),
             fontWeight = FontWeight.SemiBold
         )
-        Text(
+        if (selectableValue) {
+            val state = remember(value) { TextFieldState(value) }
+            TextField(
+                state = state,
+                readOnly = true,
+                undecorated = true,
+                modifier = Modifier.weight(1f)
+            )
+        } else Text(
             text = value,
-            modifier = Modifier.fillMaxWidth(),
-            maxLines = if (valueWrap) Int.MAX_VALUE else 1
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
