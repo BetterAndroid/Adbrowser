@@ -35,8 +35,8 @@ import me.tatarka.inject.annotations.Provides
 @DomainScope
 @Component
 abstract class DomainComponent(
-    @Component val loggingComponent: LoggingComponent,
-    @Component val adbComponent: AdbComponent
+    @Component val logging: LoggingComponent,
+    @Component val adb: AdbComponent
 ) {
 
     abstract fun provideAppSettingsService(): AppSettingsService
