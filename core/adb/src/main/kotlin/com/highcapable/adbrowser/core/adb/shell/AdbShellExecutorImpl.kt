@@ -54,11 +54,11 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
 
     override var useSuperuser: () -> Boolean = { false }
 
-    override suspend fun execute(device: AndroidDevice, vararg command: Any): AdbResponse {
-        if (!useSuperuser()) return executeShell(device, *command)
+    override suspend fun execute(device: AndroidDevice, vararg arguments: Any): AdbResponse {
+        if (!useSuperuser()) return executeShell(device, *arguments)
 
         return try {
-            val suCommand = """"${command.joinToString(" ") { it.toString().escapeSpecialChars() }}""""
+            val suCommand = """"${arguments.joinToString(" ") { it.toString().escapeSpecialChars() }}""""
             val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, "su", "-c", suCommand)
 
             if (shouldFallbackToNormalShell(suResponse)) {
@@ -67,7 +67,7 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
                     CATEGORY,
                     "su is unavailable on ${device.serial}. Fallback to normal shell."
                 )
-                executeShell(device, *command)
+                executeShell(device, *arguments)
             } else suResponse
         } catch (t: Throwable) {
             logService.log(
@@ -75,12 +75,12 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
                 CATEGORY,
                 "su execution failed: ${t.message ?: t::class.simpleName}. Fallback to normal shell."
             )
-            executeShell(device, *command)
+            executeShell(device, *arguments)
         }
     }
 
-    private suspend fun executeShell(device: AndroidDevice, vararg command: Any) =
-        adbClient.executeCommand(device, SHELL_PREFIX, *command)
+    private suspend fun executeShell(device: AndroidDevice, vararg arguments: Any) =
+        adbClient.executeCommand(device, SHELL_PREFIX, *arguments)
 
     private fun shouldFallbackToNormalShell(response: AdbResponse): Boolean {
         if (response.isOk) return false

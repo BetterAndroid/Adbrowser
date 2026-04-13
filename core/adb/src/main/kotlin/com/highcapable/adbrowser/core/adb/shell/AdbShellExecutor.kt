@@ -38,5 +38,5 @@ interface AdbShellExecutor {
     /**
      * Executes shell command for operations with the configured privilege strategy.
      */
-    suspend fun execute(device: AndroidDevice, vararg command: Any): AdbResponse
+    suspend fun execute(device: AndroidDevice, vararg arguments: Any): AdbResponse
 }

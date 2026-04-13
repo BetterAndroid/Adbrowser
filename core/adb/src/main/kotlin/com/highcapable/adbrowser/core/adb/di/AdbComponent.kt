@@ -37,8 +37,8 @@ import me.tatarka.inject.annotations.Provides
 /**
  * Component for providing adb-level services.
  */
-@Component
 @AdbScope
+@Component
 abstract class AdbComponent(
     @Component val loggingComponent: LoggingComponent
 ) {
