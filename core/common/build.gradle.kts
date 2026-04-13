@@ -40,7 +40,5 @@ tasks.named("generateGitProperties").get().apply {
 }
 
 dependencies {
-    implementation(libs.kotlin.inject.runtime)
-
     testImplementation(libs.kotlin.test.junit)
 }
