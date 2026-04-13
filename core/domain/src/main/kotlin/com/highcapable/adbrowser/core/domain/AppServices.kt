@@ -22,6 +22,7 @@
  */
 package com.highcapable.adbrowser.core.domain
 
+import com.highcapable.adbrowser.core.adb.AdbEnvironment
 import com.highcapable.adbrowser.core.adb.di.AdbComponent
 import com.highcapable.adbrowser.core.adb.di.create
 import com.highcapable.adbrowser.core.domain.di.DomainComponent
@@ -37,8 +38,13 @@ import com.highcapable.adbrowser.core.logging.di.create
 */
 class AppServices {
 
+    private val adbEnvironment: AdbEnvironment = AdbEnvironment(
+        adbExecPath = { settingsService.current.adbExecPath },
+        useSuperuser = { settingsService.current.useSuperuser }
+    )
+
     private val logging = LoggingComponent::class.create()
-    private val adb = AdbComponent::class.create(logging)
+    private val adb = AdbComponent::class.create(logging, adbEnvironment)
     private val domain = DomainComponent::class.create(logging, adb)
 
     val logService by lazy { logging.provideLogService() }
@@ -57,9 +63,6 @@ class AppServices {
      * Initializes core service graph.
      */
     suspend fun initialize() {
-        adbClient.execPath = { settingsService.current.adbExecPath }
-        shellExecutor.useSuperuser = { settingsService.current.useSuperuser }
-
         settingsService.load()
     }
 }

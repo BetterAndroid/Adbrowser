@@ -24,6 +24,7 @@ package com.highcapable.adbrowser.core.adb.di
 
 import com.highcapable.adbrowser.core.adb.AdbClient
 import com.highcapable.adbrowser.core.adb.AdbClientImpl
+import com.highcapable.adbrowser.core.adb.AdbEnvironment
 import com.highcapable.adbrowser.core.adb.fs.FileSystemService
 import com.highcapable.adbrowser.core.adb.fs.FileSystemServiceImpl
 import com.highcapable.adbrowser.core.adb.permission.PermissionService
@@ -38,9 +39,9 @@ import me.tatarka.inject.annotations.Provides
  * Component for providing adb-level services.
  */
 @AdbScope
-@Component
-abstract class AdbComponent(
-    @Component val loggingComponent: LoggingComponent
+@Component abstract class AdbComponent(
+    @Component val logging: LoggingComponent,
+    @get:Provides val environment: AdbEnvironment
 ) {
 
     abstract fun provideAdbClient(): AdbClient

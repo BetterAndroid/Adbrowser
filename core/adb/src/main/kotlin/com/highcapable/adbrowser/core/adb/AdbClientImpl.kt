@@ -20,6 +20,8 @@
  *
  * This file is created by fankes on 2026/4/2.
  */
+@file:Suppress("LocalVariableName")
+
 package com.highcapable.adbrowser.core.adb
 
 import com.highcapable.adbrowser.core.adb.di.AdbScope
@@ -51,7 +53,7 @@ import java.util.concurrent.TimeUnit
  */
 @AdbScope
 @Inject
-class AdbClientImpl(private val logService: LogService) : AdbClient {
+class AdbClientImpl(private val environment: AdbEnvironment, private val logService: LogService) : AdbClient {
 
     private companion object {
 
@@ -87,12 +89,11 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
 
     private val runner = OperationRunner(logService, CATEGORY)
 
-    override var execPath: () -> String = { "" }
+    override suspend fun validateExecPath(pathValue: String?) = runner.exec {
+        val _pathValue = pathValue ?: environment.adbExecPath()
+        if (_pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
 
-    override suspend fun validateExecPath(pathValue: String) = runner.exec {
-        if (pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
-
-        val adbExecPath = Path.of(pathValue)
+        val adbExecPath = Path.of(_pathValue)
         if (!Files.exists(adbExecPath))
             return OperationResult.error("ADB executable was not found.")
         if (!OsType.isWindows && !Files.isExecutable(adbExecPath))
@@ -100,7 +101,7 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
 
         val response = runAdb(
             arguments = arrayOf("version"),
-            pathValue = pathValue,
+            pathValue = _pathValue,
             timeoutMs = ADB_VALIDATE_TIMEOUT_MS
         )
         when {
@@ -110,7 +111,7 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
                 standardError = "ADB executable is invalid."
             )
             else -> {
-                logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $pathValue")
+                logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
                 null to response
             }
         }
@@ -201,14 +202,15 @@ class AdbClientImpl(private val logService: LogService) : AdbClient {
      */
     private suspend fun runAdb(
         vararg arguments: String,
-        pathValue: String = execPath(),
+        pathValue: String? = null,
         timeoutMs: Long? = null
     ) = withContext(Dispatchers.IO) {
-        require(pathValue.isNotEmpty()) {
+        val _pathValue = pathValue ?: environment.adbExecPath()
+        require(_pathValue.isNotEmpty()) {
             "ADB path is not configured."
         }
 
-        val process = ProcessBuilder(mutableListOf(pathValue).apply { addAll(arguments) })
+        val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(arguments) })
             .redirectErrorStream(false)
             .start()
         closeProcessInput(process)

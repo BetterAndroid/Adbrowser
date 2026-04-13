@@ -23,6 +23,7 @@
 package com.highcapable.adbrowser.core.adb.shell
 
 import com.highcapable.adbrowser.core.adb.AdbClient
+import com.highcapable.adbrowser.core.adb.AdbEnvironment
 import com.highcapable.adbrowser.core.adb.di.AdbScope
 import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
@@ -36,7 +37,11 @@ import me.tatarka.inject.annotations.Inject
  */
 @AdbScope
 @Inject
-class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logService: LogService) : AdbShellExecutor {
+class AdbShellExecutorImpl(
+    private val environment: AdbEnvironment,
+    private val adbClient: AdbClient,
+    private val logService: LogService
+) : AdbShellExecutor {
 
     private companion object {
 
@@ -52,10 +57,8 @@ class AdbShellExecutorImpl(private val adbClient: AdbClient, private val logServ
         )
     }
 
-    override var useSuperuser: () -> Boolean = { false }
-
     override suspend fun execute(device: AndroidDevice, vararg arguments: Any): AdbResponse {
-        if (!useSuperuser()) return executeShell(device, *arguments)
+        if (!environment.useSuperuser()) return executeShell(device, *arguments)
 
         return try {
             val suCommand = """"${arguments.joinToString(" ") { it.toString().escapeSpecialChars() }}""""

@@ -33,15 +33,10 @@ import kotlinx.coroutines.flow.Flow
 interface AdbClient {
 
     /**
-     * Provides the current adb executable path.
-     */
-    var execPath: () -> String
-
-    /**
      * Verifies whether the configured adb executable path is valid and executable.
-     * @param pathValue the adb executable path to validate, or blank to validate the currently configured path.
+     * @param pathValue the adb executable path to validate, or null to validate the currently configured path.
      */
-    suspend fun validateExecPath(pathValue: String = execPath()): OperationResult<Unit>
+    suspend fun validateExecPath(pathValue: String? = null): OperationResult<Unit>
 
     /**
      * Lists connected devices and their online states.

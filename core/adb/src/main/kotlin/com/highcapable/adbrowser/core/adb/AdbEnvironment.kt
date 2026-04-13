@@ -18,20 +18,14 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/2.
+ * This file is created by fankes on 2026/4/13.
  */
-package com.highcapable.adbrowser.core.adb.shell
-
-import com.highcapable.adbrowser.core.adb.model.AdbResponse
-import com.highcapable.adbrowser.core.adb.model.AndroidDevice
+package com.highcapable.adbrowser.core.adb
 
 /**
- * Defines command execution behavior for device shell file operations.
+ * Environment configuration for adb operations.
  */
-interface AdbShellExecutor {
-
-    /**
-     * Executes shell command for operations with the configured privilege strategy.
-     */
-    suspend fun execute(device: AndroidDevice, vararg arguments: Any): AdbResponse
-}
+data class AdbEnvironment(
+    val adbExecPath: () -> String,
+    val useSuperuser: () -> Boolean
+)
