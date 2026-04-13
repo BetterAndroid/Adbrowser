@@ -21,7 +21,6 @@
  * This file is created by fankes on 2025/6/4.
  */
 @file:Suppress("AssignedValueIsNeverRead")
-@file:OptIn(kotlinx.coroutines.FlowPreview::class)
 
 package com.highcapable.adbrowser.app.ui.window
 
