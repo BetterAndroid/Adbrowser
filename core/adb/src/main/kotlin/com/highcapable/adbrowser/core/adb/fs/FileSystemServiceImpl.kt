@@ -44,7 +44,7 @@ import java.util.Locale
  */
 @AdbScope
 @Inject
-class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, private val logService: LogService) : FileSystemService {
+class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private val logService: LogService) : FileSystemService {
 
     private companion object {
 
@@ -78,7 +78,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     override suspend fun list(device: AndroidDevice, path: String) = runner.exec<List<DeviceFileEntry>> {
         logService.log(LogLevel.Trace, CATEGORY, "List path '$path' for '$device'.")
         val listPath = normalizeDirectoryListPath(path).escapeQuotes()
-        val response = shellCommandExecutor.execute(device, "ls", "-la", "'$listPath'")
+        val response = shellExecutor.execute(device, "ls", "-la", "'$listPath'")
 
         if (response.isOk) {
             val entries = parseLsOutput(path, response.standardOutput).toMutableList()
@@ -100,14 +100,14 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String) = runner.exec {
         val parent = parentPath.trimEnd('/').escapeQuotes()
         val name = folderName.escapeQuotes()
-        val response = shellCommandExecutor.execute(device, "mkdir", "-p", "'$parent/$name'")
+        val response = shellExecutor.execute(device, "mkdir", "-p", "'$parent/$name'")
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$folderName' under '$parentPath'.")
         null to response
     }
 
     override suspend fun delete(device: AndroidDevice, path: String) = runner.exec {
-        val response = shellCommandExecutor.execute(device, "rm", "-rf", "'${path.escapeQuotes()}'")
+        val response = shellExecutor.execute(device, "rm", "-rf", "'${path.escapeQuotes()}'")
 
         if (response.isOk) logService.log(LogLevel.Warning, CATEGORY, "Deleted path '$path'.")
         null to response
@@ -115,7 +115,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
 
     override suspend fun rename(device: AndroidDevice, path: String, newName: String) = runner.exec {
         val targetPath = buildTargetPath(path, newName)
-        val response = shellCommandExecutor.execute(
+        val response = shellExecutor.execute(
             device,
             "mv",
             "'${path.escapeQuotes()}'",
@@ -127,7 +127,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     }
 
     override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
-        val response = shellCommandExecutor.execute(
+        val response = shellExecutor.execute(
             device,
             "cp",
             "-a",
@@ -140,7 +140,7 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
     }
 
     override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
-        val response = shellCommandExecutor.execute(
+        val response = shellExecutor.execute(
             device,
             "mv",
             "'${sourcePath.escapeQuotes()}'",
@@ -252,8 +252,8 @@ class FileSystemServiceImpl(private val shellCommandExecutor: AdbShellExecutor, 
 
         val chunkSize = 32
         symlinkIndexes.chunked(chunkSize).forEach { batch ->
-            val command = buildSymlinkDirectoryCheckCommand(entries, batch)
-            val response = runCatching { shellCommandExecutor.execute(device, command) }.getOrNull()
+            val arguments = buildSymlinkDirectoryCheckCommand(entries, batch)
+            val response = runCatching { shellExecutor.execute(device, arguments) }.getOrNull()
             if (response == null || !response.isOk) {
                 logService.log(LogLevel.Warning, CATEGORY, "Symlink directory check skipped for batch due to command error.")
                 return@forEach
