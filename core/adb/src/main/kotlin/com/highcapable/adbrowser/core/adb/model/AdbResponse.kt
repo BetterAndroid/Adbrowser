@@ -40,5 +40,5 @@ data class AdbResponse(
     /**
      * Provides a user-friendly message based on the standard error if available, otherwise falls back to standard output.
      */
-    val message = standardError.takeIf { it.isNotBlank() } ?: standardOutput
+    val message = (standardError.takeIf { it.isNotBlank() } ?: standardOutput).trim()
 }
