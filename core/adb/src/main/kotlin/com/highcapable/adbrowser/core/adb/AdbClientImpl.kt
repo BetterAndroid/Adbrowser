@@ -187,7 +187,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
 
     override suspend fun executeCommand(device: AndroidDevice, vararg arguments: Any): AdbResponse {
         logService.log(LogLevel.Trace, CATEGORY, "$device ${arguments.joinToString(" ")}")
-        val response = runAdb("-s", device.serial, *arguments.map { it.toString() }.toTypedArray())
+        val response = runAdb("-s", device.serial, *arguments)
 
         return response
     }
@@ -201,7 +201,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
      * Runs adb process with explicit argument list and captures stdout/stderr.
      */
     private suspend fun runAdb(
-        vararg arguments: String,
+        vararg arguments: Any,
         pathValue: String? = null,
         timeoutMs: Long? = null
     ) = withContext(Dispatchers.IO) {
@@ -210,7 +210,8 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             "ADB path is not configured."
         }
 
-        val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(arguments) })
+        val _arguments = arguments.map { it.toString() }
+        val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(_arguments) })
             .redirectErrorStream(false)
             .start()
         closeProcessInput(process)

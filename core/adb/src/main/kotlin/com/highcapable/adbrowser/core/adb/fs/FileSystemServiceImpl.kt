@@ -187,17 +187,19 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
             if (name.isBlank() || name == "." || name == ".." || name.endsWith(" ->")) return@forEach
             if (name.contains(" -> ")) name = name.substringBefore(" -> ")
 
+            val isDirectory = permission.first() == 'd'
             val isSymlink = permission.first() == 'l'
             val modifiedAt = parseModifiedAt(tokens, nameStartIndex)
+            val permissionText = permission.substring(1)
 
             result += DeviceFileEntry(
                 path = parentPath,
                 name = name,
-                isDirectory = permission.first() == 'd',
+                isDirectory = isDirectory,
                 isSymlink = isSymlink,
                 size = size,
                 modifiedAt = modifiedAt,
-                permission = permission.substring(1)
+                permission = permissionText
             )
         }
 
@@ -210,12 +212,12 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         val combined = tokens.subList(5, nameStartIndex).joinToString(" ")
         val zoneId = ZoneId.systemDefault()
 
-        for (formatter in dateTimePatterns) {
+        dateTimePatterns.forEach { formatter ->
             val parsed = runCatching { LocalDateTime.parse(combined, formatter) }.getOrNull()
             if (parsed != null) return parsed.atZone(zoneId).toInstant()
         }
 
-        for (formatter in monthTimePatterns) {
+        monthTimePatterns.forEach { formatter ->
             val parsed = runCatching {
                 LocalDateTime.parse(
                     "$combined ${LocalDate.now().year}",
@@ -225,7 +227,7 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
             if (parsed != null) return parsed.atZone(zoneId).toInstant()
         }
 
-        for (formatter in monthYearPatterns) {
+        monthYearPatterns.forEach { formatter ->
             val parsed = runCatching { LocalDate.parse(combined, formatter) }.getOrNull()
             if (parsed != null) return LocalDateTime.of(parsed, LocalTime.MIDNIGHT).atZone(zoneId).toInstant()
         }
@@ -265,7 +267,7 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
 
     private fun buildSymlinkDirectoryCheckCommand(entries: List<DeviceFileEntry>, batchIndexes: List<Int>): String {
         val segments = mutableListOf<String>()
-        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
+        batchIndexes.forEachIndexed { localIndex, entryIndex ->
             val entry = entries[entryIndex]
             val fullPath = if (entry.path == "/") "/${entry.name}" else "${entry.path.trimEnd('/')}/${entry.name}"
             val escaped = fullPath.escapeQuotes()
@@ -277,14 +279,14 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
 
     private fun applySymlinkDirectoryCheckResult(entries: MutableList<DeviceFileEntry>, batchIndexes: List<Int>, output: String) {
         val resultMap = mutableMapOf<Int, Boolean>()
-        for (line in output.lineSequence().map { it.trim() }.filter { it.isNotBlank() }) {
+        output.lineSequence().map { it.trim() }.filter { it.isNotBlank() }.forEach { line ->
             val separator = line.indexOf(':')
-            if (separator <= 0 || separator >= line.lastIndex) continue
-            val localIndex = line.take(separator).toIntOrNull() ?: continue
+            if (separator <= 0 || separator >= line.lastIndex) return@forEach
+            val localIndex = line.take(separator).toIntOrNull() ?: return@forEach
             resultMap[localIndex] = line.substring(separator + 1) == "1"
         }
 
-        for ((localIndex, entryIndex) in batchIndexes.withIndex()) {
+        batchIndexes.forEachIndexed { localIndex, entryIndex ->
             val isDirectory = resultMap[localIndex] == true
             entries[entryIndex] = entries[entryIndex].copy(isDirectory = isDirectory)
         }
