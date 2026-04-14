@@ -22,6 +22,7 @@
  */
 package com.highcapable.adbrowser.app.ui.dialog.base
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -77,8 +78,11 @@ fun DialogScaffold(
         }
 
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
+            val colors = AdbrowserTheme.colors
+
             Column(
                 modifier = Modifier
+                    .background(colors.mainBackground)
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .padding(20.dp),
