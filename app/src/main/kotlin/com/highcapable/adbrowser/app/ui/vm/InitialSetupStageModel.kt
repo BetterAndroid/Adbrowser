@@ -30,9 +30,7 @@ import com.highcapable.adbrowser.app.cl.AppState
 import com.highcapable.adbrowser.app.ui.utils.SystemFileChooser
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.core.common.utils.OsType
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,7 +47,6 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
     }
 
     private val settingsService get() = appState.appServices.settingsService
-    private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * Validation and persistence outcomes shown in the footer of the initial setup window.

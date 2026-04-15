@@ -22,9 +22,24 @@
  */
 package com.highcapable.adbrowser.app.ui.vm.base
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+
 /**
  * Base class for all app view models.
  *
  * Architecture-only adapter layer that mirrors the Avalonia MVVM organization.
  */
-abstract class ViewModel
+abstract class ViewModel {
+
+    /**
+     * A [SupervisorJob] that can be used to manage the lifecycle of coroutines launched by this view model.
+     */
+    protected val modelJob = SupervisorJob()
+
+    /**
+     * A [CoroutineScope] that uses the [modelJob] and the Main dispatcher for launching coroutines in this view model.
+     */
+    protected val modelScope = CoroutineScope(modelJob + Dispatchers.Main.immediate)
+}

@@ -32,9 +32,7 @@ import com.highcapable.adbrowser.app.locale.normalizeStoredLanguageTag
 import com.highcapable.adbrowser.app.ui.utils.SystemFileChooser
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -57,7 +55,6 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     }
 
     private val settingsService get() = appState.appServices.settingsService
-    private val modelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /**
      * Top-level Preferences sections shown by the tab strip.

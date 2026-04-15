@@ -40,10 +40,7 @@ import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -177,8 +174,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private val permissionService get() = appState.appServices.permissionService
     private val settingsService get() = appState.appServices.settingsService
 
-    private val modelJob = SupervisorJob()
-    private val modelScope = CoroutineScope(modelJob + Dispatchers.Main.immediate)
     private var deviceObserverJob: Job? = null
 
     private var clipboardEntry: ClipboardEntrySnapshot? = null
