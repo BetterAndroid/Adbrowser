@@ -29,7 +29,6 @@ import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,7 +55,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,7 +66,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -81,18 +78,10 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.utf16CodePoint
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.isCtrlPressed
-import androidx.compose.ui.input.pointer.isMetaPressed
-import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
@@ -117,8 +106,8 @@ import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.app.ui.dialog.SimpleInputDialog
 import com.highcapable.adbrowser.app.ui.foundation.isIndexFullyVisible
 import com.highcapable.adbrowser.app.ui.foundation.revealIndexBySingleStep
-import com.highcapable.adbrowser.app.ui.geometry.intersects
-import com.highcapable.adbrowser.app.ui.geometry.normalizedRect
+import com.highcapable.adbrowser.app.ui.interaction.SelectionAreaState
+import com.highcapable.adbrowser.app.ui.interaction.blankAreaDragSelection
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
@@ -126,11 +115,7 @@ import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CopyMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CutMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.PasteMenuItemOptionAction
@@ -482,8 +467,8 @@ private fun FileListView(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .nestedScroll(interactionState.nestedScrollConnection)
-                .onGloballyPositioned { interactionState.contentCoordinates = it }
+                .nestedScroll(interactionState.selectionAreaState.nestedScrollConnection)
+                .onGloballyPositioned { interactionState.selectionAreaState.contentCoordinates = it }
                 .fileAreaBlankSelection(
                     interactionState = interactionState,
                     showSelectionRect = false,
@@ -494,7 +479,7 @@ private fun FileListView(
                     },
                     autoScrollBy = { delta ->
                         val consumed = listState.scrollBy(delta)
-                        interactionState.cumulativeScrollY += consumed
+                        interactionState.selectionAreaState.cumulativeScrollY += consumed
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
@@ -510,7 +495,7 @@ private fun FileListView(
             ) {
                 items(viewModel.entriesOf(device)) { entry ->
                     DisposableEffect(entry) {
-                        onDispose { interactionState.visibleEntryBounds.remove(entry) }
+                        onDispose { interactionState.selectionAreaState.visibleItemBounds.remove(entry) }
                     }
                     FileListRow(
                         horizontalScrollState = horizontalScrollState,
@@ -537,7 +522,7 @@ private fun FileListView(
                             // Visible entry bounds drive blank-area hit testing and marquee
                             // selection, so they must track the actual composed coordinates.
                             val bounds = coordinates.boundsInRoot()
-                            interactionState.visibleEntryBounds[entry] = kotlin.collections.listOf(bounds)
+                            interactionState.selectionAreaState.visibleItemBounds[entry] = listOf(bounds)
                         },
                         overlay = {
                             FileEntryContextMenuPopup(
@@ -675,8 +660,8 @@ private fun FileIconView(
                 .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
                     focusRequester.requestFocus()
                 }
-                .nestedScroll(interactionState.nestedScrollConnection)
-                .onGloballyPositioned { interactionState.contentCoordinates = it }
+                .nestedScroll(interactionState.selectionAreaState.nestedScrollConnection)
+                .onGloballyPositioned { interactionState.selectionAreaState.contentCoordinates = it }
                 .fileAreaBlankSelection(
                     interactionState = interactionState,
                     showSelectionRect = true,
@@ -687,7 +672,7 @@ private fun FileIconView(
                     },
                     autoScrollBy = { delta ->
                         val consumed = gridState.scrollBy(delta)
-                        interactionState.cumulativeScrollY += consumed
+                        interactionState.selectionAreaState.cumulativeScrollY += consumed
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
@@ -701,7 +686,7 @@ private fun FileIconView(
             ) {
                 items(entries) { entry ->
                     DisposableEffect(entry) {
-                        onDispose { interactionState.visibleEntryBounds.remove(entry) }
+                        onDispose { interactionState.selectionAreaState.visibleItemBounds.remove(entry) }
                     }
                     FileIconItem(
                         item = entry,
@@ -724,7 +709,7 @@ private fun FileIconView(
                         onHitBoundsChanged = { bounds ->
                             // Icon hit targets are split across icon/text regions, so one entry can
                             // contribute multiple rectangles to blank-area and drag-selection logic.
-                            interactionState.visibleEntryBounds[entry] = bounds
+                            interactionState.selectionAreaState.visibleItemBounds[entry] = bounds
                         },
                         overlay = {
                             FileEntryContextMenuPopup(
@@ -745,7 +730,7 @@ private fun FileIconView(
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
             )
-            interactionState.selectionRect?.let { rect ->
+            interactionState.selectionAreaState.selectionRect?.let { rect ->
                 val accentColor = AdbrowserTheme.colors.primaryAccent
 
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -1117,19 +1102,8 @@ private class FileAreaInteractionState {
     private var contextMenuRequestId by mutableStateOf(0L)
     private var consumeNextBlankPrimaryPress by mutableStateOf(false)
 
+    val selectionAreaState = SelectionAreaState<DeviceFileItem>()
     var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
-    var selectionRect by mutableStateOf<Rect?>(null)
-    val visibleEntryBounds = mutableStateMapOf<DeviceFileItem, List<Rect>>()
-    var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
-
-    var cumulativeScrollY = 0f
-
-    val nestedScrollConnection = object : NestedScrollConnection {
-        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-            cumulativeScrollY -= consumed.y
-            return Offset.Zero
-        }
-    }
 
     fun openBlankContextMenu(position: Offset) {
         consumeNextBlankPrimaryPress = false
@@ -1161,7 +1135,7 @@ private class FileAreaInteractionState {
     }
 
     fun dismissSelectionRect() {
-        selectionRect = null
+        selectionAreaState.dismissSelectionRect()
     }
 
     fun consumePendingBlankPrimaryPress(): Boolean {
@@ -1179,52 +1153,15 @@ private class FileAreaInteractionState {
             return
         }
 
-        val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-
-        if (visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } })
+        if (selectionAreaState.isBlankArea(position))
             onBlankAreaPressed()
-    }
-
-    fun isBlankArea(position: Offset): Boolean {
-        val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-        return visibleEntryBounds.values.none { regions -> regions.any { it.contains(rootPosition) } }
-    }
-
-    private fun viewportRectInRoot(): Rect? {
-        val coords = contentCoordinates ?: return null
-        return normalizedRect(
-            coords.localToRoot(Offset.Zero),
-            coords.localToRoot(Offset(coords.size.width.toFloat(), coords.size.height.toFloat()))
-        )
     }
 
     private fun buildEntryPath(entry: DeviceFileItem) =
         if (entry.path == "/") "/${entry.name}"
         else "${entry.path.trimEnd('/')}/${entry.name}"
 
-    fun entryPathsIntersecting(localRect: Rect): Set<String> {
-        val coords = contentCoordinates ?: return emptySet()
-        val rootRect = normalizedRect(
-            coords.localToRoot(localRect.topLeft),
-            coords.localToRoot(localRect.bottomRight)
-        )
-        val viewport = viewportRectInRoot() ?: return emptySet()
-
-        return visibleEntryBounds
-            .filterValues { regions ->
-                // Only consider regions that still intersect the visible viewport. This avoids
-                // letting stale off-screen bounds participate while the list is auto-scrolling.
-                regions.any { it.intersects(viewport) } && regions.any { it.intersects(rootRect) }
-            }
-            .keys.mapTo(linkedSetOf()) { buildEntryPath(it) }
-    }
-
-    fun viewportEntryPaths(): Set<String> {
-        val viewport = viewportRectInRoot() ?: return emptySet()
-        return visibleEntryBounds
-            .filterValues { regions -> regions.any { it.intersects(viewport) } }
-            .keys.mapTo(linkedSetOf()) { buildEntryPath(it) }
-    }
+    fun entryPathOf(entry: DeviceFileItem) = buildEntryPath(entry)
 }
 
 @Composable
@@ -1239,153 +1176,28 @@ private fun Modifier.fileAreaBlankSelection(
     onClearSelection: () -> Unit,
     onSelectionChanged: (candidatePaths: Set<String>, additive: Boolean, initialSelectionPaths: Set<String>) -> Unit,
     autoScrollBy: (suspend (Float) -> Unit)? = null
-) = pointerInput(interactionState, showSelectionRect) {
-    val inputScope = this
-
-    // Shared drag state between the gesture loop and the auto-scroll coroutine.
-    // This stays safe without extra synchronization because both coroutines run on the UI thread.
-    val drag = object {
-        var startX = 0f
-        var startY = 0f
-        var currentX = 0f
-        var currentY = 0f
-        var startScrollY = 0f
-        var dragging = false
-        var active = false
-        var additive = false
-        var initialSelectionPaths: Set<String> = emptySet()
-        var accumulatedPaths = linkedSetOf<String>()
-    }
-
-    fun performSelectionUpdate() {
-        val scrollDelta = interactionState.cumulativeScrollY - drag.startScrollY
-        val adjustedStart = Offset(drag.startX, drag.startY - scrollDelta)
-        val current = Offset(drag.currentX, drag.currentY)
-        val dragRect = normalizedRect(adjustedStart, current)
-        val currentIntersecting = interactionState.entryPathsIntersecting(dragRect)
-        val viewportPaths = interactionState.viewportEntryPaths()
-
-        interactionState.selectionRect = if (showSelectionRect) dragRect else null
-
-        // Rebuild the candidate set from the current viewport contribution to every update.
-        // This prevents entries from remaining selected forever after they scroll out of view
-        // during an active drag-selection gesture.
-        drag.accumulatedPaths = ((drag.accumulatedPaths - viewportPaths) + currentIntersecting).toCollection(linkedSetOf())
-
-        onSelectionChanged(drag.accumulatedPaths, drag.additive, drag.initialSelectionPaths)
-    }
-
-    coroutineScope {
-        // Auto-scroll and scroll-change observer coroutine.
-        launch {
-            var lastObservedScrollY = interactionState.cumulativeScrollY
-            while (isActive) {
-                delay(16)
-
-                if (!drag.active || !drag.dragging) {
-                    lastObservedScrollY = interactionState.cumulativeScrollY
-                    continue
-                }
-
-                // Auto-scroll when the pointer leaves the content area while a marquee drag is active.
-                if (autoScrollBy != null) {
-                    val y = drag.currentY
-                    val height = inputScope.size.height.toFloat()
-                    val maxScrollSpeed = 18f
-                    val maxOvershoot = 150f
-                    val scrollAmount = when {
-                        y < 0f -> -maxScrollSpeed * (minOf(-y, maxOvershoot) / maxOvershoot)
-                        y > height -> maxScrollSpeed * (minOf(y - height, maxOvershoot) / maxOvershoot)
-                        else -> 0f
-                    }
-
-                    if (scrollAmount != 0f) autoScrollBy(scrollAmount)
-                }
-
-                // Recompute selection when scroll changed, even if the pointer itself did not move.
-                // Without this, drag-selection would lag behind while auto-scroll is in progress.
-                val currentScrollY = interactionState.cumulativeScrollY
-                if (currentScrollY != lastObservedScrollY) {
-                    lastObservedScrollY = currentScrollY
-                    performSelectionUpdate()
-                }
-            }
-        }
-
-        // Main gesture processing loop.
-        inputScope.awaitEachGesture {
-            var downPosition: Offset? = null
-            drag.additive = false
-
-            while (downPosition == null) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                if (!event.buttons.isPrimaryPressed) continue
-
-                val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: continue
-                downPosition = change.position
-                drag.additive = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
-            }
-
-            val start = downPosition
-            if (!interactionState.isBlankArea(start)) {
-                interactionState.dismissSelectionRect()
-                return@awaitEachGesture
-            }
-
-            if (interactionState.consumePendingBlankPrimaryPress()) {
-                interactionState.dismissSelectionRect()
-                return@awaitEachGesture
-            }
-
-            if (interactionState.hasContextMenu()) {
+) = blankAreaDragSelection(
+    selectionState = interactionState.selectionAreaState,
+    showSelectionRect = showSelectionRect,
+    selectedKeysProvider = selectedPathsProvider,
+    onClearSelection = onClearSelection,
+    onSelectionChanged = onSelectionChanged,
+    keyOfItem = interactionState::entryPathOf,
+    prepareBlankGesture = {
+        when {
+            interactionState.consumePendingBlankPrimaryPress() -> false
+            interactionState.hasContextMenu() -> {
                 interactionState.dismissContextMenu()
-                interactionState.dismissSelectionRect()
-                return@awaitEachGesture
+                false
             }
-
-            interactionState.dismissContextMenu()
-            interactionState.dismissSelectionRect()
-
-            if (!drag.additive) onClearSelection()
-
-            drag.initialSelectionPaths = selectedPathsProvider()
-            drag.startX = start.x
-            drag.startY = start.y
-            drag.currentX = start.x
-            drag.currentY = start.y
-            drag.startScrollY = interactionState.cumulativeScrollY
-            drag.accumulatedPaths = linkedSetOf()
-            drag.dragging = false
-            drag.active = true
-
-            while (true) {
-                val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                val primaryChange = event.changes.firstOrNull() ?: continue
-                val current = primaryChange.position
-
-                if (primaryChange.pressed) {
-                    val scrollDelta = interactionState.cumulativeScrollY - drag.startScrollY
-                    val adjustedStart = Offset(start.x, start.y - scrollDelta)
-
-                    drag.currentX = current.x
-                    drag.currentY = current.y
-
-                    val dragRect = normalizedRect(adjustedStart, current)
-
-                    // Ignore tiny pointer jitter so a regular click on blank space does not
-                    // accidentally start a marquee selection rectangle.
-                    if (!drag.dragging && maxOf(dragRect.width, dragRect.height) >= 4f) drag.dragging = true
-                    if (drag.dragging) performSelectionUpdate()
-                    continue
-                }
-
-                drag.active = false
-                interactionState.dismissSelectionRect()
-                break
+            else -> {
+                interactionState.dismissContextMenu()
+                true
             }
         }
-    }
-}
+    },
+    autoScrollBy = autoScrollBy
+)
 
 private fun handleFileAreaShortcut(
     viewModel: MainStageModel,
