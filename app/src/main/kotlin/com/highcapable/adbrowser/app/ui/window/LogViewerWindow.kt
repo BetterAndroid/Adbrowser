@@ -23,32 +23,64 @@
 package com.highcapable.adbrowser.app.ui.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.input.WindowFocusListener
+import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.stage.LogViewerStage
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
+import java.awt.Dimension
 
 @Composable
 fun LogViewerWindow(onCloseRequest: () -> Unit) {
+    val appState = LocalAppState.current
+    val viewModel = remember { LogViewerStageModel(appState) }
+    val appHasActiveWindow = rememberAppHasActiveWindow()
+    var hasWindowFocus by remember { mutableStateOf(true) }
+
     Window(
         onCloseRequest = onCloseRequest,
         title = strings.menuAppLogs,
-        resizable = false,
-        state = rememberWindowState(width = 450.dp, height = 600.dp)
+        resizable = true,
+        alwaysOnTop = appHasActiveWindow,
+        state = rememberWindowState(width = 940.dp, height = 620.dp)
     ) {
-        val appState = LocalAppState.current
-        val viewModel = remember { LogViewerStageModel(appState) }
+        LaunchedEffect(Unit) {
+            window.minimumSize = MinWindowSize
+        }
+        DisposableEffect(window) {
+            hasWindowFocus = window.isFocused
+
+            val listener = WindowFocusListener(
+                windowGainedFocus = { hasWindowFocus = true },
+                windowLostFocus = { hasWindowFocus = false }
+            )
+            window.addWindowFocusListener(listener)
+
+            onDispose { window.removeWindowFocusListener(listener) }
+        }
+        DisposableEffect(viewModel) {
+            onDispose { viewModel.dispose() }
+        }
 
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             LogViewerStage(
                 viewModel = viewModel,
+                hasWindowFocus = hasWindowFocus,
                 onCloseRequest = onCloseRequest
             )
         }
     }
 }
+
+private val MinWindowSize = Dimension(700, 400)

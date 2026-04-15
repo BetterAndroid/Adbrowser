@@ -29,7 +29,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import java.awt.KeyboardFocusManager
+import java.awt.event.WindowEvent
+import java.awt.event.WindowFocusListener
 import java.beans.PropertyChangeListener
+
+/**
+ * Creates a [WindowFocusListener] backed by lambdas, mirroring the small adapter helpers used for
+ * component events in this package.
+ */
+fun WindowFocusListener(
+    windowGainedFocus: (WindowEvent?) -> Unit = {},
+    windowLostFocus: (WindowEvent?) -> Unit = {}
+) = object : WindowFocusListener {
+
+    override fun windowGainedFocus(event: WindowEvent?) {
+        windowGainedFocus(event)
+    }
+
+    override fun windowLostFocus(event: WindowEvent?) {
+        windowLostFocus(event)
+    }
+}
 
 /**
  * Returns whether any window belonging to this app is currently active.
