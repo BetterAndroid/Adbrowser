@@ -28,6 +28,7 @@ dependencies {
 
     ksp(libs.kotlin.inject.compiler.ksp)
     implementation(libs.kotlin.inject.runtime)
+    implementation(libs.kotlinx.coroutines.core)
 
     implementation(libs.slf4j.simple)
     implementation(libs.slf4j.api)

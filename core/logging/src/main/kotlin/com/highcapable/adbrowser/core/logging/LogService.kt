@@ -22,6 +22,8 @@
  */
 package com.highcapable.adbrowser.core.logging
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Provides a stable logging abstraction used by backend and MVVM state layers.
  */
@@ -39,4 +41,12 @@ interface LogService {
      * should keep it lightweight and thread-safe.
      */
     fun log(level: LogLevel, category: String, message: String)
+
+    /**
+     * Observes the current log snapshot and every subsequent append.
+     *
+     * The returned list keeps the same reverse-chronological ordering as [entries], which lets
+     * UI consumers render logs without polling or manual refresh buttons.
+     */
+    fun observeEntries(): Flow<List<LogEntry>>
 }

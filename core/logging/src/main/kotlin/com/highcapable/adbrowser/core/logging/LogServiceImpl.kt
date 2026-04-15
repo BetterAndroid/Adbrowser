@@ -23,9 +23,11 @@
 package com.highcapable.adbrowser.core.logging
 
 import com.highcapable.adbrowser.core.logging.di.LoggingScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import me.tatarka.inject.annotations.Inject
 import java.time.Instant
-import java.util.Collections
 
 /**
  * Thread-safe in-memory log store implementation.
@@ -34,11 +36,15 @@ import java.util.Collections
 @Inject
 class LogServiceImpl : LogService {
 
-    private val _entries = Collections.synchronizedList(mutableListOf<LogEntry>())
+    private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
 
-    override val entries get() = synchronized(_entries) { _entries.toList() }
+    override val entries get() = _entries.value
 
     override fun log(level: LogLevel, category: String, message: String) {
-        _entries.add(0, LogEntry(Instant.now(), level, category, message))
+        _entries.update { current ->
+            listOf(LogEntry(Instant.now(), level, category, message)) + current
+        }
     }
+
+    override fun observeEntries() = _entries.asStateFlow()
 }
