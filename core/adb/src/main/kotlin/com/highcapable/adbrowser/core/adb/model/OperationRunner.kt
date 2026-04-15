@@ -24,6 +24,7 @@ package com.highcapable.adbrowser.core.adb.model
 
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
+import kotlinx.coroutines.CancellationException
 
 /**
  * A helper class to execute ADB operations and handle their results uniformly.
@@ -49,10 +50,20 @@ internal class OperationRunner(
 
         if (response.isOk)
             OperationResult.success(data)
-        else OperationResult.failure(response)
+        else {
+            logFailure(response.message)
+            OperationResult.failure(response)
+        }
+    } catch (t: CancellationException) {
+        throw t
     } catch (t: Throwable) {
         val message = t.message ?: t::class.simpleName ?: "Unknown error"
-        logService.log(LogLevel.Error, category, message)
+
+        logFailure(message)
         OperationResult.failure(message)
+    }
+
+    private fun logFailure(message: String) {
+        logService.log(LogLevel.Error, category, message.ifBlank { "Unknown error" })
     }
 }

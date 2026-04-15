@@ -32,6 +32,7 @@ import com.highcapable.adbrowser.core.adb.model.OperationRunner
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -91,30 +92,33 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
 
     override suspend fun validateExecPath(pathValue: String?) = runner.exec {
         val _pathValue = pathValue ?: environment.adbExecPath()
-        if (_pathValue.isEmpty()) return OperationResult.error("ADB path is empty.")
+        if (_pathValue.isNotEmpty()) {
+            val adbExecPath = Path.of(_pathValue)
 
-        val adbExecPath = Path.of(_pathValue)
-        if (!Files.exists(adbExecPath))
-            return OperationResult.error("ADB executable was not found.")
-        if (!OsType.isWindows && !Files.isExecutable(adbExecPath))
-            return OperationResult.error("ADB executable is not executable.")
-
-        val response = runAdb(
-            arguments = arrayOf("version"),
-            pathValue = _pathValue,
-            timeoutMs = ADB_VALIDATE_TIMEOUT_MS
-        )
-        when {
-            !response.isOk -> null to response
-            !isAdbVersionResponse(response) -> null to response.copy(
-                exitCode = -1,
-                standardError = "ADB executable is invalid."
-            )
-            else -> {
-                logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
-                null to response
+            when {
+                !Files.exists(adbExecPath) -> null to errorResponse("ADB executable was not found.")
+                !OsType.isWindows && !Files.isExecutable(adbExecPath) ->
+                    null to errorResponse("ADB executable is not executable.")
+                else -> {
+                    val response = runAdb(
+                        arguments = arrayOf("version"),
+                        pathValue = _pathValue,
+                        timeoutMs = ADB_VALIDATE_TIMEOUT_MS
+                    )
+                    when {
+                        !response.isOk -> null to response
+                        !isAdbVersionResponse(response) -> null to response.copy(
+                            exitCode = -1,
+                            standardError = "ADB executable is invalid."
+                        )
+                        else -> {
+                            logService.log(LogLevel.Information, CATEGORY, "Validated ADB path: $_pathValue")
+                            null to response
+                        }
+                    }
+                }
             }
-        }
+        } else null to errorResponse("ADB path is empty.")
     }
 
     override suspend fun listDevices() = runner.exec<List<AndroidDevice>> {
@@ -158,8 +162,11 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
 
     override fun observeDevices(pollIntervalMillis: Long) = flow {
         val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_DEVICE_OBSERVER_INTERVAL_MS)
-        var lastSnapshot = snapshotDeviceStates().data
-        var lastError: String? = null
+        val initialSnapshot = snapshotDeviceStates()
+        var lastSnapshot = initialSnapshot.data
+        var lastError = initialSnapshot.errorMessage?.takeIf { it.isNotBlank() }
+
+        if (lastError != null) logService.log(LogLevel.Error, CATEGORY, lastError)
 
         while (currentCoroutineContext().isActive) {
             delay(intervalMillis)
@@ -169,6 +176,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
                 val message = snapshotResult.errorMessage.orEmpty().ifBlank { "Failed to observe devices." }
                 if (message != lastError) {
                     lastError = message
+                    logService.log(LogLevel.Error, CATEGORY, message)
                     emit(OperationResult.failure(message))
                 }
 
@@ -206,9 +214,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         timeoutMs: Long? = null
     ) = withContext(Dispatchers.IO) {
         val _pathValue = pathValue ?: environment.adbExecPath()
-        require(_pathValue.isNotEmpty()) {
-            "ADB path is not configured."
-        }
+        if (_pathValue.isEmpty()) return@withContext errorResponse("ADB path is not configured.")
 
         val _arguments = arguments.map { it.toString() }
         val process = ProcessBuilder(mutableListOf(_pathValue).apply { addAll(_arguments) })
@@ -367,20 +373,32 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     /**
      * Creates a lightweight device signature used for change detection.
      */
-    private suspend fun snapshotDeviceStates(): OperationResult<List<String>> {
+    private suspend fun snapshotDeviceStates() = try {
         val response = obtainListDevices()
-        if (!response.isOk) return OperationResult.failure(response)
+        if (!response.isOk)
+            OperationResult.failure(response)
+        else {
+            val states = response.standardOutput
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .mapNotNull(::parseDeviceStateToken)
+                .sorted()
+                .toList()
 
-        val states = response.standardOutput
-            .lineSequence()
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .mapNotNull(::parseDeviceStateToken)
-            .sorted()
-            .toList()
-
-        return OperationResult.success(states)
+            OperationResult.success(states)
+        }
+    } catch (t: CancellationException) {
+        throw t
+    } catch (t: Throwable) {
+        OperationResult.failure(t.message ?: t::class.simpleName ?: "Failed to observe devices.")
     }
+
+    private fun errorResponse(message: String) = AdbResponse(
+        exitCode = -1,
+        standardOutput = "",
+        standardError = message
+    )
 
     private fun parseDeviceStateToken(line: String): String? {
         if (line.startsWith("List of devices attached", ignoreCase = true) ||
