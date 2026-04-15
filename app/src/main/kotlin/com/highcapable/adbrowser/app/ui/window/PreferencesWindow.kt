@@ -24,43 +24,22 @@ package com.highcapable.adbrowser.app.ui.window
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.stage.PreferencesStage
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
-import java.awt.KeyboardFocusManager
-import java.beans.PropertyChangeListener
 
 @Composable
 fun PreferencesWindow(onCloseRequest: () -> Unit) {
     val appState = LocalAppState.current
     val viewModel = remember { PreferencesStageModel(appState) }
-    var appHasActiveWindow by remember { 
-        mutableStateOf(KeyboardFocusManager.getCurrentKeyboardFocusManager().activeWindow != null)
-    }
-
-    // Compose Desktop does not expose an "always on top within this app only" window flag.
-    // This focus-manager bridge is a pragmatic compromise: keep the window on top while any app
-    // window is active, and drop always-on-top as soon as focus leaves the application entirely.
-    DisposableEffect(Unit) {
-        val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
-        val listener = PropertyChangeListener {
-            appHasActiveWindow = focusManager.activeWindow != null
-        }
-        focusManager.addPropertyChangeListener("activeWindow", listener)
-
-        onDispose {
-            focusManager.removePropertyChangeListener("activeWindow", listener)
-        }
-    }
+    val appHasActiveWindow = rememberAppHasActiveWindow()
 
     DisposableEffect(viewModel) {
         onDispose { viewModel.dispose() }
