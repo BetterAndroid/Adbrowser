@@ -36,6 +36,7 @@ import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.input.WindowFocusListener
 import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
+import com.highcapable.adbrowser.app.ui.menu.LogViewerMenuBar
 import com.highcapable.adbrowser.app.ui.stage.LogViewerStage
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
@@ -74,6 +75,10 @@ fun LogViewerWindow(onCloseRequest: () -> Unit) {
         }
 
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
+            LogViewerMenuBar(
+                viewModel = viewModel,
+                onCloseRequest = onCloseRequest
+            )
             LogViewerStage(
                 viewModel = viewModel,
                 hasWindowFocus = hasWindowFocus,

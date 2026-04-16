@@ -55,6 +55,28 @@ object SystemFileChooser {
         return File(directory, fileName).absolutePath
     }
 
+    /**
+     * Opens a save-file chooser dialog and returns the selected file path, or null if cancelled.
+     * @param parent the parent window for the dialog, or null for no parent.
+     * @param title the title of the file chooser dialog.
+     * @param initialPath an optional initial path or suggested file name.
+     */
+    fun chooseSaveFile(parent: Window?, title: String, initialPath: String = ""): String? {
+        val dialog = when (parent) {
+            is Frame -> FileDialog(parent, title, FileDialog.SAVE)
+            is Dialog -> FileDialog(parent, title, FileDialog.SAVE)
+            else -> FileDialog(null as Frame?, title, FileDialog.SAVE)
+        }
+
+        configureInitialPath(dialog, initialPath)
+        dialog.isVisible = true
+
+        val fileName = dialog.file ?: return null
+        val directory = dialog.directory ?: return fileName
+
+        return File(directory, fileName).absolutePath
+    }
+
     private fun configureInitialPath(dialog: FileDialog, initialPath: String) {
         val normalized = initialPath.trim()
         if (normalized.isBlank()) return

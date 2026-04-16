@@ -27,12 +27,21 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.cl.AppState
+import com.highcapable.adbrowser.app.ui.utils.SystemFileChooser
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.LogEntryItem
+import com.highcapable.adbrowser.core.common.fs.Environment
 import com.highcapable.adbrowser.core.logging.LogEntry
+import com.highcapable.adbrowser.core.logging.LogLevel
+import com.highcapable.adbrowser.generated.AdbrowserProperties
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.awt.Window
+import java.io.File
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -40,7 +49,10 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
 
     private companion object {
 
-        val TimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val LogTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val FileTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")
+
+        const val EXPORT_LOG_FILE_NAME = "${AdbrowserProperties.PROJECT_NAME}_{date}.log"
 
         const val LOG_COLUMN_MIN_WIDTH_TIME = 150f
         const val LOG_COLUMN_MIN_WIDTH_LEVEL = 90f
@@ -56,6 +68,11 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
 
     val entries = mutableStateListOf<LogEntryItem>()
     val selectedEntryIds = mutableStateListOf<String>()
+    val hasEntries get() = entryCount > 0
+    val hasVisibleEntries get() = entries.isNotEmpty()
+
+    var entryCount by mutableStateOf(logService.entryCount)
+        private set
 
     // `selectedEntryId` is the primary item for keyboard navigation and context menus, while the
     // list can still contain multiple selected entries.
@@ -82,14 +99,20 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
         normalizeLogColumnWidths()
         modelScope.launch {
             try {
-                logService.observeEntries().collect { snapshot ->
-                    // Rebuild from the service snapshot each time because log streams are append-only
-                    // from the UI perspective, but filtering / formatting can still replace
-                    // the exposed list instance.
+                logService.observeVisibleEntries().collect { snapshot ->
                     entries.clear()
                     entries += snapshot.map(::toLogEntryItem)
                     reconcileSelection()
                 }
+            } catch (_: CancellationException) {
+                // Ignore cancellation when the window is closing.
+            }
+        }
+        modelScope.launch {
+            try {
+                // Hidden logs must still update menu enablement, so total count is tracked from
+                // the service separately instead of inferred from the visible snapshot.
+                logService.observeEntryCount().collect { entryCount = it }
             } catch (_: CancellationException) {
                 // Ignore cancellation when the window is closing.
             }
@@ -127,6 +150,10 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
             anchorId = entry.id
         )
     }
+
+    fun isLevelVisible(level: LogLevel) = logService.isLevelVisible(level)
+
+    fun setLevelVisible(level: LogLevel, visible: Boolean) = logService.setLevelVisible(level, visible)
 
     fun selectEntryByGesture(
         entry: LogEntryItem,
@@ -236,8 +263,46 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
         return targetIndex
     }
 
-    fun export() {
-        // TODO: export logs to file.
+    fun clearEntries() {
+        clearSelection()
+        logService.clear()
+    }
+
+    fun resetColumnWidths() {
+        logColumnWidthTimePx = LOG_COLUMN_DEFAULT_WIDTH_TIME
+        logColumnWidthLevelPx = LOG_COLUMN_DEFAULT_WIDTH_LEVEL
+        logColumnWidthCategoryPx = LOG_COLUMN_DEFAULT_WIDTH_CATEGORY
+        logColumnWidthMessagePx = LOG_COLUMN_DEFAULT_WIDTH_MESSAGE
+        normalizeLogColumnWidths()
+    }
+
+    fun export(parentWindow: Window?, dialogTitle: String) {
+        val snapshot = entries.toList()
+        if (snapshot.isEmpty()) return
+
+        val exportFileName = EXPORT_LOG_FILE_NAME.replace("{date}", FileTimeFormatter.format(LocalDateTime.now()))
+        val outputPath = SystemFileChooser.chooseSaveFile(
+            parent = parentWindow,
+            title = dialogTitle,
+            initialPath = File(Environment.userHomeDir, exportFileName).absolutePath
+        ) ?: return
+
+        modelScope.launch {
+            try {
+                val output = snapshot.joinToString(System.lineSeparator(), transform = ::formatEntryForClipboard)
+                withContext(Dispatchers.IO) {
+                    File(outputPath).writeText(output)
+                }
+            } catch (_: CancellationException) {
+                // Ignore cancellation when the window is closing.
+            } catch (throwable: Throwable) {
+                logService.log(
+                    level = LogLevel.Error,
+                    category = "LogViewer",
+                    message = "Failed to export logs: ${throwable.message ?: throwable::class.simpleName.orEmpty()}"
+                )
+            }
+        }
     }
 
     fun dispose() {
@@ -353,7 +418,7 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
     private fun toLogEntryItem(entry: LogEntry) = LogEntryItem(
         id = "${entry.time.epochSecond}:${entry.time.nano}:${entry.level.name}:${entry.category}:${entry.message.hashCode()}",
         level = entry.level,
-        timeText = TimeFormatter.format(entry.time.atZone(ZoneId.systemDefault())),
+        timeText = LogTimeFormatter.format(entry.time.atZone(ZoneId.systemDefault())),
         levelText = entry.level.name,
         category = entry.category,
         message = entry.message
