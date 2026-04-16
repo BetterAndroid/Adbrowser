@@ -37,14 +37,57 @@ import java.time.Instant
 class LogServiceImpl : LogService {
 
     private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
+    private val _entryCount = MutableStateFlow(0)
+
+    private val _visibleEntries = MutableStateFlow<List<LogEntry>>(emptyList())
+    private val _visibleLevels = MutableStateFlow(LogLevel.entries.toSet())
 
     override val entries get() = _entries.value
+    override val entryCount get() = _entryCount.value
 
     override fun log(level: LogLevel, category: String, message: String) {
-        _entries.update { current ->
-            listOf(LogEntry(Instant.now(), level, category, message)) + current
+        val entry = LogEntry(Instant.now(), level, category, message)
+
+        _entries.update { current -> listOf(entry) + current }
+        _entryCount.value += 1
+
+        // Most log appends only need an O(1) prepend. We only rebuild from the full raw snapshot
+        // when the filter itself changes, which keeps the hot logging path lightweight.
+        if (level in _visibleLevels.value) _visibleEntries.update { current -> listOf(entry) + current }
+    }
+
+    override fun clear() {
+        _entries.value = emptyList()
+        _visibleEntries.value = emptyList()
+        _entryCount.value = 0
+    }
+
+    override fun isLevelVisible(level: LogLevel) = level in _visibleLevels.value
+
+    override fun setLevelVisible(level: LogLevel, visible: Boolean) {
+        val updatedLevels = _visibleLevels.value.toMutableSet().apply {
+            if (visible) add(level) else remove(level)
         }
+        if (updatedLevels == _visibleLevels.value) return
+
+        _visibleLevels.value = updatedLevels
+        rebuildVisibleEntries()
     }
 
     override fun observeEntries() = _entries.asStateFlow()
+
+    override fun observeVisibleEntries() = _visibleEntries.asStateFlow()
+
+    override fun observeEntryCount() = _entryCount.asStateFlow()
+
+    /**
+     * Rebuilds the filtered snapshot from the raw source of truth after filter toggles change.
+     *
+     * Filtering is centralized here so consumers never need to keep a second copy of the full log
+     * list just to drive checkbox-based level filtering.
+     */
+    private fun rebuildVisibleEntries() {
+        val visibleLevels = _visibleLevels.value
+        _visibleEntries.value = _entries.value.filter { it.level in visibleLevels }
+    }
 }

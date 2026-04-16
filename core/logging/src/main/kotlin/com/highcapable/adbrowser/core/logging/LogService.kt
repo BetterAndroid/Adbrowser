@@ -35,6 +35,11 @@ interface LogService {
     val entries: List<LogEntry>
 
     /**
+     * Returns the total amount of buffered logs before any UI-side filtering is applied.
+     */
+    val entryCount: Int
+
+    /**
      * Writes a log entry to the in-memory log store.
      *
      * This function is called very frequently by ADB/FS operations, so implementations
@@ -43,10 +48,44 @@ interface LogService {
     fun log(level: LogLevel, category: String, message: String)
 
     /**
+     * Removes all currently buffered log entries.
+     *
+     * The log window uses this for "Clear" so the underlying source of truth must be reset as
+     * well, otherwise the UI would immediately rehydrate from stale in-memory data.
+     */
+    fun clear()
+
+    /**
+     * Returns whether the given level is currently enabled in the shared runtime filter.
+     *
+     * The log viewer keeps these toggles only for the current app run, so the logging service is
+     * the right place to own them instead of duplicating the same filter state in every window.
+     */
+    fun isLevelVisible(level: LogLevel): Boolean
+
+    /**
+     * Updates the shared runtime log-level filter.
+     */
+    fun setLevelVisible(level: LogLevel, visible: Boolean)
+
+    /**
      * Observes the current log snapshot and every subsequent append.
      *
      * The returned list keeps the same reverse-chronological ordering as [entries], which lets
      * UI consumers render logs without polling or manual refresh buttons.
      */
     fun observeEntries(): Flow<List<LogEntry>>
+
+    /**
+     * Observes the current visible log snapshot after the runtime level filter is applied.
+     */
+    fun observeVisibleEntries(): Flow<List<LogEntry>>
+
+    /**
+     * Observes the total buffered log count before filtering.
+     *
+     * This lets UI enablement react to hidden logs as well without re-subscribing to the full raw
+     * list and rebuilding another copy in the view model.
+     */
+    fun observeEntryCount(): Flow<Int>
 }
