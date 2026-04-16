@@ -125,7 +125,7 @@ class InitialSetupStageModel(private val appState: AppState) : ViewModel() {
 
     /** Opens the native file chooser and clears any previous validation error on success. */
     fun browseAdbPath(parentWindow: Window?, dialogTitle: String) {
-        val selectedPath = SystemFileChooser.chooseFile(
+        val selectedPath = SystemFileChooser.chooseOpenFile(
             parent = parentWindow,
             title = dialogTitle,
             initialPath = adbExecPath.text.toString()

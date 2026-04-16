@@ -232,7 +232,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
 
     /** Opens the native file chooser and writes the chosen executable path back into the editor state. */
     fun browseAdbPath(parentWindow: Window?, dialogTitle: String) {
-        val selectedPath = SystemFileChooser.chooseFile(
+        val selectedPath = SystemFileChooser.chooseOpenFile(
             parent = parentWindow,
             title = dialogTitle,
             initialPath = adbExecPath.text.toString()

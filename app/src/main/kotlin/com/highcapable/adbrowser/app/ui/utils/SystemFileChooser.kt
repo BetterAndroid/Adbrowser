@@ -39,7 +39,7 @@ object SystemFileChooser {
      * @param title the title of the file chooser dialog.
      * @param initialPath an optional initial path to open in the dialog.
      */
-    fun chooseFile(parent: Window?, title: String, initialPath: String = ""): String? {
+    fun chooseOpenFile(parent: Window?, title: String, initialPath: String = ""): String? {
         val dialog = when (parent) {
             is Frame -> FileDialog(parent, title, FileDialog.LOAD)
             is Dialog -> FileDialog(parent, title, FileDialog.LOAD)
@@ -61,6 +61,7 @@ object SystemFileChooser {
 
         val initial = File(normalized)
         when {
+            initial.parent == null && initial.name.isNotBlank() -> dialog.file = initial.name
             initial.exists() && initial.isDirectory -> dialog.directory = initial.absolutePath
             initial.exists() -> {
                 dialog.directory = initial.parent
