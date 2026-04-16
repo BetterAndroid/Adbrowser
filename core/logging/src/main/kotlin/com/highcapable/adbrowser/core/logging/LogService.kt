@@ -88,4 +88,11 @@ interface LogService {
      * list and rebuilding another copy in the view model.
      */
     fun observeEntryCount(): Flow<Int>
+
+    /**
+     * Observes the current runtime log-level filter.
+     *
+     * The log viewer menu uses this to keep checkbox state in sync without reopening the window.
+     */
+    fun observeVisibleLevels(): Flow<Set<LogLevel>>
 }

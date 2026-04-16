@@ -75,10 +75,9 @@ class LogServiceImpl : LogService {
     }
 
     override fun observeEntries() = _entries.asStateFlow()
-
     override fun observeVisibleEntries() = _visibleEntries.asStateFlow()
-
     override fun observeEntryCount() = _entryCount.asStateFlow()
+    override fun observeVisibleLevels() = _visibleLevels.asStateFlow()
 
     /**
      * Rebuilds the filtered snapshot from the raw source of truth after filter toggles change.
