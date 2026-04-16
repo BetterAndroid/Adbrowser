@@ -22,6 +22,7 @@
  */
 package com.highcapable.adbrowser.core.domain.setting
 
+import com.highcapable.adbrowser.core.common.fs.Environment
 import com.highcapable.adbrowser.core.domain.di.DomainScope
 import com.highcapable.adbrowser.core.domain.generated.AdbrowserProperties
 import com.highcapable.adbrowser.core.logging.LogLevel
@@ -45,6 +46,8 @@ class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsSe
     private companion object {
 
         const val CATEGORY = "Settings"
+
+        const val CONFIG_DIR_NAME = ".config"
         const val SETTINGS_FILE_NAME = "settings.json"
     }
 
@@ -80,9 +83,9 @@ class AppSettingsServiceImpl(private val logService: LogService) : AppSettingsSe
     }
 
     private fun getSettingsFilePath(): Path {
-        val userHome = System.getProperty("user.home")
-        val appData = System.getenv("APPDATA")?.takeIf { it.isNotBlank() }
-        val basePath = if (appData != null) Paths.get(appData) else Paths.get(userHome, ".config")
+        val userHomeDir = Environment.userHomeDir
+        val appDataDir = Environment.appDataDir
+        val basePath = if (appDataDir != null) Paths.get(appDataDir) else Paths.get(userHomeDir, CONFIG_DIR_NAME)
 
         return basePath.resolve(AdbrowserProperties.PROJECT_NAME).resolve(SETTINGS_FILE_NAME)
     }
