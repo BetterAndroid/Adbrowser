@@ -30,7 +30,8 @@ data class AndroidDeviceItem(
     val model: String,
     val serial: String,
     val systemVersion: String,
-    val isOnline: Boolean
+    val isOnline: Boolean,
+    val isNetworkDevice: Boolean
 ) {
 
     companion object {
@@ -41,7 +42,8 @@ data class AndroidDeviceItem(
             model = device.model,
             serial = device.serial,
             systemVersion = device.systemVersion,
-            isOnline = device.isOnline
+            isOnline = device.isOnline,
+            isNetworkDevice = device.isNetworkDevice
         )
     }
 

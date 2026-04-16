@@ -84,6 +84,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         enum class Key {
             CommonUnknownError,
             DevicesUpdated,
+            DeviceDisconnected,
             SelectDeviceFirst,
             InvalidFolderName,
             FolderCreated,
@@ -289,6 +290,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Used by the UI to decide which prebuilt file pane should currently be visible. */
     fun isSelectedWorkspace(device: AndroidDeviceItem) = selectedDevice == device
 
+    /** Network transports are the only device entries that can be disconnected explicitly. */
+    fun canDisconnectDevice(device: AndroidDeviceItem) = device.isNetworkDevice
+
     /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
     fun setDevicePaneWidth(widthDp: Float) {
         devicePaneWidthDp = widthDp.coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
@@ -395,6 +399,23 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         consumeDeviceListResult(
             result = adbClient.listDevices(),
             showStatus = showStatus
+        )
+    }
+
+    /** Disconnects a network ADB transport and refreshes devices immediately on success. */
+    fun disconnectDevice(device: AndroidDeviceItem) = launchBusyAction {
+        if (!device.isNetworkDevice) return@launchBusyAction
+
+        val result = adbClient.disconnectDevice(device.toDomain())
+        if (!result.isOk) {
+            setErrorStatus(result.errorMessage)
+            return@launchBusyAction
+        }
+
+        setStatus(StatusMessage.Key.DeviceDisconnected, device.serial)
+        consumeDeviceListResult(
+            result = adbClient.listDevices(),
+            showStatus = false
         )
     }
 

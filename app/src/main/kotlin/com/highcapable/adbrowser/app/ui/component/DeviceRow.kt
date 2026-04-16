@@ -25,7 +25,6 @@
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -49,13 +48,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
@@ -66,9 +73,12 @@ fun DeviceRow(
     item: AndroidDeviceItem,
     selected: Boolean,
     onClick: () -> Unit,
+    popupHostCoordinates: () -> LayoutCoordinates?,
+    onSecondaryClick: (Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
+
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
@@ -80,83 +90,99 @@ fun DeviceRow(
     )
     val foreground = if (selected) Color.White else Color.Unspecified
     val statusColor = if (item.isOnline) OnlineStatusColor else OfflineStatusColor
+    var rowCoordinates by remember(item) { mutableStateOf<LayoutCoordinates?>(null) }
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(background)
-            .hoverable(interactionSource = interactionSource)
-            .pointerInput(item.serial) {
-                detectTapGestures(
-                    onPress = {
-                        pressed = true
-                        onClick()
-                        tryAwaitRelease()
-                        pressed = false
-                    }
+            .onGloballyPositioned { rowCoordinates = it }
+            .onSecondaryPress(pass = PointerEventPass.Initial) { position ->
+                val host = popupHostCoordinates()
+                val row = rowCoordinates
+                val translatedPosition = if (host != null && row != null)
+                    host.localPositionOf(row, position)
+                else position
+
+                onSecondaryClick(translatedPosition)
+            }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(background)
+                .hoverable(interactionSource = interactionSource)
+                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
+                    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
+
+                    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+                    pressed = true
+                    onClick()
+                }
+                .onPointerEvent(PointerEventType.Release, pass = PointerEventPass.Initial) {
+                    pressed = false
+                }
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
+                )
+                Spacer(Modifier.width(8.dp))
+                ContentIcon(
+                    key = AppIcons.Device,
+                    selected = selected,
+                    contentDescription = "Device Icon",
+                    tint = colors.primaryAccent
                 )
             }
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(9.dp)
-                    .clip(CircleShape)
-                    .background(statusColor)
-            )
             Spacer(Modifier.width(8.dp))
-            ContentIcon(
-                key = AppIcons.Device,
-                selected = selected,
-                contentDescription = "Device Icon",
-                tint = colors.primaryAccent
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = item.brandModel,
-                color = foreground,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(2.dp))
-            Row(
-                modifier = Modifier.alpha(0.75f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (item.systemVersion.isNotBlank()) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.brandModel,
+                    color = foreground,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    modifier = Modifier.alpha(0.75f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (item.systemVersion.isNotBlank()) {
+                        Text(
+                            text = item.systemVersion,
+                            color = foreground,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "|",
+                            color = foreground,
+                            fontSize = 8.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .alpha(0.75f)
+                                .padding(horizontal = 3.dp)
+                        )
+                    }
                     Text(
-                        text = item.systemVersion,
+                        text = item.serial,
                         color = foreground,
                         fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "|",
-                        color = foreground,
-                        fontSize = 8.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .alpha(0.75f)
-                            .padding(horizontal = 3.dp)
-                    )
                 }
-                Text(
-                    text = item.serial,
-                    color = foreground,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }

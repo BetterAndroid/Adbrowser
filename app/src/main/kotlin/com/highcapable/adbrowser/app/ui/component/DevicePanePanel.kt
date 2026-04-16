@@ -40,6 +40,8 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,8 @@ fun DevicePanePanel(
     noDeviceMessage: String,
     onRefresh: () -> Unit,
     onDeviceClick: (AndroidDeviceItem) -> Unit,
+    popupHostCoordinates: () -> LayoutCoordinates?,
+    onDeviceSecondaryClick: (AndroidDeviceItem, Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     PanelSurface(
@@ -111,7 +115,9 @@ fun DevicePanePanel(
                         DeviceRow(
                             item = device,
                             selected = selectedDevice == device,
-                            onClick = { onDeviceClick(device) }
+                            onClick = { onDeviceClick(device) },
+                            popupHostCoordinates = popupHostCoordinates,
+                            onSecondaryClick = { onDeviceSecondaryClick(device, it) },
                         )
                     }
                 }

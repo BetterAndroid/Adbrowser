@@ -82,6 +82,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
@@ -189,17 +190,36 @@ private fun DevicePane(
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
-    DevicePanePanel(
-        devices = viewModel.devices,
-        selectedDevice = viewModel.selectedDevice,
-        listState = listState,
-        title = strings.mainDevicesTitle,
-        refreshDescription = strings.mainRefreshDeviceDescription,
-        noDeviceMessage = strings.mainDeviceListHintNoDevice,
-        onRefresh = viewModel::refreshDevices,
-        onDeviceClick = viewModel::selectDevice,
-        modifier = modifier
-    )
+    val interactionState = remember { DevicePaneInteractionState() }
+    var popupHostCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
+    Box(
+        modifier = modifier.onGloballyPositioned { popupHostCoordinates = it }
+    ) {
+        DevicePanePanel(
+            devices = viewModel.devices,
+            selectedDevice = viewModel.selectedDevice,
+            listState = listState,
+            title = strings.mainDevicesTitle,
+            refreshDescription = strings.mainRefreshDeviceDescription,
+            noDeviceMessage = strings.mainDeviceListHintNoDevice,
+            onRefresh = viewModel::refreshDevices,
+            onDeviceClick = viewModel::selectDevice,
+            popupHostCoordinates = { popupHostCoordinates },
+            onDeviceSecondaryClick = { device, position ->
+                viewModel.selectDevice(device)
+
+                if (viewModel.canDisconnectDevice(device))
+                    interactionState.openContextMenu(device, position)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+        DeviceContextMenuPopup(
+            state = interactionState.contextMenuState,
+            onDisconnect = viewModel::disconnectDevice,
+            onDismissRequest = interactionState::dismissContextMenu
+        )
+    }
 }
 
 @Composable
@@ -993,6 +1013,7 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
         val template = when (status.key) {
             MainStageModel.StatusMessage.Key.CommonUnknownError -> strings.commonUnknownError
             MainStageModel.StatusMessage.Key.DevicesUpdated -> strings.statusDevicesUpdated
+            MainStageModel.StatusMessage.Key.DeviceDisconnected -> strings.statusDeviceDisconnected
             MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
             MainStageModel.StatusMessage.Key.InvalidFolderName -> strings.statusInvalidFolderName
             MainStageModel.StatusMessage.Key.FolderCreated -> strings.statusFolderCreated
@@ -1017,6 +1038,30 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
 }
 
 @Composable
+private fun DeviceContextMenuPopup(
+    state: DeviceContextMenuState?,
+    onDisconnect: (AndroidDeviceItem) -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val entryState = state as? DeviceContextMenuState.Entry ?: return
+
+    PopupMenu(
+        onDismissRequest = { onDismissRequest(); true },
+        popupPositionProvider = rememberPopupPositionProviderAtPosition(entryState.position),
+        popupProperties = PopupProperties(focusable = false)
+    ) {
+        selectableItem(
+            selected = false,
+            iconKey = AllIconsKeys.Actions.Cancel,
+            onClick = {
+                onDismissRequest()
+                onDisconnect(entryState.device)
+            }
+        ) { Text(strings.menuDisconnect) }
+    }
+}
+
+@Composable
 private fun MainStatusBarText(viewModel: MainStageModel): String {
     val selectedCount = viewModel.selectedEntries.size
     val totalCount = viewModel.currentEntries.size
@@ -1032,6 +1077,31 @@ private fun MainStatusBarText(viewModel: MainStageModel): String {
         explicitStatus.isNotBlank() -> explicitStatus
         viewModel.selectedDevice != null -> ItemsText(totalCount, hiddenSuffix)
         else -> strings.mainStatusReady
+    }
+}
+
+private sealed interface DeviceContextMenuState {
+
+    data class Entry(
+        val device: AndroidDeviceItem,
+        val position: Offset,
+        val requestId: Long
+    ) : DeviceContextMenuState
+}
+
+private class DevicePaneInteractionState {
+
+    private var contextMenuRequestId by mutableStateOf(0L)
+
+    var contextMenuState by mutableStateOf<DeviceContextMenuState?>(null)
+
+    fun openContextMenu(device: AndroidDeviceItem, position: Offset) {
+        contextMenuRequestId += 1L
+        contextMenuState = DeviceContextMenuState.Entry(device, position, contextMenuRequestId)
+    }
+
+    fun dismissContextMenu() {
+        contextMenuState = null
     }
 }
 
