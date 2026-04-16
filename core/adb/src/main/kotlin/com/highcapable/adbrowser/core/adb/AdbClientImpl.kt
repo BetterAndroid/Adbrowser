@@ -322,7 +322,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             line.startsWith("*")
         ) return null
 
-        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val tokens = line.split("\\s+".toRegex()).filter { it.isNotEmpty() }
         if (tokens.size < 2) return null
 
         val serial = tokens[0]
@@ -412,7 +412,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             line.startsWith("*")
         ) return null
 
-        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val tokens = line.split("\\s+".toRegex()).filter { it.isNotEmpty() }
         if (tokens.size < 2) return null
 
         val serial = tokens[0]
@@ -425,7 +425,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         val normalized = raw.replace('_', ' ').trim()
         if (normalized.isBlank()) return ""
 
-        return normalized.split(Regex("\\s+")).joinToString(" ") { token ->
+        return normalized.split("\\s+".toRegex()).joinToString(" ") { token ->
             val lower = token.lowercase()
             lower.replaceFirstChar { char ->
                 if (char.isLowerCase()) char.titlecase() else char.toString()

@@ -37,7 +37,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.util.*
 
 /**
  * File-system service using ADB shell abstraction.
@@ -176,7 +176,7 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
             val permission = line.take(10)
             if (permission.first() !in charArrayOf('d', '-', 'l')) return@forEach
 
-            val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            val tokens = line.split("\\s+".toRegex()).filter { it.isNotEmpty() }
             if (tokens.size < 8) return@forEach
             val size = tokens[4].toLongOrNull() ?: return@forEach
 

@@ -76,7 +76,7 @@ object SystemAppearance {
         val value = output.lineSequence()
             .firstOrNull { it.contains("AppsUseLightTheme", ignoreCase = true) }
             ?.trim()
-            ?.split(Regex("\\s+"))
+            ?.split("\\s+".toRegex())
             ?.lastOrNull()
             ?.lowercase()
             ?: return false

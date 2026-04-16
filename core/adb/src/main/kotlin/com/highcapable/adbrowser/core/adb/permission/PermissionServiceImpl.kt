@@ -79,7 +79,7 @@ class PermissionServiceImpl(
             .firstOrNull { it.isNotBlank() }
             ?: error("Permission query returned empty output.")
 
-        val tokens = line.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val tokens = line.split("\\s+".toRegex()).filter { it.isNotEmpty() }
         if (tokens.isEmpty() || tokens.first().length < 10) error("Unexpected permission output: $line")
 
         val raw = tokens.first()
