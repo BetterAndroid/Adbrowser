@@ -34,6 +34,19 @@ data class AndroidDevice(
     val isOnline: Boolean
 ) {
 
+    private companion object {
+
+        val NetworkSerialRegex = """.+:\d+$""".toRegex()
+    }
+
+    /**
+     * Network transports use an ADB serial formatted as host:port or \[ipv6\]:port.
+     *
+     * Emulator serials such as `emulator-5554` are therefore excluded and should not expose
+     * explicit disconnect actions in the UI.
+     */
+    val isNetworkDevice by lazy { NetworkSerialRegex.matches(serial) }
+
     override fun equals(other: Any?) = when (other) {
         is AndroidDevice -> this.serial == other.serial
         else -> super.equals(other)

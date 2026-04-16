@@ -193,6 +193,13 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         }
     }
 
+    override suspend fun disconnectDevice(device: AndroidDevice) = runner.exec {
+        if (!device.isNetworkDevice) return@exec null to errorResponse("Only network ADB devices can be disconnected.")
+
+        logService.log(LogLevel.Information, CATEGORY, "Disconnecting device: ${device.serial}")
+        null to runAdb("disconnect", device.serial)
+    }
+
     override suspend fun executeCommand(device: AndroidDevice, vararg arguments: Any): AdbResponse {
         logService.log(LogLevel.Trace, CATEGORY, "$device ${arguments.joinToString(" ")}")
         val response = runAdb("-s", device.serial, *arguments)

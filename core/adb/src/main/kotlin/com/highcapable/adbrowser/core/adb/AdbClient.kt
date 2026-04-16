@@ -51,6 +51,11 @@ interface AdbClient {
     fun observeDevices(pollIntervalMillis: Long = 1500L): Flow<OperationResult<List<AndroidDevice>>>
 
     /**
+     * Disconnects an ADB-over-network device from the local ADB server.
+     */
+    suspend fun disconnectDevice(device: AndroidDevice): OperationResult<Unit>
+
+    /**
      * Executes an adb command for the target device.
      */
     suspend fun executeCommand(device: AndroidDevice, vararg arguments: Any): AdbResponse
