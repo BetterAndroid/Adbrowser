@@ -63,6 +63,18 @@ fun DeviceListHint(
 }
 
 @Composable
+fun LogListHint(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    StageHint(
+        iconKey = AppIcons.Log,
+        message = message,
+        modifier = modifier
+    )
+}
+
+@Composable
 private fun StageHint(
     iconKey: IconKey,
     message: String,

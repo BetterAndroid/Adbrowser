@@ -165,6 +165,8 @@ data class Strings(
     val preferencesStatusFailedPrefix: String,
     val logsTitle: String,
     val logsRefresh: String,
+    val logsHintEmpty: String,
+    val logsHintEmptyFiltered: String,
     val logsMenuExport: String,
     val logsMenuClear: String,
     val logsMenuLevel: String,

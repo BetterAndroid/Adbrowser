@@ -70,8 +70,11 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
     val selectedEntryIds = mutableStateListOf<String>()
     val hasEntries get() = entryCount > 0
     val hasVisibleEntries get() = entries.isNotEmpty()
+    val hasFilteredOutEntries get() = hasEntries && !hasVisibleEntries
 
     var entryCount by mutableStateOf(logService.entryCount)
+        private set
+    var visibleLevels by mutableStateOf(LogLevel.entries.toSet())
         private set
 
     // `selectedEntryId` is the primary item for keyboard navigation and context menus, while the
@@ -117,6 +120,15 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
                 // Ignore cancellation when the window is closing.
             }
         }
+        modelScope.launch {
+            try {
+                // The menu checkboxes are rendered by Compose, so the backend-owned filter state
+                // still needs to be surfaced as observable UI state instead of a plain getter.
+                logService.observeVisibleLevels().collect { visibleLevels = it }
+            } catch (_: CancellationException) {
+                // Ignore cancellation when the window is closing.
+            }
+        }
     }
 
     /** Resizes the Time column and returns the applied delta after width clamping. */
@@ -151,7 +163,7 @@ class LogViewerStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
-    fun isLevelVisible(level: LogLevel) = logService.isLevelVisible(level)
+    fun isLevelVisible(level: LogLevel) = level in visibleLevels
 
     fun setLevelVisible(level: LogLevel, visible: Boolean) = logService.setLevelVisible(level, visible)
 

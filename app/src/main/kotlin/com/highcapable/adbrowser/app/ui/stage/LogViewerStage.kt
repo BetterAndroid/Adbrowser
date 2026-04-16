@@ -28,6 +28,7 @@ import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -65,6 +67,7 @@ import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
 import cafe.adriel.lyricist.strings
+import com.highcapable.adbrowser.app.ui.component.LogListHint
 import com.highcapable.adbrowser.app.ui.component.LogListPane
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.foundation.revealIndexBySingleStep
@@ -175,85 +178,95 @@ private fun LogContentPane(
         if (!hasWindowFocus || shouldStickToTop) listState.scrollToItem(0)
     }
 
-    LogListPane(
-        entries = viewModel.entries,
-        selectedEntryIds = viewModel.selectedEntryIds.toSet(),
-        listState = listState,
-        horizontalScrollState = horizontalScrollState,
-        timeWidth = viewModel.logColumnWidthTimePx.dp,
-        levelWidth = viewModel.logColumnWidthLevelPx.dp,
-        categoryWidth = viewModel.logColumnWidthCategoryPx.dp,
-        messageWidth = viewModel.logColumnWidthMessagePx.dp,
-        timeLabel = strings.logsHeaderTime,
-        levelLabel = strings.logsHeaderLevel,
-        categoryLabel = strings.logsHeaderCategory,
-        messageLabel = strings.logsHeaderMessage,
-        onResizeTimeAndLevel = viewModel::resizeTimeAndLevelColumns,
-        onResizeLevelAndCategory = viewModel::resizeLevelAndCategoryColumns,
-        onResizeCategoryAndMessage = viewModel::resizeCategoryAndMessageColumns,
-        onResizeFinished = {},
-        onEntryPrimaryClick = { entry, appendSelection, rangeSelection ->
-            viewModel.selectEntryByGesture(entry, appendSelection, rangeSelection)
-        },
-        onEntrySecondaryClick = { entry, position ->
-            viewModel.ensureEntrySelectedForContextMenu(entry)
-            interactionState.openEntryContextMenu(entry.id, position)
-        },
-        onEntryBoundsChanged = { entry, bounds ->
-            // Bound tracking feeds blank-area hit testing and drag selection. Removing disposed
-            // rows eagerly avoids stale hit regions when the lazy list is reusing slots.
-            if (bounds == null) interactionState.selectionAreaState.visibleItemBounds.remove(entry.id)
-            else interactionState.selectionAreaState.visibleItemBounds[entry.id] = bounds
-        },
-        modifier = Modifier.fillMaxSize(),
-        contentAreaModifier = Modifier
-            .nestedScroll(interactionState.selectionAreaState.nestedScrollConnection)
-            .onGloballyPositioned { interactionState.selectionAreaState.contentCoordinates = it }
-            .blankAreaDragSelection(
-                selectionState = interactionState.selectionAreaState,
-                showSelectionRect = false,
-                selectedKeysProvider = { viewModel.selectedEntryIds.toSet() },
-                onClearSelection = viewModel::clearSelection,
-                onSelectionChanged = { candidateIds, additive, initialSelectionIds ->
-                    viewModel.updateDragSelection(candidateIds, additive, initialSelectionIds)
-                },
-                keyOfItem = { it },
-                prepareBlankGesture = {
-                    // Blank clicks have three different meanings here:
-                    // 1. consume the deferred press after dismissing a context menu
-                    // 2. close the currently visible context menu
-                    // 3. start a real blank-area selection gesture
-                    when {
-                        interactionState.consumePendingBlankPrimaryPress() -> false
-                        interactionState.hasContextMenu() -> {
-                            interactionState.dismissContextMenu()
-                            false
+    Box(modifier = Modifier.fillMaxSize()) {
+        LogListPane(
+            entries = viewModel.entries,
+            selectedEntryIds = viewModel.selectedEntryIds.toSet(),
+            listState = listState,
+            horizontalScrollState = horizontalScrollState,
+            timeWidth = viewModel.logColumnWidthTimePx.dp,
+            levelWidth = viewModel.logColumnWidthLevelPx.dp,
+            categoryWidth = viewModel.logColumnWidthCategoryPx.dp,
+            messageWidth = viewModel.logColumnWidthMessagePx.dp,
+            timeLabel = strings.logsHeaderTime,
+            levelLabel = strings.logsHeaderLevel,
+            categoryLabel = strings.logsHeaderCategory,
+            messageLabel = strings.logsHeaderMessage,
+            onResizeTimeAndLevel = viewModel::resizeTimeAndLevelColumns,
+            onResizeLevelAndCategory = viewModel::resizeLevelAndCategoryColumns,
+            onResizeCategoryAndMessage = viewModel::resizeCategoryAndMessageColumns,
+            onResizeFinished = {},
+            onEntryPrimaryClick = { entry, appendSelection, rangeSelection ->
+                viewModel.selectEntryByGesture(entry, appendSelection, rangeSelection)
+            },
+            onEntrySecondaryClick = { entry, position ->
+                viewModel.ensureEntrySelectedForContextMenu(entry)
+                interactionState.openEntryContextMenu(entry.id, position)
+            },
+            onEntryBoundsChanged = { entry, bounds ->
+                // Bound tracking feeds blank-area hit testing and drag selection. Removing disposed
+                // rows eagerly avoids stale hit regions when the lazy list is reusing slots.
+                if (bounds == null) interactionState.selectionAreaState.visibleItemBounds.remove(entry.id)
+                else interactionState.selectionAreaState.visibleItemBounds[entry.id] = bounds
+            },
+            modifier = Modifier.fillMaxSize(),
+            contentAreaModifier = Modifier
+                .nestedScroll(interactionState.selectionAreaState.nestedScrollConnection)
+                .onGloballyPositioned { interactionState.selectionAreaState.contentCoordinates = it }
+                .blankAreaDragSelection(
+                    selectionState = interactionState.selectionAreaState,
+                    showSelectionRect = false,
+                    selectedKeysProvider = { viewModel.selectedEntryIds.toSet() },
+                    onClearSelection = viewModel::clearSelection,
+                    onSelectionChanged = { candidateIds, additive, initialSelectionIds ->
+                        viewModel.updateDragSelection(candidateIds, additive, initialSelectionIds)
+                    },
+                    keyOfItem = { it },
+                    prepareBlankGesture = {
+                        // Blank clicks have three different meanings here:
+                        // 1. consume the deferred press after dismissing a context menu
+                        // 2. close the currently visible context menu
+                        // 3. start a real blank-area selection gesture
+                        when {
+                            interactionState.consumePendingBlankPrimaryPress() -> false
+                            interactionState.hasContextMenu() -> {
+                                interactionState.dismissContextMenu()
+                                false
+                            }
+                            else -> {
+                                interactionState.dismissContextMenu()
+                                true
+                            }
                         }
-                        else -> {
-                            interactionState.dismissContextMenu()
-                            true
-                        }
+                    },
+                    autoScrollBy = { delta ->
+                        val consumed = listState.scrollBy(delta)
+                        interactionState.selectionAreaState.cumulativeScrollY += consumed
                     }
-                },
-                autoScrollBy = { delta ->
-                    val consumed = listState.scrollBy(delta)
-                    interactionState.selectionAreaState.cumulativeScrollY += consumed
-                }
-            ),
-        overlay = { entry ->
-            val entryState = interactionState.contextMenuState as? LogContextMenuState.Entry
-            LogEntryContextMenuPopup(
-                visible = entryState?.itemId == entry.id,
-                position = entryState?.position ?: Offset.Zero,
-                canCopy = viewModel.canCopySelectedEntry(),
-                onCopy = {
-                    viewModel.selectedEntryClipboardText()?.let(SystemClipboard::copyText)
-                },
-                onDismissRequest = interactionState::dismissContextMenu,
-                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                ),
+            overlay = { entry ->
+                val entryState = interactionState.contextMenuState as? LogContextMenuState.Entry
+                LogEntryContextMenuPopup(
+                    visible = entryState?.itemId == entry.id,
+                    position = entryState?.position ?: Offset.Zero,
+                    canCopy = viewModel.canCopySelectedEntry(),
+                    onCopy = {
+                        viewModel.selectedEntryClipboardText()?.let(SystemClipboard::copyText)
+                    },
+                    onDismissRequest = interactionState::dismissContextMenu,
+                    onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                )
+            }
+        )
+
+        if (viewModel.entries.isEmpty())
+            LogListHint(
+                message = if (viewModel.hasFilteredOutEntries)
+                    strings.logsHintEmptyFiltered
+                else strings.logsHintEmpty,
+                modifier = Modifier.align(Alignment.Center)
             )
-        }
-    )
+    }
 }
 
 @Composable
