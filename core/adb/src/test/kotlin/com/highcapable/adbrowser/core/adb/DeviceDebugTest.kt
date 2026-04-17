@@ -20,17 +20,15 @@
  *
  * This file is created by fankes on 2026/4/13.
  */
-package com.highcapable.adbrowser.core.adb.test
+package com.highcapable.adbrowser.core.adb
 
-import com.highcapable.adbrowser.core.adb.AdbClient
-import com.highcapable.adbrowser.core.adb.AdbEnvironment
+import com.highcapable.adbrowser.core.adb.DeviceDebugTest.Companion.ENABLE_REAL_DEVICE_TESTS
 import com.highcapable.adbrowser.core.adb.di.AdbComponent
 import com.highcapable.adbrowser.core.adb.di.create
 import com.highcapable.adbrowser.core.adb.fs.FileSystemService
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.permission.PermissionService
-import com.highcapable.adbrowser.core.adb.test.DeviceDebugTest.Companion.ENABLE_REAL_DEVICE_TESTS
 import com.highcapable.adbrowser.core.logging.di.LoggingComponent
 import com.highcapable.adbrowser.core.logging.di.create
 import kotlinx.coroutines.runBlocking
