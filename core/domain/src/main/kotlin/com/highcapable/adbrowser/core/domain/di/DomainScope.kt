@@ -30,4 +30,4 @@ import me.tatarka.inject.annotations.Scope
     AnnotationTarget.FUNCTION,
     AnnotationTarget.PROPERTY_GETTER
 )
-annotation class DomainScope
+internal annotation class DomainScope
