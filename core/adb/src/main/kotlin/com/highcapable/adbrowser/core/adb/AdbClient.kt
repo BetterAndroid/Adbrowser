@@ -25,6 +25,8 @@ package com.highcapable.adbrowser.core.adb
 import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
+import com.highcapable.adbrowser.core.adb.model.pairing.PairingDevice
+import com.highcapable.adbrowser.core.adb.model.pairing.QrPairingSession
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -54,6 +56,42 @@ interface AdbClient {
      * Disconnects an ADB-over-network device from the local ADB server.
      */
     suspend fun disconnectDevice(device: AndroidDevice): OperationResult<Unit>
+
+    /**
+     * Creates a QR-based wireless debugging pairing session payload.
+     *
+     * The returned [QrPairingSession.qrContent] can be rendered by the app as a QR code for the
+     * Android device to scan. The actual pairing still needs to be completed via [completeQrPairing].
+     */
+    suspend fun createQrPairingSession(): OperationResult<QrPairingSession>
+
+    /**
+     * Waits for the Android device to advertise the QR-requested pairing service over mDNS and then
+     * completes `adb pair` with the session password.
+     *
+     * ADB itself will attempt to connect after a successful pair, following the official wireless
+     * debugging flow used by Android Studio and `adb pair`.
+     */
+    suspend fun completeQrPairing(
+        session: QrPairingSession,
+        timeoutMillis: Long = 60_000L,
+        pollIntervalMillis: Long = 1_500L
+    ): OperationResult<PairingDevice>
+
+    /**
+     * Observes devices on the local network that are currently advertising the ADB pairing service.
+     */
+    fun observePairingDevices(pollIntervalMillis: Long = 1_500L): Flow<OperationResult<List<PairingDevice>>>
+
+    /**
+     * Completes manual wireless debugging pairing for the selected pairing endpoint.
+     */
+    suspend fun pairDevice(device: PairingDevice, pairingCode: String): OperationResult<Unit>
+
+    /**
+     * Connects to an ADB-over-network endpoint using `host:port`.
+     */
+    suspend fun connectDevice(address: String): OperationResult<Unit>
 
     /**
      * Executes an adb command for the target device.

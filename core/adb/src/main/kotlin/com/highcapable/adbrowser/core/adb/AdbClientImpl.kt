@@ -29,6 +29,11 @@ import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
+import com.highcapable.adbrowser.core.adb.model.pairing.MdnsService
+import com.highcapable.adbrowser.core.adb.model.pairing.MdnsServiceType
+import com.highcapable.adbrowser.core.adb.model.pairing.PairingDevice
+import com.highcapable.adbrowser.core.adb.model.pairing.QrPairingSession
+import com.highcapable.adbrowser.core.common.network.NetworkEndpoint
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
@@ -47,6 +52,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.tatarka.inject.annotations.Inject
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 
 /**
@@ -66,12 +72,23 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             "getprop ro.build.version.sdk"
 
         const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
+        const val MIN_MDNS_OBSERVER_INTERVAL_MS = 500L
+
         const val ADB_VALIDATE_TIMEOUT_MS = 5000L
+        const val ADB_PAIR_TIMEOUT_MS = 15_000L
+        const val ADB_CONNECT_TIMEOUT_MS = 10_000L
+
+        const val MDNS_QR_CONTENT = "WIFI:T:ADB;S:{serviceName};P:{password};;"
+        const val MDNS_QR_SERVICE_NAME_PREFIX = "studio-"
+        const val MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH = 10
+        const val MDNS_QR_PASSWORD_LENGTH = 12
         const val STREAM_READ_TIMEOUT_MULTIPLIER = 1L
 
         val emulatorSerialRegex = """^emulator-\d+$""".toRegex()
         val networkSerialRegex = """^(?:\[[0-9A-Fa-f:]+]|[^:\s]+):\d+$""".toRegex()
         val mdnsNetworkSerialRegex = """^.+\._adb(?:-tls-connect)?\._tcp\.?$""".toRegex()
+
+        val safeQrTokenChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray()
     }
 
     private data class AndroidDeviceExtra(
@@ -86,6 +103,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     }
 
     private val runner = OperationRunner(logService, CATEGORY)
+    private val secureRandom = SecureRandom()
 
     override suspend fun validateExecPath(pathValue: String?) = runner.exec {
         val _pathValue = pathValue ?: environment.adbExecPath()
@@ -193,6 +211,129 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         null to runAdb("disconnect", device.serial)
     }
 
+    override suspend fun createQrPairingSession() = runner.exec<QrPairingSession> {
+        val serviceName = MDNS_QR_SERVICE_NAME_PREFIX + randomToken(MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH)
+        val password = randomToken(MDNS_QR_PASSWORD_LENGTH)
+        val qrContent = MDNS_QR_CONTENT
+            .replace("{serviceName}", serviceName)
+            .replace("{password}", password)
+
+        logService.log(LogLevel.Information, CATEGORY, "Created QR pairing session for service: $serviceName")
+        QrPairingSession(
+            serviceName = serviceName,
+            password = password,
+            qrContent = qrContent
+        ) to successResponse("QR pairing session created.")
+    }
+
+    override suspend fun completeQrPairing(
+        session: QrPairingSession,
+        timeoutMillis: Long,
+        pollIntervalMillis: Long
+    ) = runner.exec<PairingDevice> {
+        val serviceName = session.serviceName.trim()
+        val password = session.password.trim()
+        if (serviceName.isEmpty()) return@exec null to errorResponse("QR pairing service name is empty.")
+        if (password.isEmpty()) return@exec null to errorResponse("QR pairing password is empty.")
+
+        val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_MDNS_OBSERVER_INTERVAL_MS)
+        val pairingDevice = withTimeoutOrNull(timeoutMillis.coerceAtLeast(intervalMillis)) {
+            while (currentCoroutineContext().isActive) {
+                val snapshot = listPairingDevicesSnapshot()
+                if (snapshot.isOk) {
+                    snapshot.data.orEmpty()
+                        .firstOrNull { it.serviceName == serviceName }
+                        ?.let { return@withTimeoutOrNull it }
+                }
+
+                delay(intervalMillis)
+            }
+
+            null
+        }
+
+        if (pairingDevice == null) return@exec null to errorResponse(
+            "Timed out waiting for QR pairing device '$serviceName' after ${timeoutMillis}ms."
+        )
+
+        val response = runPair(pairingDevice.address, password)
+        if (!response.isOk) return@exec null to response
+
+        logService.log(
+            LogLevel.Information,
+            CATEGORY,
+            "Completed QR pairing for service '$serviceName' at ${pairingDevice.address}"
+        )
+        pairingDevice to response
+    }
+
+    override fun observePairingDevices(pollIntervalMillis: Long) = flow {
+        val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_MDNS_OBSERVER_INTERVAL_MS)
+        val initialSnapshot = listPairingDevicesSnapshot()
+        var lastSnapshot = initialSnapshot.data
+        var lastError = initialSnapshot.errorMessage?.takeIf { it.isNotBlank() }
+
+        emit(initialSnapshot)
+        if (lastError != null) logService.log(LogLevel.Error, CATEGORY, lastError)
+
+        while (currentCoroutineContext().isActive) {
+            delay(intervalMillis)
+
+            val snapshotResult = listPairingDevicesSnapshot()
+            if (!snapshotResult.isOk) {
+                val message = snapshotResult.errorMessage.orEmpty().ifBlank {
+                    "Failed to observe pairing devices."
+                }
+                if (message != lastError) {
+                    lastError = message
+                    logService.log(LogLevel.Error, CATEGORY, message)
+                    emit(OperationResult.failure(message))
+                }
+
+                continue
+            }
+
+            val currentSnapshot = snapshotResult.data.orEmpty()
+            if (currentSnapshot == lastSnapshot) continue
+
+            lastSnapshot = currentSnapshot
+            lastError = null
+
+            emit(snapshotResult)
+        }
+    }
+
+    override suspend fun pairDevice(device: PairingDevice, pairingCode: String) = runner.exec {
+        val code = pairingCode.trim()
+        if (code.isEmpty()) return@exec null to errorResponse("Pairing code is empty.")
+
+        logService.log(LogLevel.Information, CATEGORY, "Pairing to ${device.address}")
+        null to runPair(device.address, code)
+    }
+
+    override suspend fun connectDevice(address: String) = runner.exec {
+        val normalizedAddress = NetworkEndpoint.normalize(
+            value = address,
+            defaultPort = NetworkEndpoint.DEFAULT_ADB_PORT
+        ) ?: return@exec null to errorResponse("Device address is invalid.")
+
+        logService.log(LogLevel.Information, CATEGORY, "Connecting to network device: $normalizedAddress")
+        val response = runAdb("connect", normalizedAddress, timeoutMs = ADB_CONNECT_TIMEOUT_MS)
+        if (!response.isOk) return@exec null to response
+
+        // Coerce a successful connection by checking for the expected success line in the output,
+        // since ADB may return 0 even for certain failure cases (e.g. "unable to connect to <ip>:<port>").
+        val successLine = "connected to $normalizedAddress"
+        if (response.outputLines().none { it == successLine }) {
+            val message = response.message.ifBlank {
+                "ADB connect did not report a successful connection to '$normalizedAddress'."
+            }
+            return@exec null to errorResponse(message)
+        }
+
+        null to response
+    }
+
     override suspend fun executeCommand(device: AndroidDevice, vararg arguments: Any): AdbResponse {
         logService.log(LogLevel.Trace, CATEGORY, "$device ${arguments.joinToString(" ")}")
         val response = runAdb("-s", device.serial, *arguments)
@@ -204,6 +345,16 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
      * Executes "adb devices -l" and captures the output for device parsing.
      */
     private suspend fun obtainListDevices() = runAdb("devices", "-l")
+
+    /**
+     * Executes "adb mdns services" and parses discoverable wireless debugging services.
+     */
+    private suspend fun obtainMdnsServices() = runAdb("mdns", "services")
+
+    /**
+     * Executes "adb pair <address> <credential>" to complete wireless debugging pairing.
+     */
+    private suspend fun runPair(address: String, credential: String) = runAdb("pair", address, credential, ADB_PAIR_TIMEOUT_MS)
 
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
@@ -414,6 +565,72 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         OperationResult.failure(t.message ?: t::class.simpleName ?: "Failed to observe devices.")
     }
 
+    /**
+     * Queries adb's built-in mDNS discovery list and keeps only pairing endpoints.
+     */
+    private suspend fun listPairingDevicesSnapshot() = try {
+        val response = obtainMdnsServices()
+        if (!response.isOk)
+            OperationResult.failure(response)
+        else {
+            val pairingDevices = response.standardOutput
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .mapNotNull(::parseMdnsServiceLine)
+                .filter { it.type == MdnsServiceType.Pairing }
+                .map {
+                    PairingDevice(
+                        serviceName = it.serviceName,
+                        host = it.host,
+                        port = it.port
+                    )
+                }
+                .sortedWith(compareBy<PairingDevice> { it.serviceName }.thenBy { it.address })
+                .toList()
+
+            OperationResult.success(pairingDevices)
+        }
+    } catch (t: CancellationException) {
+        throw t
+    } catch (t: Throwable) {
+        OperationResult.failure(t.message ?: t::class.simpleName ?: "Failed to discover pairing devices.")
+    }
+
+    private fun parseMdnsServiceLine(line: String): MdnsService? {
+        val tokens = line.split("\\s+".toRegex()).filter { it.isNotEmpty() }
+        if (tokens.size < 3) return null
+
+        val endpoint = NetworkEndpoint.parse(tokens.last()) ?: return null
+        val type = MdnsServiceType.from(tokens[tokens.size - 2]) ?: return null
+        val serviceName = tokens.subList(0, tokens.size - 2).joinToString(" ").trim()
+        if (serviceName.isEmpty()) return null
+
+        return MdnsService(
+            serviceName = serviceName,
+            type = type,
+            host = endpoint.host,
+            port = endpoint.port
+        )
+    }
+
+    private fun AdbResponse.outputLines() = buildList {
+        standardOutput.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach(::add)
+        standardError.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .forEach(::add)
+    }
+
+    private fun successResponse(message: String) = AdbResponse(
+        exitCode = 0,
+        standardOutput = message,
+        standardError = ""
+    )
+
     private fun errorResponse(message: String) = AdbResponse(
         exitCode = -1,
         standardOutput = "",
@@ -460,6 +677,12 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             releaseText.isNotBlank() -> releaseText
             normalizedSdk.isNotBlank() -> "Android ($normalizedSdk)"
             else -> ""
+        }
+    }
+
+    private fun randomToken(length: Int) = buildString(length) {
+        repeat(length) {
+            append(safeQrTokenChars[secureRandom.nextInt(safeQrTokenChars.size)])
         }
     }
 }
