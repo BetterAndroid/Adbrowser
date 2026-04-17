@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ApplicationScope
+import com.highcapable.adbrowser.app.cl.coordinator.PendingDeviceSelectionCoordinator
 import com.highcapable.adbrowser.app.ui.utils.SystemAppearance
 import com.highcapable.adbrowser.core.domain.AppServices
 
@@ -34,6 +35,8 @@ data class AppState(
     val application: ApplicationScope,
     val appServices: AppServices
 ) {
+
+    val pendingDeviceSelectionCoordinator = PendingDeviceSelectionCoordinator()
 
     var isDarkTheme by mutableStateOf(SystemAppearance.isDarkMode)
         private set

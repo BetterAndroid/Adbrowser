@@ -38,10 +38,16 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,14 +62,20 @@ fun DevicePanePanel(
     selectedDevice: AndroidDeviceItem?,
     listState: LazyListState,
     title: String,
+    actionDescription: String,
     refreshDescription: String,
     noDeviceMessage: String,
+    onOpenActionMenu: (Offset) -> Unit,
     onRefresh: () -> Unit,
     onDeviceClick: (AndroidDeviceItem) -> Unit,
     popupHostCoordinates: () -> LayoutCoordinates?,
     onDeviceSecondaryClick: (AndroidDeviceItem, Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    var actionButtonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val offsetExtra = with(density) { 4.dp.toPx() }
+
     PanelSurface(
         modifier = modifier,
         padding = PaddingValues(14.dp)
@@ -93,12 +105,30 @@ fun DevicePanePanel(
                         )
                     }
                 }
-                ContentIconButton(
-                    key = AppIcons.Refresh,
-                    outlined = true,
-                    contentDescription = refreshDescription,
-                    onClick = onRefresh
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ContentIconButton(
+                        key = AppIcons.Plus,
+                        outlined = true,
+                        contentDescription = actionDescription,
+                        modifier = Modifier.onGloballyPositioned { actionButtonCoordinates = it },
+                        onClick = {
+                            val host = popupHostCoordinates()
+                            val button = actionButtonCoordinates
+                            if (host == null || button == null) return@ContentIconButton
+
+                            onOpenActionMenu(
+                                host.localPositionOf(button, Offset.Zero) +
+                                    Offset(x = 0f, y = button.size.height.toFloat() + offsetExtra)
+                            )
+                        }
+                    )
+                    ContentIconButton(
+                        key = AppIcons.Refresh,
+                        outlined = true,
+                        contentDescription = refreshDescription,
+                        onClick = onRefresh
+                    )
+                }
             }
             Spacer(Modifier.height(10.dp))
             PanelSurface(

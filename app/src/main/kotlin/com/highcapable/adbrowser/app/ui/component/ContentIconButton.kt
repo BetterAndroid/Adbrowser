@@ -38,6 +38,7 @@ fun ContentIconButton(
     contentDescription: String,
     enabled: Boolean = true,
     outlined: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     if (outlined)
@@ -45,7 +46,7 @@ fun ContentIconButton(
             onClick = onClick,
             enabled = enabled,
             style = AdbrowserTheme.outlineButtonStyle(PaddingValues.Zero),
-            modifier = Modifier.size(DefaultContentSize)
+            modifier = modifier.size(DefaultContentSize)
         ) {
             ContentIcon(
                 key = key,
@@ -59,7 +60,7 @@ fun ContentIconButton(
             onClick = onClick,
             enabled = enabled,
             style = AdbrowserTheme.defaultButtonStyle(PaddingValues.Zero),
-            modifier = Modifier.size(DefaultContentSize)
+            modifier = modifier.size(DefaultContentSize)
         ) {
             ContentIcon(
                 key = key,

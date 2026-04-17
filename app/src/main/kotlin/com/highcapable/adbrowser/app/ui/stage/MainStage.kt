@@ -103,6 +103,7 @@ import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
+import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
 import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.app.ui.dialog.SimpleInputDialog
 import com.highcapable.adbrowser.app.ui.foundation.isIndexFullyVisible
@@ -201,8 +202,10 @@ private fun DevicePane(
             selectedDevice = viewModel.selectedDevice,
             listState = listState,
             title = strings.mainDevicesTitle,
+            actionDescription = strings.mainDeviceActionsDescription,
             refreshDescription = strings.mainRefreshDeviceDescription,
             noDeviceMessage = strings.mainDeviceListHintNoDevice,
+            onOpenActionMenu = interactionState::openActionMenu,
             onRefresh = viewModel::refreshDevices,
             onDeviceClick = viewModel::selectDevice,
             popupHostCoordinates = { popupHostCoordinates },
@@ -213,6 +216,14 @@ private fun DevicePane(
                     interactionState.openContextMenu(device, position)
             },
             modifier = Modifier.fillMaxSize()
+        )
+        DeviceActionMenuPopup(
+            state = interactionState.actionMenuState,
+            onConnectToDevice = {
+                interactionState.dismissActionMenu()
+                viewModel.connectToDevice()
+            },
+            onDismissRequest = interactionState::dismissActionMenu
         )
         DeviceContextMenuPopup(
             state = interactionState.contextMenuState,
@@ -944,6 +955,11 @@ private fun MenuScope.blankFileContextMenu(
 private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
     when (val state = viewModel.dialogState) {
         MainStageModel.DialogState.None -> Unit
+        MainStageModel.DialogState.DeviceConnect ->
+            DeviceConnectDialog(
+                onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window
+            )
         MainStageModel.DialogState.NewFolder ->
             SimpleInputDialog(
                 title = strings.dialogNewFolderTitle,
@@ -1013,6 +1029,8 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
         val template = when (status.key) {
             MainStageModel.StatusMessage.Key.CommonUnknownError -> strings.commonUnknownError
             MainStageModel.StatusMessage.Key.DevicesUpdated -> strings.statusDevicesUpdated
+            MainStageModel.StatusMessage.Key.DeviceConnectionPending -> strings.statusDeviceConnectionPending
+            MainStageModel.StatusMessage.Key.DeviceConnected -> strings.statusDeviceConnected
             MainStageModel.StatusMessage.Key.DeviceDisconnected -> strings.statusDeviceDisconnected
             MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
             MainStageModel.StatusMessage.Key.InvalidFolderName -> strings.statusInvalidFolderName
@@ -1034,6 +1052,32 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
         template.formatWithArgs(*status.args.toTypedArray())
+    }
+}
+
+@Composable
+private fun DeviceActionMenuPopup(
+    state: DeviceActionMenuState?,
+    onConnectToDevice: () -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val popupState = state as? DeviceActionMenuState.Popup ?: return
+
+    PopupMenu(
+        onDismissRequest = { onDismissRequest(); true },
+        popupPositionProvider = rememberPopupPositionProviderAtPosition(popupState.position),
+        popupProperties = PopupProperties(focusable = false)
+    ) {
+        // TODO: Enable "Pair new device" when the pairing flow is implemented.
+        selectableItem(
+            selected = false,
+            enabled = false,
+            onClick = {}
+        ) { Text(strings.menuPairNewDevice) }
+        selectableItem(
+            selected = false,
+            onClick = onConnectToDevice
+        ) { Text(strings.menuConnectToDevice) }
     }
 }
 
@@ -1089,19 +1133,40 @@ private sealed interface DeviceContextMenuState {
     ) : DeviceContextMenuState
 }
 
+private sealed interface DeviceActionMenuState {
+
+    data class Popup(
+        val position: Offset,
+        val requestId: Long
+    ) : DeviceActionMenuState
+}
+
 private class DevicePaneInteractionState {
 
     private var contextMenuRequestId by mutableStateOf(0L)
+    private var actionMenuRequestId by mutableStateOf(0L)
 
     var contextMenuState by mutableStateOf<DeviceContextMenuState?>(null)
+    var actionMenuState by mutableStateOf<DeviceActionMenuState?>(null)
 
     fun openContextMenu(device: AndroidDeviceItem, position: Offset) {
+        actionMenuState = null
         contextMenuRequestId += 1L
         contextMenuState = DeviceContextMenuState.Entry(device, position, contextMenuRequestId)
     }
 
     fun dismissContextMenu() {
         contextMenuState = null
+    }
+
+    fun openActionMenu(position: Offset) {
+        contextMenuState = null
+        actionMenuRequestId += 1L
+        actionMenuState = DeviceActionMenuState.Popup(position, actionMenuRequestId)
+    }
+
+    fun dismissActionMenu() {
+        actionMenuState = null
     }
 }
 
@@ -1123,7 +1188,7 @@ private fun SelectedItemsText(selectedCount: Int, totalCount: Int, suffix: Strin
         1 -> strings.mainStatusSelectedItemSingular.formatWithArgs(totalCount, suffixText)
         else -> strings.mainStatusSelectedItemPlural.formatWithArgs(selectedCount, totalCount, suffixText)
     }
-} 
+}
 
 @Composable
 private fun HiddenItemsText(count: Int) = when (count) {

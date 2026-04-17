@@ -31,6 +31,7 @@ import kotlinx.serialization.Serializable
 data class AppSettings(
     var language: String = "",
     var adbExecPath: String = "",
+    var connectedDeviceAddressHistory: MutableList<String> = mutableListOf(),
     var rememberLastDevice: Boolean = true,
     var rememberLastDevicePath: Boolean = true,
     var useSuperuser: Boolean = false,

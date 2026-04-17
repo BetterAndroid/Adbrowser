@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.cl.AppState
+import com.highcapable.adbrowser.app.cl.coordinator.PendingDeviceSelectionCoordinator
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
@@ -65,6 +66,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     sealed interface DialogState {
         data object None : DialogState
+        data object DeviceConnect : DialogState
         data object NewFolder : DialogState
         data class Rename(val initialName: String) : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
@@ -84,6 +86,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         enum class Key {
             CommonUnknownError,
             DevicesUpdated,
+            DeviceConnectionPending,
+            DeviceConnected,
             DeviceDisconnected,
             SelectDeviceFirst,
             InvalidFolderName,
@@ -174,8 +178,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private val fileSystemService get() = appState.appServices.fileSystemService
     private val permissionService get() = appState.appServices.permissionService
     private val settingsService get() = appState.appServices.settingsService
+    private val pendingDeviceSelectionCoordinator get() = appState.pendingDeviceSelectionCoordinator
 
     private var deviceObserverJob: Job? = null
+    private var pendingDeviceSelectionObserverJob: Job? = null
 
     private var clipboardEntry: ClipboardEntrySnapshot? = null
     private var initialized = false
@@ -360,11 +366,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         initialized = true
         refreshDevices(showStatus = false)
         startObserveDevices()
+        startObservePendingDeviceSelections()
     }
 
     /** Cancels observers and model coroutines when the stage is disposed. */
     fun dispose() {
         deviceObserverJob?.cancel()
+        pendingDeviceSelectionObserverJob?.cancel()
         modelScope.cancel()
     }
 
@@ -400,6 +408,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             result = adbClient.listDevices(),
             showStatus = showStatus
         )
+    }
+
+    /** Opens the network device connect dialog from the device pane action menu. */
+    fun connectToDevice() {
+        dialogState = DialogState.DeviceConnect
     }
 
     /** Disconnects a network ADB transport and refreshes devices immediately on success. */
@@ -438,10 +451,33 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
-    private suspend fun consumeDeviceListResult(result: OperationResult<List<AndroidDevice>>, showStatus: Boolean) {
+    /**
+     * Bridges app-scoped pending device announcements into this stage's status bar.
+     *
+     * The pending coordinator lives with [AppState], while this observer only exists for the
+     * lifetime of the current main stage. This keeps the UI lifecycle-aware and avoids statically
+     * pinning any Compose-facing state holder just to surface a transient status message.
+     */
+    private fun startObservePendingDeviceSelections() {
+        if (pendingDeviceSelectionObserverJob?.isActive == true) return
+
+        pendingDeviceSelectionObserverJob = modelScope.launch {
+            pendingDeviceSelectionCoordinator.observeAnnouncements().collect { selection ->
+                when (selection.reason) {
+                    PendingDeviceSelectionCoordinator.Reason.Connected ->
+                        setStatus(StatusMessage.Key.DeviceConnectionPending, selection.serial)
+                }
+            }
+        }
+    }
+
+    private suspend fun consumeDeviceListResult(
+        result: OperationResult<List<AndroidDevice>>,
+        showStatus: Boolean
+    ): AndroidDeviceItem? {
         if (!result.isOk) {
             setErrorStatus(result.errorMessage)
-            return
+            return null
         }
 
         val previousSelectedDevice = selectedDevice
@@ -450,17 +486,25 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
         reconcileWorkspaces()
 
+        val pendingSelection = pendingDeviceSelectionCoordinator
+            .consumePendingSelection(devices.map(AndroidDeviceItem::serial))
+        val refreshedPreviousSelectedDevice = previousSelectedDevice
+            ?.let { previous -> devices.firstOrNull { it == previous } }
+
         // Device models are recreated from backend data on every refresh. Resolve selection
         // by equality against the new list instead of keeping a stale instance reference.
-        val targetDevice = previousSelectedDevice
-            ?.let { previous -> devices.firstOrNull { it == previous } }
+        //
+        // Pending selections are consumed before the normal fallback chain so a freshly connected
+        // device can "retroactively" claim focus when it finally appears in the observed list.
+        val pendingDevice = pendingSelection
+            ?.let { selection -> devices.firstOrNull { it.serial.equals(selection.serial, ignoreCase = true) } }
+        val targetDevice = pendingDevice
+            ?: refreshedPreviousSelectedDevice
             ?: selectDefaultDevice()
-
-        if (showStatus) setStatus(StatusMessage.Key.DevicesUpdated)
 
         if (targetDevice == null) {
             selectedDevice = null
-            return
+            return null
         }
 
         // The selected workspace is hydrated synchronously because the user can see it
@@ -475,6 +519,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
 
         prebuildWorkspacesInBackground(skipDevice = targetDevice)
+        when {
+            pendingSelection != null && pendingDevice != null -> applyPendingSelectionStatus(pendingSelection, pendingDevice)
+            showStatus -> setStatus(StatusMessage.Key.DevicesUpdated)
+        }
+
+        return targetDevice
     }
 
     /** Reloads the current directory and clears selection, matching desktop file manager behavior. */
@@ -1737,8 +1787,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return false
     }
 
-    private fun isHiddenEntryName(name: String): Boolean =
-        name.isNotBlank() && name.startsWith('.')
+    private fun isHiddenEntryName(name: String) = name.isNotBlank() && name.startsWith('.')
 
     private fun setStatus(key: StatusMessage.Key, vararg args: String) {
         statusMessage = StatusMessage.Res(key = key, args = args.toList())
@@ -1751,6 +1800,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             ?: StatusMessage.Res(StatusMessage.Key.CommonUnknownError)
     }
 
-    private fun String?.orUnknownErrorToken(): String =
-        this?.takeIf { it.isNotBlank() } ?: UNKNOWN_ERROR_TOKEN
+    private fun applyPendingSelectionStatus(
+        selection: PendingDeviceSelectionCoordinator.PendingSelection,
+        device: AndroidDeviceItem
+    ) = when (selection.reason) {
+        PendingDeviceSelectionCoordinator.Reason.Connected -> setStatus(StatusMessage.Key.DeviceConnected, device.brandModel)
+    }
+
+    private fun String?.orUnknownErrorToken() = this?.takeIf { it.isNotBlank() } ?: UNKNOWN_ERROR_TOKEN
 }

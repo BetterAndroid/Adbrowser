@@ -29,6 +29,7 @@ import com.highcapable.adbrowser.app.ui.assets.base.AppAssets
  */
 object AppIcons : AppAssets("icons") {
 
+    val Plus = createSvg("Plus")
     val Log = createSvg("Log")
     val Folder = createSvg("Folder")
     val ArrowLeft = createSvg("ArrowLeft")
