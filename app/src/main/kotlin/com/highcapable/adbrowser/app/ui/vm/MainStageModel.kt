@@ -291,7 +291,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun isSelectedWorkspace(device: AndroidDeviceItem) = selectedDevice == device
 
     /** Network transports are the only device entries that can be disconnected explicitly. */
-    fun canDisconnectDevice(device: AndroidDeviceItem) = device.isNetworkDevice
+    fun canDisconnectDevice(device: AndroidDeviceItem) = device.type == AndroidDevice.Type.Network
 
     /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
     fun setDevicePaneWidth(widthDp: Float) {
@@ -404,7 +404,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Disconnects a network ADB transport and refreshes devices immediately on success. */
     fun disconnectDevice(device: AndroidDeviceItem) = launchBusyAction {
-        if (!device.isNetworkDevice) return@launchBusyAction
+        if (device.type != AndroidDevice.Type.Network) return@launchBusyAction
 
         val result = adbClient.disconnectDevice(device.toDomain())
         if (!result.isOk) {
@@ -412,7 +412,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return@launchBusyAction
         }
 
-        setStatus(StatusMessage.Key.DeviceDisconnected, device.serial)
+        setStatus(StatusMessage.Key.DeviceDisconnected, device.brandModel)
         consumeDeviceListResult(
             result = adbClient.listDevices(),
             showStatus = false

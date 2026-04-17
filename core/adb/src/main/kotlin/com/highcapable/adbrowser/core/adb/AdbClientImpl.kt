@@ -68,23 +68,20 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
         const val ADB_VALIDATE_TIMEOUT_MS = 5000L
         const val STREAM_READ_TIMEOUT_MULTIPLIER = 1L
+
+        val emulatorSerialRegex = """^emulator-\d+$""".toRegex()
+        val networkSerialRegex = """^(?:\[[0-9A-Fa-f:]+]|[^:\s]+):\d+$""".toRegex()
+        val mdnsNetworkSerialRegex = """^.+\._adb(?:-tls-connect)?\._tcp\.?$""".toRegex()
     }
 
-    private data class ParsedDevice(
-        val serial: String,
-        val name: String,
-        val model: String,
-        val isOnline: Boolean
-    )
-
-    private data class DeviceExtra(
+    private data class AndroidDeviceExtra(
         val brand: String,
         val systemVersion: String
     ) {
 
         companion object {
 
-            val Empty = DeviceExtra(brand = "", systemVersion = "")
+            val Empty = AndroidDeviceExtra(brand = "", systemVersion = "")
         }
     }
 
@@ -138,15 +135,11 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
                     async {
                         val extra = if (parsed.isOnline)
                             fetchDeviceExtra(parsed.serial)
-                        else DeviceExtra.Empty
+                        else AndroidDeviceExtra.Empty
 
-                        AndroidDevice(
-                            name = parsed.name,
-                            model = parsed.model,
+                        parsed.copy(
                             brand = extra.brand,
-                            systemVersion = extra.systemVersion,
-                            serial = parsed.serial,
-                            isOnline = parsed.isOnline
+                            systemVersion = extra.systemVersion
                         )
                     }
                 }.awaitAll()
@@ -194,7 +187,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     }
 
     override suspend fun disconnectDevice(device: AndroidDevice) = runner.exec {
-        if (!device.isNetworkDevice) return@exec null to errorResponse("Only network ADB devices can be disconnected.")
+        if (device.type != AndroidDevice.Type.Network) return@exec null to errorResponse("Only network ADB devices can be disconnected.")
 
         logService.log(LogLevel.Information, CATEGORY, "Disconnecting device: ${device.serial}")
         null to runAdb("disconnect", device.serial)
@@ -317,7 +310,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         return output.contains(ADB_VERSION_SIGNATURE, ignoreCase = true)
     }
 
-    private fun parseDeviceLine(line: String): ParsedDevice? {
+    private fun parseDeviceLine(line: String): AndroidDevice? {
         if (line.startsWith("List of devices attached", ignoreCase = true) ||
             line.startsWith("*")
         ) return null
@@ -330,6 +323,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         var name = ""
         var model = ""
         val isOnline = state.equals("device", ignoreCase = true)
+        val type = resolveDeviceType(serial, tokens)
 
         tokens.drop(2).forEach { token ->
             when {
@@ -343,15 +337,34 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         if (name.isBlank()) name = model.ifBlank { serial }
         if (model.isBlank()) model = name
 
-        return ParsedDevice(
+        return AndroidDevice(
             serial = serial,
             name = name,
+            brand = "",
             model = model,
-            isOnline = isOnline
+            systemVersion = "",
+            isOnline = isOnline,
+            type = type
         )
     }
 
-    private suspend fun fetchDeviceExtra(serial: String): DeviceExtra {
+    /**
+     * Resolves a product-facing device transport type from `adb devices -l` output.
+     *
+     * ADB host internals mainly expose USB and LOCAL transports. LOCAL covers both emulators and
+     * TCP devices, so we refine it here using the stable serial formats returned by ADB.
+     */
+    private fun resolveDeviceType(serial: String, tokens: List<String>): AndroidDevice.Type {
+        if (tokens.any { it.startsWith("usb:", ignoreCase = true) }) return AndroidDevice.Type.Usb
+        if (emulatorSerialRegex.matches(serial)) return AndroidDevice.Type.Emulator
+        if (networkSerialRegex.matches(serial) || mdnsNetworkSerialRegex.matches(serial)) return AndroidDevice.Type.Network
+
+        // Physical devices may not always include an usb: segment in every state, but their serials
+        // also do not match emulator/network patterns, so treat the remaining connected entries as USB.
+        return AndroidDevice.Type.Usb
+    }
+
+    private suspend fun fetchDeviceExtra(serial: String): AndroidDeviceExtra {
         val response = runAdb("-s", serial, "shell", DEVICE_PROPS_COMMAND)
         if (!response.isOk) {
             logService.log(
@@ -359,7 +372,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
                 CATEGORY,
                 "Failed to query device extra info for $serial: ${response.standardError.trim()}"
             )
-            return DeviceExtra.Empty
+            return AndroidDeviceExtra.Empty
         }
 
         val lines = response.standardOutput
@@ -374,7 +387,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             sdk = lines.getOrNull(2).orEmpty()
         )
 
-        return DeviceExtra(brand, systemVersion)
+        return AndroidDeviceExtra(brand, systemVersion)
     }
 
     /**

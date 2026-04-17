@@ -31,7 +31,7 @@ data class AndroidDeviceItem(
     val serial: String,
     val systemVersion: String,
     val isOnline: Boolean,
-    val isNetworkDevice: Boolean
+    val type: AndroidDevice.Type
 ) {
 
     companion object {
@@ -43,7 +43,7 @@ data class AndroidDeviceItem(
             serial = device.serial,
             systemVersion = device.systemVersion,
             isOnline = device.isOnline,
-            isNetworkDevice = device.isNetworkDevice
+            type = device.type
         )
     }
 
@@ -55,7 +55,8 @@ data class AndroidDeviceItem(
         brand = brand,
         model = model,
         systemVersion = systemVersion,
-        isOnline = isOnline
+        isOnline = isOnline,
+        type = type
     )
 
     override fun equals(other: Any?) = when (other) {

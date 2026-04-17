@@ -31,21 +31,22 @@ data class AndroidDevice(
     val model: String,
     val systemVersion: String,
     val serial: String,
-    val isOnline: Boolean
+    val isOnline: Boolean,
+    val type: Type
 ) {
 
-    private companion object {
-
-        val NetworkSerialRegex = """.+:\d+$""".toRegex()
-    }
-
     /**
-     * Network transports use an ADB serial formatted as host:port or \[ipv6\]:port.
+     * Describes how the ADB transport is exposed to the host.
      *
-     * Emulator serials such as `emulator-5554` are therefore excluded and should not expose
-     * explicit disconnect actions in the UI.
+     * AOSP itself mainly distinguishes USB and LOCAL transports. We split LOCAL further into
+     * [Type.Emulator] and [Type.Network] based on the reported serial so the app can react differently
+     * to emulators and ADB-over-network devices.
      */
-    val isNetworkDevice by lazy { NetworkSerialRegex.matches(serial) }
+    enum class Type {
+        Usb,
+        Emulator,
+        Network
+    }
 
     override fun equals(other: Any?) = when (other) {
         is AndroidDevice -> this.serial == other.serial
