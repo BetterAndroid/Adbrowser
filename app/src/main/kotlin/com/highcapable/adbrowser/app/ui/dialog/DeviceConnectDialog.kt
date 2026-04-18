@@ -30,9 +30,11 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,6 +56,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.component.ContentIcon
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
@@ -72,6 +77,8 @@ fun DeviceConnectDialog(
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null
 ) {
+    val colors = AdbrowserTheme.colors
+
     val appState = LocalAppState.current
     val viewModel = remember(appState) { DeviceConnectDialogModel(appState) }
     val focusRequester = remember { FocusRequester() }
@@ -111,8 +118,31 @@ fun DeviceConnectDialog(
     DialogScaffold(
         title = strings.dialogDeviceConnectTitle,
         onCloseRequest = { viewModel.cancelAndClose(onCloseRequest) },
+        horizontalAlignment = Alignment.CenterHorizontally,
         ownerWindow = ownerWindow
     ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            ContentIcon(
+                key = AppIcons.Internet,
+                tint = colors.primaryAccent,
+                modifier = Modifier.size(LogoIconSize)
+            )
+            ContentIcon(
+                key = AppIcons.Ellipsis,
+                tint = colors.primaryAccent,
+                modifier = Modifier
+                    .size(DotIconSize)
+                    .alpha(0.5f)
+            )
+            ContentIcon(
+                key = AppIcons.Device,
+                tint = colors.primaryAccent,
+                modifier = Modifier.size(LogoIconSize)
+            )
+        }
         DeviceAddressComboBox(
             viewModel = viewModel,
             popupManager = popupManager,
@@ -263,5 +293,8 @@ private fun AddressSuggestionItem(
             }
     )
 }
+
+private val LogoIconSize = 40.dp
+private val DotIconSize = 25.dp
 
 private val MaxPopupHeight = 180.dp

@@ -58,6 +58,8 @@ fun DialogScaffold(
     ownerWindow: Window? = null,
     width: Dp = 460.dp,
     height: Dp = Dp.Unspecified,
+    verticalSpacing: Dp = 12.dp,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
     DialogWindow(
@@ -86,7 +88,8 @@ fun DialogScaffold(
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+                horizontalAlignment = horizontalAlignment
             ) {
                 content()
             }
