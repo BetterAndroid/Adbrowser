@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.app.ui.dialog.base
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -59,6 +60,7 @@ fun DialogScaffold(
     width: Dp = 460.dp,
     height: Dp = Dp.Unspecified,
     verticalSpacing: Dp = 12.dp,
+    contentPadding: PaddingValues = PaddingValues(20.dp),
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
@@ -87,7 +89,7 @@ fun DialogScaffold(
                     .background(colors.mainBackground)
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .padding(20.dp),
+                    .padding(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(verticalSpacing),
                 horizontalAlignment = horizontalAlignment
             ) {
