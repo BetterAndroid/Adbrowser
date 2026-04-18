@@ -47,7 +47,9 @@ data class AndroidDeviceItem(
         )
     }
 
-    val brandModel = "$brand $model".trim().ifBlank { "Unknown" }
+    val brandModel = if (brand.isNotBlank() && model.isNotBlank())
+        "$brand $model".trim()
+    else ""
 
     fun toDomain() = AndroidDevice(
         serial = serial,

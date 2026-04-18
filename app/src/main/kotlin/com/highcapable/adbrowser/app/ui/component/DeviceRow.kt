@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
@@ -143,7 +144,7 @@ fun DeviceRow(
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.brandModel,
+                    text = item.brandModel.ifBlank { strings.mainDeviceListNameUnknowDevice },
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,

@@ -118,6 +118,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         None,
         EmptyFolder,
         DeviceOffline,
+        DeviceUnauthorized,
         DeviceNotFound,
         PathNotFound,
         PermissionDenied,
@@ -501,6 +502,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         if (targetDevice == null) {
             selectedDevice = null
+            if (devices.isEmpty()) statusMessage = StatusMessage.None
             return null
         }
 
@@ -1298,7 +1300,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         } else {
             fillEntries(state, emptyList())
             state.fileListHint = resolveFailureHint(result.errorMessage)
-            setErrorStatus(result.errorMessage)
+            if (state.fileListHint.shouldSuppressStatusBarError())
+                statusMessage = StatusMessage.None
+            else setErrorStatus(result.errorMessage)
         }
 
         return true
@@ -1778,6 +1782,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         // Backend error messages are not fully normalized yet, so this intentionally relies on
         // tolerant substring checks instead of exact string matching.
         return when {
+            "device unauthorized" in message -> FileListHint.DeviceUnauthorized
             "device offline" in message -> FileListHint.DeviceOffline
             ("device '" in message && "' not found" in message) ||
                 ("device" in message && "not found" in message && "error:" in message) -> FileListHint.DeviceNotFound
@@ -1787,6 +1792,17 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 "not permitted" in message -> FileListHint.PermissionDenied
             else -> FileListHint.LoadFailed
         }
+    }
+
+    /**
+     * Some transport-level states are already represented by the dedicated empty-state panel in the
+     * file area. Repeating them in the status bar only adds noise, so those hints intentionally
+     * suppress the raw backend error text there.
+     */
+    private fun FileListHint.shouldSuppressStatusBarError() = when (this) {
+        FileListHint.DeviceOffline,
+        FileListHint.DeviceUnauthorized -> true
+        else -> false
     }
 
     private fun ensureDeviceSelected(): Boolean {

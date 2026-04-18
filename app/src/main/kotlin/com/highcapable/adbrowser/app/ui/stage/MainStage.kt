@@ -1207,6 +1207,7 @@ private fun FileListHintIcon(hint: MainStageModel.FileListHint) = when (hint) {
     MainStageModel.FileListHint.None -> null
     MainStageModel.FileListHint.EmptyFolder -> AppIcons.Folder
     MainStageModel.FileListHint.DeviceOffline,
+    MainStageModel.FileListHint.DeviceUnauthorized,
     MainStageModel.FileListHint.DeviceNotFound -> AppIcons.DeletedFolder
     MainStageModel.FileListHint.PermissionDenied -> AppIcons.BlockedFolder
     MainStageModel.FileListHint.PathNotFound,
@@ -1218,6 +1219,7 @@ private fun FileListHintMessage(hint: MainStageModel.FileListHint) = when (hint)
     MainStageModel.FileListHint.None -> ""
     MainStageModel.FileListHint.EmptyFolder -> strings.mainFileListHintEmptyFolder
     MainStageModel.FileListHint.DeviceOffline -> strings.mainFileListHintDeviceOffline
+    MainStageModel.FileListHint.DeviceUnauthorized -> strings.mainFileListHintDeviceUnauthorized
     MainStageModel.FileListHint.DeviceNotFound -> strings.mainFileListHintDeviceNotFound
     MainStageModel.FileListHint.PathNotFound -> strings.mainFileListHintPathNotFound
     MainStageModel.FileListHint.PermissionDenied -> strings.mainFileListHintPermissionDenied
