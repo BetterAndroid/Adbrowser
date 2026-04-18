@@ -950,6 +950,15 @@ private fun MenuScope.blankFileContextMenu(
             enabled = hasEntries,
             onClick = { perform(viewModel::inverseSelectEntries) }
         ) { Text(strings.menuInverseSelect) }
+        if (viewModel.canShowCurrentDirectoryProperties(device)) {
+            separator()
+            selectableItem(
+                selected = false,
+                enabled = hasSelectedDevice,
+                iconKey = AllIconsKeys.Actions.Properties,
+                onClick = { perform(viewModel::showCurrentDirectoryProperties) }
+            ) { Text(strings.menuProperties) }
+        }
     }
 }
 

@@ -146,6 +146,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val isCut: Boolean
     )
 
+    private data class TargetPathResolution(
+        val path: String,
+        val restoredFromRememberedPath: Boolean
+    )
+
     /**
      * Per-device UI state that survives device switching.
      *
@@ -158,6 +163,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         var currentPath by mutableStateOf("/")
         val pathInput = TextFieldState("/")
         val currentEntries = mutableStateListOf<DeviceFileItem>()
+        val directorySnapshots = mutableMapOf<String, FileEntrySnapshot>()
         var hiddenEntryCount by mutableStateOf(0)
         var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
         val selectedEntryPaths = mutableStateListOf<String>()
@@ -260,6 +266,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canNavigateRoot get() = selectedDevice != null && currentPath != "/"
     val canShowBlankFileContextMenu get() = selectedDevice?.let(::canShowBlankFileContextMenu) == true
     val canPasteEntry get() = selectedDevice?.let { clipboardEntry?.device == it } == true
+    val canShowFileProperties
+        get() = hasSingleSelectedEntry || (selectedDevice?.let(::canShowCurrentDirectoryProperties) == true)
 
     val hasSelectedEntry get() = selectedEntries.isNotEmpty()
     val hasSingleSelectedEntry get() = selectedEntries.size == 1
@@ -635,6 +643,28 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         dialogState = DialogState.Properties(snapshot)
     }
 
+    /** Opens the properties dialog for the current directory shown in the active file pane. */
+    fun showCurrentDirectoryProperties() {
+        val snapshot = buildCurrentDirectorySnapshot() ?: return
+
+        dialogState = DialogState.Properties(snapshot)
+    }
+
+    /**
+     * Opens properties for the current context.
+     *
+     * File-menu invocation prefers the selected entry and only falls back to the current directory
+     * when that directory has a real entry to inspect. Root is intentionally excluded because it
+     * does not have a parent entry we can resolve reliably from the backend today.
+     */
+    fun showProperties() {
+        buildSelectedEntrySnapshot()
+            ?.let { dialogState = DialogState.Properties(it) }
+            ?: selectedDevice
+                ?.takeIf(::canShowCurrentDirectoryProperties)
+                ?.let { showCurrentDirectoryProperties() }
+    }
+
     /** Opens the currently selected entry using the default open behavior. */
     fun openSelectedEntry() {
         val device = selectedDevice ?: return
@@ -997,6 +1027,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun canShowBlankFileContextMenu(device: AndroidDeviceItem) = fileListHintOf(device).let {
         it == FileListHint.None || it == FileListHint.EmptyFolder
     }
+    fun canShowCurrentDirectoryProperties(device: AndroidDeviceItem) =
+        device.isOnline && normalizePath(workspace(device)?.currentPath ?: "/") != "/"
     fun canNavigateBack(device: AndroidDeviceItem) = (workspace(device)?.navigationIndex ?: 0) > 0
     fun canNavigateForward(device: AndroidDeviceItem) =
         workspace(device)?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
@@ -1281,14 +1313,16 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     ): Boolean {
         val targetPath = resolveTargetPath(state, device, requestedPath, useRememberedPathWhenRequestedPathIsNull)
         val previousPath = state.currentPath
-        val result = fileSystemService.list(device, targetPath)
+        val result = fileSystemService.list(device, targetPath.path)
 
         // Apply the requested path immediately so the address bar and breadcrumb stay in sync
         // with the navigation intent even if the backend call fails, and we end up showing a hint.
-        applyPath(state, targetPath)
+        applyPath(state, targetPath.path)
 
         if (result.isOk) {
             fillEntries(state, result.data.orEmpty())
+            if (targetPath.restoredFromRememberedPath)
+                prewarmCurrentDirectorySnapshotFromParent(state, device, targetPath.path)
             state.fileListHint = if (state.currentEntries.isEmpty()) FileListHint.EmptyFolder else FileListHint.None
             if (state.currentPath != previousPath) {
                 // This version counter is consumed by the UI to reset scroll position only when
@@ -1313,14 +1347,26 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         device: AndroidDevice,
         requestedPath: String?,
         useRememberedPathWhenRequestedPathIsNull: Boolean
-    ): String {
-        if (!requestedPath.isNullOrBlank()) return normalizePath(requestedPath)
+    ): TargetPathResolution {
+        if (!requestedPath.isNullOrBlank())
+            return TargetPathResolution(
+                path = normalizePath(requestedPath),
+                restoredFromRememberedPath = false
+            )
 
         if (useRememberedPathWhenRequestedPathIsNull &&
             settingsService.current.rememberLastDevicePath
-        ) deviceLastPaths(device)?.let { return normalizePath(it) }
+        ) deviceLastPaths(device)?.let {
+            return TargetPathResolution(
+                path = normalizePath(it),
+                restoredFromRememberedPath = true
+            )
+        }
 
-        return normalizePath(state.currentPath)
+        return TargetPathResolution(
+            path = normalizePath(state.currentPath),
+            restoredFromRememberedPath = false
+        )
     }
 
     private fun buildSelectedEntrySnapshot(): FileEntrySnapshot? {
@@ -1339,6 +1385,40 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
+    /**
+     * Builds a folder snapshot for the currently visible directory.
+     *
+     * Most calls should hit the per-workspace cache that is primed while browsing parent folders.
+     * A backend fallback is kept only for cold-start paths (for example, a remembered path opened
+     * before its parent has been listed in this session).
+     */
+    private fun buildCurrentDirectorySnapshot(): FileEntrySnapshot? {
+        val state = activeWorkspace ?: return null
+        val device = selectedDevice?.toDomain() ?: return null
+        val fullPath = currentPath
+        if (fullPath == "/") return null
+
+        state.directorySnapshots[fullPath]?.let { return it }
+
+        val snapshot = findCurrentDirectoryEntry(device, fullPath)?.let {
+            snapshotOf(device, it)
+        } ?: return null
+        state.directorySnapshots[fullPath] = snapshot
+        return snapshot
+    }
+
+    private fun findCurrentDirectoryEntry(device: AndroidDevice, fullPath: String): DeviceFileEntry? {
+        if (fullPath == "/") return null
+
+        val parentPath = fullPath.substringBeforeLast('/', "/").ifBlank { "/" }
+        val result = runBlocking { fileSystemService.list(device, parentPath) }
+        if (!result.isOk) return null
+
+        return result.data.orEmpty().firstOrNull { entry ->
+            normalizePath(buildEntryFullPath(entry)) == fullPath
+        }
+    }
+
     private fun updateEntryPermission(fullPath: String, symbolicPermission: String) {
         if (fullPath.isBlank() || symbolicPermission.isBlank()) return
 
@@ -1348,6 +1428,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         val old = state.currentEntries[index]
         state.currentEntries[index] = old.copy(permission = symbolicPermission)
+        updateCachedDirectoryPermission(state, fullPath, symbolicPermission)
 
         if (state.selectedEntry?.let(::buildEntryFullPath) == fullPath)
             state.selectedEntry = state.currentEntries[index]
@@ -1367,6 +1448,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             .map { DeviceFileItem.from(it) }
             .toList()
 
+        cacheDirectorySnapshots(state, entries)
+
         applySort(state)
 
         // Reconcile selection after every reload because sorting and hidden-file filtering can
@@ -1377,6 +1460,51 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             primaryPath = primaryPath,
             anchorPath = anchorPath
         )
+    }
+
+    /**
+     * Directory properties are opened from the active path rather than from a selected child item,
+     * so we cache directory snapshots while listing their parent folder. That removes an extra
+     * backend `list(parent)` round-trip every time the user opens "Properties" on the current path.
+     */
+    private fun cacheDirectorySnapshots(state: DeviceWorkspaceState, entries: List<DeviceFileEntry>) {
+        val device = state.device.toDomain()
+        entries.asSequence()
+            .filter { it.isDirectory }
+            .forEach { entry ->
+                val snapshot = snapshotOf(device, entry)
+                state.directorySnapshots[snapshot.fullPath] = snapshot
+            }
+    }
+
+    /**
+     * Remembered-path restoration can land directly inside a deep folder before its parent has ever
+     * been opened in this session. We prewarm just that one current-directory snapshot so opening
+     * "Properties" right after startup does not need to synchronously fetch the parent again.
+     */
+    private suspend fun prewarmCurrentDirectorySnapshotFromParent(
+        state: DeviceWorkspaceState,
+        device: AndroidDevice,
+        fullPath: String
+    ) {
+        if (fullPath == "/" || state.directorySnapshots.containsKey(fullPath)) return
+
+        val parentPath = fullPath.substringBeforeLast('/', "/").ifBlank { "/" }
+        val result = fileSystemService.list(device, parentPath)
+        if (!result.isOk) return
+
+        result.data.orEmpty()
+            .firstOrNull { entry -> normalizePath(buildEntryFullPath(entry)) == fullPath }
+            ?.let { state.directorySnapshots[fullPath] = snapshotOf(device, it) }
+    }
+
+    private fun updateCachedDirectoryPermission(
+        state: DeviceWorkspaceState,
+        fullPath: String,
+        symbolicPermission: String
+    ) {
+        val cached = state.directorySnapshots[fullPath] ?: return
+        state.directorySnapshots[fullPath] = cached.copy(symbolicPermission = symbolicPermission)
     }
 
     private fun applySort(state: DeviceWorkspaceState) {
@@ -1761,7 +1889,22 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    private fun snapshotOf(device: AndroidDevice, entry: DeviceFileEntry) = FileEntrySnapshot(
+        device = device,
+        name = entry.name,
+        fullPath = normalizePath(buildEntryFullPath(entry)),
+        isDirectory = entry.isDirectory,
+        isSymlink = entry.isSymlink,
+        sizeBytes = entry.size,
+        modifiedAt = entry.modifiedAt,
+        symbolicPermission = entry.permission
+    )
+
     private fun buildEntryFullPath(entry: DeviceFileItem) = if (entry.path == "/")
+        "/${entry.name}"
+    else "${entry.path.trimEnd('/')}/${entry.name}"
+
+    private fun buildEntryFullPath(entry: DeviceFileEntry) = if (entry.path == "/")
         "/${entry.name}"
     else "${entry.path.trimEnd('/')}/${entry.name}"
 

@@ -79,8 +79,8 @@ fun FrameWindowScope.MainMenuBar(
             )
             Item(
                 text = strings.menuProperties,
-                enabled = viewModel.hasSingleSelectedEntry,
-                onClick = viewModel::showSelectedEntryProperties,
+                enabled = viewModel.canShowFileProperties,
+                onClick = viewModel::showProperties,
                 shortcut = KeyShortcut(Key.I)
             )
             if (!OsType.isMacOS) {
