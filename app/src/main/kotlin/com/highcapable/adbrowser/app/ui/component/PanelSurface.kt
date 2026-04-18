@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
@@ -39,6 +40,7 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 @Composable
 fun PanelSurface(
     modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopStart,
     shape: Shape = RoundedCornerShape(8.dp),
     padding: PaddingValues = PaddingValues(0.dp),
     clipContent: Boolean = false,
@@ -53,6 +55,7 @@ fun PanelSurface(
 
     Box(
         modifier = preparedModifier.padding(padding),
+        contentAlignment = contentAlignment,
         content = content
     )
 }
