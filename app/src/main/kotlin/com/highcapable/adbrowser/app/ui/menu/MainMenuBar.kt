@@ -159,6 +159,21 @@ fun FrameWindowScope.MainMenuBar(
                 onClick = { windowManager.open(AppWindow.LogViewer) },
                 shortcut = KeyShortcut(Key.L)
             )
+        } 
+        Menu(strings.menuDevice) {
+            Item(
+                text = strings.menuPairNewDevice,
+                onClick = viewModel::pairNewDevice
+            )
+            Item(
+                text = strings.menuConnectToDevice,
+                onClick = viewModel::connectToDevice
+            )
+            Separator()
+            Item(
+                text = strings.menuRefreshDevices,
+                onClick = viewModel::refreshDevices
+            )
         }
         Menu(strings.menuGo) {
             Item(
