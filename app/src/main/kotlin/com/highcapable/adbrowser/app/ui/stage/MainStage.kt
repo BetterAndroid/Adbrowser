@@ -104,6 +104,7 @@ import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
+import com.highcapable.adbrowser.app.ui.dialog.DevicePairDialog
 import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
 import com.highcapable.adbrowser.app.ui.dialog.SimpleInputDialog
 import com.highcapable.adbrowser.app.ui.foundation.isIndexFullyVisible
@@ -219,6 +220,10 @@ private fun DevicePane(
         )
         DeviceActionMenuPopup(
             state = interactionState.actionMenuState,
+            onPairNewDevice = {
+                interactionState.dismissActionMenu()
+                viewModel.pairNewDevice()
+            },
             onConnectToDevice = {
                 interactionState.dismissActionMenu()
                 viewModel.connectToDevice()
@@ -343,10 +348,7 @@ private fun FileListArea(
         if (selectedIndex >= 0) entryPositionController.request(index = selectedIndex, forceScroll = false)
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-    ) {
+    Box(modifier = modifier.fillMaxWidth()) {
         if (viewModel.isListViewMode)
             FileListView(
                 viewModel = viewModel,
@@ -960,6 +962,11 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 onCloseRequest = viewModel::dismissDialog,
                 ownerWindow = window
             )
+        MainStageModel.DialogState.DevicePair ->
+            DevicePairDialog(
+                onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window
+            )
         MainStageModel.DialogState.NewFolder ->
             SimpleInputDialog(
                 title = strings.dialogNewFolderTitle,
@@ -1058,6 +1065,7 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
 @Composable
 private fun DeviceActionMenuPopup(
     state: DeviceActionMenuState?,
+    onPairNewDevice: () -> Unit,
     onConnectToDevice: () -> Unit,
     onDismissRequest: () -> Unit
 ) {
@@ -1068,11 +1076,9 @@ private fun DeviceActionMenuPopup(
         popupPositionProvider = rememberPopupPositionProviderAtPosition(popupState.position),
         popupProperties = PopupProperties(focusable = false)
     ) {
-        // TODO: Enable "Pair new device" when the pairing flow is implemented.
         selectableItem(
             selected = false,
-            enabled = false,
-            onClick = {}
+            onClick = onPairNewDevice
         ) { Text(strings.menuPairNewDevice) }
         selectableItem(
             selected = false,

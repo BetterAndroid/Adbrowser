@@ -67,6 +67,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     sealed interface DialogState {
         data object None : DialogState
         data object DeviceConnect : DialogState
+        data object DevicePair : DialogState
         data object NewFolder : DialogState
         data class Rename(val initialName: String) : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
@@ -410,7 +411,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         )
     }
 
-    /** Opens the network device connect dialog from the device pane action menu. */
+    /** Opens the device pair dialog from the device pane action menu. */
+    fun pairNewDevice() {
+        dialogState = DialogState.DevicePair
+    }
+
+    /** Opens the device connect dialog from the device pane action menu. */
     fun connectToDevice() {
         dialogState = DialogState.DeviceConnect
     }
@@ -486,41 +492,22 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         devices += result.data.orEmpty().map { AndroidDeviceItem.from(it) }
         reconcileWorkspaces()
 
-        val pendingSelection = pendingDeviceSelectionCoordinator
-            .consumePendingSelection(devices.map(AndroidDeviceItem::serial))
-        val refreshedPreviousSelectedDevice = previousSelectedDevice
-            ?.let { previous -> devices.firstOrNull { it == previous } }
-
-        // Device models are recreated from backend data on every refresh. Resolve selection
-        // by equality against the new list instead of keeping a stale instance reference.
-        //
-        // Pending selections are consumed before the normal fallback chain so a freshly connected
-        // device can "retroactively" claim focus when it finally appears in the observed list.
-        val pendingDevice = pendingSelection
-            ?.let { selection -> devices.firstOrNull { it.serial.equals(selection.serial, ignoreCase = true) } }
-        val targetDevice = pendingDevice
-            ?: refreshedPreviousSelectedDevice
-            ?: selectDefaultDevice()
+        val deviceSelection = pendingDeviceSelectionCoordinator.resolveDeviceSelection(
+            devices = devices,
+            previousSelectedDevice = previousSelectedDevice,
+            selectDefaultDevice = ::selectDefaultDevice
+        )
+        val targetDevice = deviceSelection.targetDevice
 
         if (targetDevice == null) {
             selectedDevice = null
             return null
         }
 
-        // The selected workspace is hydrated synchronously because the user can see it
-        // immediately; non-selected workspaces are prefetched in the background afterward.
-        selectedDevice = targetDevice
-        val selectedState = ensureWorkspace(targetDevice)
-        if (!selectedState.prebuilt) {
-            if (refreshEntriesInternal(selectedState, targetDevice.toDomain(), useRememberedPathWhenRequestedPathIsNull = true)) {
-                setHistoryToCurrentPath(selectedState)
-                selectedState.prebuilt = true
-            }
-        }
-
-        prebuildWorkspacesInBackground(skipDevice = targetDevice)
+        applyDeviceSelectionAfterRefresh(targetDevice)
         when {
-            pendingSelection != null && pendingDevice != null -> applyPendingSelectionStatus(pendingSelection, pendingDevice)
+            deviceSelection.pendingSelection != null && deviceSelection.pendingDevice != null ->
+                applyPendingSelectionStatus(deviceSelection.pendingSelection, deviceSelection.pendingDevice)
             showStatus -> setStatus(StatusMessage.Key.DevicesUpdated)
         }
 
@@ -1611,6 +1598,28 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 }
             }
         }
+    }
+
+    /**
+     * Applies a refreshed device selection and eagerly prepares the visible workspace.
+     *
+     * Refresh-driven selection is different from manual clicking: the stage already decided which
+     * device should be active, so this helper only focuses on synchronizing the right pane. The
+     * chosen workspace is hydrated immediately because it is visible right away, while the other
+     * workspaces keep their cheaper best-effort prebuild path in the background.
+     */
+    private suspend fun applyDeviceSelectionAfterRefresh(targetDevice: AndroidDeviceItem) {
+        selectedDevice = targetDevice
+
+        val selectedState = ensureWorkspace(targetDevice)
+        if (!selectedState.prebuilt && 
+            refreshEntriesInternal(selectedState, targetDevice.toDomain(), useRememberedPathWhenRequestedPathIsNull = true)
+        ) {
+            setHistoryToCurrentPath(selectedState)
+            selectedState.prebuilt = true
+        }
+
+        prebuildWorkspacesInBackground(skipDevice = targetDevice)
     }
 
     private fun selectDefaultDevice() = if (settingsService.current.rememberLastDevice)

@@ -15,6 +15,7 @@ jewel = "0.34.0-253.32098.37"
 intellij-platform-icons = "253.31033.145"
 junit = "4.13.1"
 git-properties = "2.5.7"
+zxing = "3.5.4"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -42,3 +43,4 @@ betterandroid-compose-extension-desktop = { group = "com.highcapable.betterandro
 jewel-int-ui-standalone = { group = "org.jetbrains.jewel", name = "jewel-int-ui-standalone", version.ref = "jewel" }
 intellij-platform-icons = { group = "com.jetbrains.intellij.platform", name = "icons", version.ref = "intellij-platform-icons" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
