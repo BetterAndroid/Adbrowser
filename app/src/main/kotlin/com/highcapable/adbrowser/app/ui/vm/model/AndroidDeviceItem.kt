@@ -60,9 +60,12 @@ data class AndroidDeviceItem(
     )
 
     override fun equals(other: Any?) = when (other) {
-        is AndroidDeviceItem -> this.serial == other.serial
+        // Synchronous UI refresh to identify online status matches
+        // must be the same device, otherwise the device status may not be refreshed at all.
+        is AndroidDeviceItem -> this.serial == other.serial &&
+            this.isOnline == other.isOnline
         else -> super.equals(other)
     }
 
-    override fun hashCode() = serial.hashCode()
+    override fun hashCode() = serial.hashCode() + isOnline.hashCode()
 }
