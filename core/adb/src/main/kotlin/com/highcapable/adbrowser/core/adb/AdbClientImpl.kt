@@ -79,16 +79,22 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         const val ADB_CONNECT_TIMEOUT_MS = 10_000L
 
         const val MDNS_QR_CONTENT = "WIFI:T:ADB;S:{serviceName};P:{password};;"
-        const val MDNS_QR_SERVICE_NAME_PREFIX = "studio-"
-        const val MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH = 10
-        const val MDNS_QR_PASSWORD_LENGTH = 12
+        const val MDNS_QR_SERVICE_NAME_PREFIX = "debug-"
+        const val MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH = 6
+        const val MDNS_QR_PASSWORD_LENGTH = 6
+        const val MDNS_SERVICE_NAME_QUOTE = '"'
         const val STREAM_READ_TIMEOUT_MULTIPLIER = 1L
+        const val QR_PAIRING_TRANSIENT_PROTOCOL_FAULT = "protocol fault"
+        const val QR_PAIRING_TRANSIENT_STATUS_READ_FAILURE = "couldn't read status message"
+        const val QR_PAIRING_MAX_RETRY_ATTEMPTS = 5
+        const val ADB_CONNECT_SERVICE_NAME_PREFIX = "adb-"
 
         val emulatorSerialRegex = """^emulator-\d+$""".toRegex()
         val networkSerialRegex = """^(?:\[[0-9A-Fa-f:]+]|[^:\s]+):\d+$""".toRegex()
         val mdnsNetworkSerialRegex = """^.+\._adb(?:-tls-connect)?\._tcp\.?$""".toRegex()
+        val pairGuidRegex = """\[guid=([^\]]+)]""".toRegex()
 
-        val safeQrTokenChars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray()
+        val numericQrTokenChars = "0123456789".toCharArray()
     }
 
     private data class AndroidDeviceExtra(
@@ -212,8 +218,18 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     }
 
     override suspend fun createQrPairingSession() = runner.exec<QrPairingSession> {
-        val serviceName = MDNS_QR_SERVICE_NAME_PREFIX + randomToken(MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH)
-        val password = randomToken(MDNS_QR_PASSWORD_LENGTH)
+        // Some devices appear to be far more reliable with a short DNS-SD instance name and a
+        // numeric 6-digit shared secret, which is also close to the familiar manual pairing-code
+        // flow. The protocol only requires both sides to agree on S/P, so we favor compatibility
+        // here over mirroring Android Studio's longer randomized payload shape exactly.
+        val serviceName = MDNS_QR_SERVICE_NAME_PREFIX + randomToken(
+            length = MDNS_QR_SERVICE_NAME_SUFFIX_LENGTH,
+            alphabet = numericQrTokenChars
+        )
+        val password = randomToken(
+            length = MDNS_QR_PASSWORD_LENGTH,
+            alphabet = numericQrTokenChars
+        )
         val qrContent = MDNS_QR_CONTENT
             .replace("{serviceName}", serviceName)
             .replace("{password}", password)
@@ -231,19 +247,59 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         timeoutMillis: Long,
         pollIntervalMillis: Long
     ) = runner.exec<PairingDevice> {
-        val serviceName = session.serviceName.trim()
+        // Some adb builds wrap mDNS service names in quotes when printing `adb mdns services`,
+        // while the QR payload stores the raw instance name. Always normalize both sides before
+        // matching, otherwise we can discover the correct pairing endpoint but still never pair.
+        val serviceName = normalizeMdnsServiceName(session.serviceName)
         val password = session.password.trim()
         if (serviceName.isEmpty()) return@exec null to errorResponse("QR pairing service name is empty.")
         if (password.isEmpty()) return@exec null to errorResponse("QR pairing password is empty.")
 
         val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_MDNS_OBSERVER_INTERVAL_MS)
+        var lastPairFailure: AdbResponse? = null
+        var terminalPairFailure: AdbResponse? = null
+        var transientRetryAttempts = 0
         val pairingDevice = withTimeoutOrNull(timeoutMillis.coerceAtLeast(intervalMillis)) {
             while (currentCoroutineContext().isActive) {
                 val snapshot = listPairingDevicesSnapshot()
                 if (snapshot.isOk) {
-                    snapshot.data.orEmpty()
-                        .firstOrNull { it.serviceName == serviceName }
-                        ?.let { return@withTimeoutOrNull it }
+                    val matchingDevice = snapshot.data.orEmpty()
+                        .firstOrNull { normalizeMdnsServiceName(it.serviceName) == serviceName }
+                    if (matchingDevice != null) {
+                        val response = runPair(matchingDevice.address, password)
+                        if (response.isOk) {
+                            val resolvedServiceName = parsePairGuidServiceName(response) ?: matchingDevice.serviceName
+                            return@withTimeoutOrNull matchingDevice.copy(serviceName = resolvedServiceName)
+                        }
+
+                        // QR pairing can fail with "protocol fault (couldn't read status message)"
+                        // even after the device has already exposed the expected `_adb-tls-pairing`
+                        // endpoint. This is not reliably reproducible across OEM ROMs: some devices
+                        // pair on the first try, while others transiently reject the first few
+                        // attempts even though the QR payload is otherwise valid.
+                        if (!shouldRetryQrPairing(response)) {
+                            terminalPairFailure = response
+                            return@withTimeoutOrNull null
+                        }
+
+                        transientRetryAttempts += 1
+                        lastPairFailure = response
+
+                        // Do not retry forever. A persistent protocol fault is usually a device-side
+                        // compatibility issue rather than timing, so after a small retry budget we
+                        // surface the raw adb error back to the UI unchanged for diagnostics.
+                        if (transientRetryAttempts >= QR_PAIRING_MAX_RETRY_ATTEMPTS) {
+                            terminalPairFailure = response
+                            return@withTimeoutOrNull null
+                        }
+
+                        logService.log(
+                            LogLevel.Warning,
+                            CATEGORY,
+                            "QR pairing handshake for service '$serviceName' at ${matchingDevice.address} " +
+                                "failed transiently, retrying ($transientRetryAttempts/$QR_PAIRING_MAX_RETRY_ATTEMPTS): ${response.message}"
+                        )
+                    }
                 }
 
                 delay(intervalMillis)
@@ -252,24 +308,24 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
             null
         }
 
-        if (pairingDevice == null) return@exec null to errorResponse(
-            "Timed out waiting for QR pairing device '$serviceName' after ${timeoutMillis}ms."
-        )
-
-        val response = runPair(pairingDevice.address, password)
-        if (!response.isOk) return@exec null to response
+        if (pairingDevice == null) {
+            val failure = terminalPairFailure ?: lastPairFailure
+            return@exec null to (failure ?: errorResponse(
+                "Timed out waiting for QR pairing device '$serviceName' after ${timeoutMillis}ms."
+            ))
+        }
 
         logService.log(
             LogLevel.Information,
             CATEGORY,
             "Completed QR pairing for service '$serviceName' at ${pairingDevice.address}"
         )
-        pairingDevice to response
+        pairingDevice to successResponse("QR pairing completed.")
     }
 
     override fun observePairingDevices(pollIntervalMillis: Long) = flow {
         val intervalMillis = pollIntervalMillis.coerceAtLeast(MIN_MDNS_OBSERVER_INTERVAL_MS)
-        val initialSnapshot = listPairingDevicesSnapshot()
+        val initialSnapshot = listPairingDevicesSnapshot().filterOwnQrPairingServices()
         var lastSnapshot = initialSnapshot.data
         var lastError = initialSnapshot.errorMessage?.takeIf { it.isNotBlank() }
 
@@ -279,7 +335,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         while (currentCoroutineContext().isActive) {
             delay(intervalMillis)
 
-            val snapshotResult = listPairingDevicesSnapshot()
+            val snapshotResult = listPairingDevicesSnapshot().filterOwnQrPairingServices()
             if (!snapshotResult.isOk) {
                 val message = snapshotResult.errorMessage.orEmpty().ifBlank {
                     "Failed to observe pairing devices."
@@ -354,7 +410,8 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     /**
      * Executes "adb pair <address> <credential>" to complete wireless debugging pairing.
      */
-    private suspend fun runPair(address: String, credential: String) = runAdb("pair", address, credential, ADB_PAIR_TIMEOUT_MS)
+    private suspend fun runPair(address: String, credential: String) =
+        runAdb("pair", address, credential, timeoutMs = ADB_PAIR_TIMEOUT_MS)
 
     /**
      * Runs adb process with explicit argument list and captures stdout/stderr.
@@ -603,7 +660,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
 
         val endpoint = NetworkEndpoint.parse(tokens.last()) ?: return null
         val type = MdnsServiceType.from(tokens[tokens.size - 2]) ?: return null
-        val serviceName = tokens.subList(0, tokens.size - 2).joinToString(" ").trim()
+        val serviceName = normalizeMdnsServiceName(tokens.subList(0, tokens.size - 2).joinToString(" "))
         if (serviceName.isEmpty()) return null
 
         return MdnsService(
@@ -636,6 +693,58 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         standardOutput = "",
         standardError = message
     )
+
+    /**
+     * Some adb builds wrap mDNS instance names in quotes when printing `adb mdns services`.
+     * QR pairing needs an exact service-name match, so we normalize the printed form back to the
+     * logical DNS-SD instance name before comparing or exposing it to upper layers.
+     */
+    private fun normalizeMdnsServiceName(raw: String): String {
+        val normalized = raw.trim()
+        if (normalized.length < 2) return normalized
+
+        return if (normalized.first() == MDNS_SERVICE_NAME_QUOTE &&
+            normalized.last() == MDNS_SERVICE_NAME_QUOTE
+        ) normalized.substring(1, normalized.lastIndex).trim()
+        else normalized
+    }
+
+    private fun isOwnQrPairingService(serviceName: String): Boolean {
+        val normalized = normalizeMdnsServiceName(serviceName)
+        return normalized.startsWith(MDNS_QR_SERVICE_NAME_PREFIX, ignoreCase = true)
+    }
+
+    /**
+     * Successful `adb pair` responses can expose the device guid used by the later auto-connect
+     * service. QR-created pairing services use our own host-side instance name (`debug-xxxxxx`),
+     * which is not useful for retrospective selection once the final connected device shows up as an
+     * `adb-<guid>-<suffix>._adb-tls-connect._tcp` serial. Prefer the returned guid when available.
+     */
+    private fun parsePairGuidServiceName(response: AdbResponse): String? {
+        val guid = pairGuidRegex.find(response.message)?.groupValues?.getOrNull(1)?.trim().orEmpty()
+        if (guid.isEmpty()) return null
+
+        return if (guid.startsWith(ADB_CONNECT_SERVICE_NAME_PREFIX, ignoreCase = true)) guid
+        else "$ADB_CONNECT_SERVICE_NAME_PREFIX$guid"
+    }
+
+    private fun OperationResult<List<PairingDevice>>.filterOwnQrPairingServices(): OperationResult<List<PairingDevice>> {
+        if (!isOk) return this
+
+        return copy(data = data.orEmpty().filterNot { isOwnQrPairingService(it.serviceName) })
+    }
+
+    /**
+     * QR pairing sometimes reports a low-level protocol fault even though the device has already
+     * published the requested mDNS endpoint. In practice this can happen during the brief window
+     * where the pairing service is discoverable but the handshake is not yet fully ready, so we
+     * keep retrying inside the QR wait timeout for these specific transport-layer faults.
+     */
+    private fun shouldRetryQrPairing(response: AdbResponse): Boolean {
+        val message = response.message.lowercase()
+        return QR_PAIRING_TRANSIENT_PROTOCOL_FAULT in message &&
+            QR_PAIRING_TRANSIENT_STATUS_READ_FAILURE in message
+    }
 
     private fun parseDeviceStateToken(line: String): String? {
         if (line.startsWith("List of devices attached", ignoreCase = true) ||
@@ -680,9 +789,9 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         }
     }
 
-    private fun randomToken(length: Int) = buildString(length) {
+    private fun randomToken(length: Int, alphabet: CharArray) = buildString(length) {
         repeat(length) {
-            append(safeQrTokenChars[secureRandom.nextInt(safeQrTokenChars.size)])
+            append(alphabet[secureRandom.nextInt(alphabet.size)])
         }
     }
 }
