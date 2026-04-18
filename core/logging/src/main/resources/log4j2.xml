@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout
+                disableAnsi="false"
+                noConsoleNoAnsi="false"
+                pattern="%style{[%d{yyyy-MM-dd HH:mm:ss.SSS}]}{blue} %highlight{[%-5level]}{TRACE=cyan, DEBUG=cyan, INFO=green, WARN=yellow, ERROR=red, FATAL=red} %style{[%c{1}]}{magenta} %msg%n%throwable"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="Adbrowser" level="trace" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <Root level="warn">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

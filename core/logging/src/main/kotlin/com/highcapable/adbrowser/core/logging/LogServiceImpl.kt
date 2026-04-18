@@ -23,11 +23,16 @@
 package com.highcapable.adbrowser.core.logging
 
 import com.highcapable.adbrowser.core.logging.di.LoggingScope
+import com.highcapable.adbrowser.core.logging.generated.AdbrowserProperties
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import me.tatarka.inject.annotations.Inject
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Thread-safe in-memory log store implementation.
@@ -36,17 +41,28 @@ import java.time.Instant
 @Inject
 class LogServiceImpl : LogService {
 
+    private companion object {
+
+        const val DEFAULT_LOGGER_NAME = AdbrowserProperties.PROJECT_NAME
+    }
+
     private val _entries = MutableStateFlow<List<LogEntry>>(emptyList())
     private val _entryCount = MutableStateFlow(0)
 
     private val _visibleEntries = MutableStateFlow<List<LogEntry>>(emptyList())
     private val _visibleLevels = MutableStateFlow(LogLevel.entries.toSet())
 
+    private val consoleLoggers = ConcurrentHashMap<String, Logger>()
+
     override val entries get() = _entries.value
     override val entryCount get() = _entryCount.value
 
     override fun log(level: LogLevel, category: String, message: String) {
         val entry = LogEntry(Instant.now(), level, category, message)
+
+        // Log4j owns console rendering so timestamp / color / category formatting stay centralized
+        // in log4j2.xml instead of being duplicated in every call site.
+        loggerOf(category).log(level.toLog4jLevel(), message)
 
         _entries.update { current -> listOf(entry) + current }
         _entryCount.value += 1
@@ -88,5 +104,20 @@ class LogServiceImpl : LogService {
     private fun rebuildVisibleEntries() {
         val visibleLevels = _visibleLevels.value
         _visibleEntries.value = _entries.value.filter { it.level in visibleLevels }
+    }
+
+    private fun loggerOf(category: String): Logger {
+        val loggerName = category.trim()
+            .takeIf { it.isNotEmpty() }
+            ?.let { "$DEFAULT_LOGGER_NAME.$it" }
+            ?: DEFAULT_LOGGER_NAME
+        return consoleLoggers.getOrPut(loggerName) { LogManager.getLogger(loggerName) }
+    }
+
+    private fun LogLevel.toLog4jLevel() = when (this) {
+        LogLevel.Trace -> Level.TRACE
+        LogLevel.Information -> Level.INFO
+        LogLevel.Warning -> Level.WARN
+        LogLevel.Error -> Level.ERROR
     }
 }

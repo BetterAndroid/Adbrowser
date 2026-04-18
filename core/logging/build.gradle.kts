@@ -30,8 +30,9 @@ dependencies {
     implementation(libs.kotlin.inject.runtime)
     implementation(libs.kotlinx.coroutines.core)
 
-    implementation(libs.slf4j.simple)
-    implementation(libs.slf4j.api)
+    implementation(libs.log4j.api)
+    implementation(libs.log4j.core)
+    implementation(libs.log4j.slf4j2.impl)
 
     testImplementation(libs.kotlin.test.junit)
 }
