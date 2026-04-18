@@ -39,7 +39,7 @@ ksp {
 
 compose.desktop {
     application {
-        mainClass = "$group.frontend.AppKt"
+        mainClass = "$group.app.AppKt"
     }
 }
 
