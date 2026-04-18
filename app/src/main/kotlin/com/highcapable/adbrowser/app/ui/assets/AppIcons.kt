@@ -42,8 +42,10 @@ object AppIcons : AppAssets("icons") {
     val Refresh = createSvg("Refresh")
     val Device = createSvg("Device")
     val Devices = createSvg("Devices")
+    val Internet = createSvg("Internet")
     val ArrowRight = createSvg("ArrowRight")
     val FilePathArrow = createSvg("FilePathArrow")
+    val Ellipsis = createSvg("Ellipsis")
     val File = createSvg("File")
     val Home = createSvg("Home")
 }
