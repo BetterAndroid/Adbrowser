@@ -90,8 +90,6 @@ data class Strings(
     val menuViewMode: String,
     val menuSortMode: String,
     val menuShowStatusBar: String,
-    val menuHideStatusBar: String,
-    val menuToggleStatusBar: String,
     val menuAppLogs: String,
     val menuForward: String,
     val menuBack: String,

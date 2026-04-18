@@ -39,9 +39,6 @@ fun FrameWindowScope.MainMenuBar(
     onCloseRequest: () -> Unit
 ) {
     val windowManager = LocalWindowManager.current
-    val toggleStatusBarText = if (viewModel.isStatusBarVisible)
-        strings.menuHideStatusBar
-    else strings.menuShowStatusBar
     val openPreferences = { windowManager.open(AppWindow.Preferences) }
 
     MenuBar {
@@ -149,11 +146,13 @@ fun FrameWindowScope.MainMenuBar(
                 shortcut = KeyShortcut(Key.O)
             )
             Separator()
-            Item(
-                text = toggleStatusBarText,
-                onClick = viewModel::toggleStatusBar,
+            CheckboxItem(
+                text = strings.menuShowStatusBar,
+                checked = viewModel.isStatusBarVisible,
+                onCheckedChange = { viewModel.toggleStatusBar() },
                 shortcut = KeyShortcut(Key.B)
             )
+            Separator()
             Item(
                 text = strings.menuAppLogs,
                 onClick = { windowManager.open(AppWindow.LogViewer) },
