@@ -1331,9 +1331,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         } else {
             fillEntries(state, emptyList())
             state.fileListHint = resolveFailureHint(result.errorMessage)
-            if (state.fileListHint.shouldSuppressStatusBarError())
-                statusMessage = StatusMessage.None
-            else setErrorStatus(result.errorMessage)
+
+            // File-area hints already explain why the current directory cannot be shown. Keeping
+            // the status bar empty here lets it fall back to the neutral item-count text, so
+            // errors behave the same as an empty directory instead of surfacing raw backend text.
+            statusMessage = StatusMessage.None
         }
 
         return true
@@ -1930,17 +1932,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 "not permitted" in message -> FileListHint.PermissionDenied
             else -> FileListHint.LoadFailed
         }
-    }
-
-    /**
-     * Some transport-level states are already represented by the dedicated empty-state panel in the
-     * file area. Repeating them in the status bar only adds noise, so those hints intentionally
-     * suppress the raw backend error text there.
-     */
-    private fun FileListHint.shouldSuppressStatusBarError() = when (this) {
-        FileListHint.DeviceOffline,
-        FileListHint.DeviceUnauthorized -> true
-        else -> false
     }
 
     private fun ensureDeviceSelected(): Boolean {
