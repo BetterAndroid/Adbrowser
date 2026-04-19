@@ -22,6 +22,8 @@
  */
 package com.highcapable.adbrowser.app.ui.vm.model.type
 
+import androidx.compose.runtime.Composable
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.core.domain.setting.model.type.FileViewMode as SettingsFileViewMode
 
 /**
@@ -32,6 +34,12 @@ enum class FileViewMode {
     Grid;
 
     companion object {
+
+        @Composable
+        fun Label(option: FileViewMode) = when (option) {
+            List -> strings.mainFileListViewModeList
+            Grid -> strings.mainFileListViewModeGrid
+        }
 
         fun SettingsFileViewMode.toUiType() = when (this) {
             SettingsFileViewMode.List -> List

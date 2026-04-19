@@ -48,6 +48,8 @@ data class Strings(
     val mainFileListHintPathNotFound: String,
     val mainFileListHintPermissionDenied: String,
     val mainFileListHintLoadFailed: String,
+    val mainFileListViewModeList: String,
+    val mainFileListViewModeGrid: String,
     val mainFileListSortModeName: String,
     val mainFileListSortModeSize: String,
     val mainFileListSortModeModifiedTime: String,

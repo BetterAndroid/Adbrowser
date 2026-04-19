@@ -29,6 +29,8 @@ import androidx.compose.ui.window.MenuBar
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.input.KeyShortcut
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.app.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.app.ui.window.manager.LocalWindowManager
 import com.highcapable.adbrowser.core.common.utils.OsType
@@ -131,20 +133,41 @@ fun FrameWindowScope.MainMenuBar(
         Menu(strings.menuView) {
             Item(
                 text = strings.menuRefresh,
+                enabled = viewModel.canRefresh,
                 onClick = viewModel::refreshEntries,
                 shortcut = KeyShortcut(Key.F5)
             )
             Separator()
-            Item(
+            Menu(
                 text = strings.menuFileViewMode,
-                onClick = viewModel::openViewModeMenu,
-                shortcut = KeyShortcut(Key.M)
-            )
-            Item(
+                enabled = viewModel.canChangeFileViewMode,
+                mnemonic = 'M'
+            ) {
+                FileViewMode.entries.forEach { option ->
+                    CheckboxItem(
+                        text = FileViewMode.Label(option),
+                        checked = option == viewModel.selectedViewMode,
+                        onCheckedChange = {
+                            if (it) viewModel.onViewModeSelected(option)
+                        }
+                    )
+                }
+            }
+            Menu(
                 text = strings.menuFileSortMode,
-                onClick = viewModel::openSortModeMenu,
-                shortcut = KeyShortcut(Key.O)
-            )
+                enabled = viewModel.canChangeFileSortMode,
+                mnemonic = 'O'
+            ) {
+                FileSortMode.entries.forEach { option ->
+                    CheckboxItem(
+                        text = FileSortMode.Label(option),
+                        checked = option == viewModel.selectedSortMode,
+                        onCheckedChange = {
+                            if (it) viewModel.onSortModeSelected(option)
+                        }
+                    )
+                }
+            }
             Separator()
             CheckboxItem(
                 text = strings.menuShowStatusBar,

@@ -20,6 +20,8 @@
  *
  * This file is created by fankes on 2026/4/9.
  */
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.layout.Row
@@ -28,6 +30,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
@@ -35,13 +41,26 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import cafe.adriel.lyricist.strings
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
+import org.jetbrains.jewel.ui.component.PopupMenu
+import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
+import org.jetbrains.jewel.ui.icons.AllIconsKeys
+import kotlin.math.roundToInt
 
 @Composable
 fun FileNavigationBar(
@@ -60,6 +79,11 @@ fun FileNavigationBar(
     onSortModeSelected: (FileSortMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val sortMenuVerticalOffsetPx = with(density) { 4.dp.roundToPx() }
+    var sortMenuAnchor by remember { mutableStateOf<SortMenuAnchor?>(null) }
+    var sortButtonCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
@@ -131,21 +155,66 @@ fun FileNavigationBar(
             key = AppIcons.FileSort,
             contentDescription = "Change Sort Mode",
             outlined = true,
+            modifier = Modifier.onGloballyPositioned { sortButtonCoordinates = it },
             onClick = {
-                val newMode = when (selectedSortMode) {
-                    FileSortMode.Name -> FileSortMode.Size
-                    FileSortMode.Size -> FileSortMode.ModifiedTime
-                    FileSortMode.ModifiedTime -> FileSortMode.Name
+                sortMenuAnchor = sortButtonCoordinates?.boundsInRoot()?.let {
+                    SortMenuAnchor(
+                        right = it.right.roundToInt(),
+                        bottom = it.bottom.roundToInt()
+                    )
                 }
-                onSortModeSelected(newMode)
             }
         )
     }
+
+    sortMenuAnchor?.let { anchor ->
+        PopupMenu(
+            onDismissRequest = { sortMenuAnchor = null; true },
+            popupPositionProvider = remember(anchor, sortMenuVerticalOffsetPx) {
+                SortMenuPositionProvider(
+                    anchor = anchor,
+                    verticalOffsetPx = sortMenuVerticalOffsetPx
+                )
+            },
+            popupProperties = PopupProperties(focusable = false)
+        ) {
+            FileSortMode.entries.forEach { option ->
+                val selected = option == selectedSortMode
+                selectableItem(
+                    iconKey = if (selected) AllIconsKeys.Actions.Checked else null,
+                    selected = selected,
+                    onClick = {
+                        sortMenuAnchor = null
+                        onSortModeSelected(option)
+                    }
+                ) { Text(FileSortMode.Label(option)) }
+            }
+        }
+    }
 }
 
-@Composable
-private fun SortModeLabel(option: FileSortMode) = when (option) {
-    FileSortMode.Name -> strings.mainFileListSortModeName
-    FileSortMode.Size -> strings.mainFileListSortModeSize
-    FileSortMode.ModifiedTime -> strings.mainFileListSortModeModifiedTime
+private data class SortMenuAnchor(
+    val right: Int,
+    val bottom: Int
+)
+
+private class SortMenuPositionProvider(
+    private val anchor: SortMenuAnchor,
+    private val verticalOffsetPx: Int
+) : PopupPositionProvider {
+
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+
+        return IntOffset(
+            x = (anchor.right - popupContentSize.width).coerceIn(0, maxX),
+            y = (anchor.bottom + verticalOffsetPx).coerceIn(0, maxY)
+        )
+    }
 }

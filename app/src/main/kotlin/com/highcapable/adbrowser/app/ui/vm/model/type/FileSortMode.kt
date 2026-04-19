@@ -22,6 +22,8 @@
  */
 package com.highcapable.adbrowser.app.ui.vm.model.type
 
+import androidx.compose.runtime.Composable
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.core.domain.setting.model.type.FileSortMode as SettingsFileSortMode
 
 /**
@@ -33,6 +35,13 @@ enum class FileSortMode {
     ModifiedTime;
 
     companion object {
+
+        @Composable
+        fun Label(option: FileSortMode) = when (option) {
+            Name -> strings.mainFileListSortModeName
+            Size -> strings.mainFileListSortModeSize
+            ModifiedTime -> strings.mainFileListSortModeModifiedTime
+        }
 
         fun SettingsFileSortMode.toUiType() = when (this) {
             SettingsFileSortMode.Name -> Name

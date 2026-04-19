@@ -263,6 +263,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     val canNavigateRoot get() = selectedDevice != null && currentPath != "/"
     val canShowBlankFileContextMenu get() = selectedDevice?.let(::canShowBlankFileContextMenu) == true
     val canPasteEntry get() = selectedDevice?.let { clipboardEntry?.device == it } == true
+    val canRefresh get() = selectedDevice != null
+    val canChangeFileViewMode get() = selectedDevice != null
+    val canChangeFileSortMode get() = selectedDevice != null
     val canShowFileProperties
         get() = hasSingleSelectedEntry || (selectedDevice?.let(::canShowCurrentDirectoryProperties) == true)
 
