@@ -1590,6 +1590,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         state.selectionAnchorPath = anchorPath
             ?.takeIf { it in validPaths }
             ?: resolvedPrimaryPath
+
+        clearStatusForFileSummaryIfNeeded(state)
     }
 
     private fun selectSingleEntryAtIndex(state: DeviceWorkspaceState, index: Int) {
@@ -1932,6 +1934,31 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 "not permitted" in message -> FileListHint.PermissionDenied
             else -> FileListHint.LoadFailed
         }
+    }
+
+    /**
+     * File-list interactions should eventually fall back to the live item counter in the status
+     * bar. Global device notifications and raw backend errors are useful as transient toasts, but
+     * once the visible file state changes they become stale and should yield to the current
+     * directory summary instead of resurfacing after selection is cleared.
+     */
+    private fun clearStatusForFileSummaryIfNeeded(state: DeviceWorkspaceState) {
+        if (activeWorkspace !== state) return
+        if (!statusMessage.shouldYieldToFileSummary()) return
+
+        statusMessage = StatusMessage.None
+    }
+
+    private fun StatusMessage.shouldYieldToFileSummary() = when (this) {
+        StatusMessage.None -> false
+        is StatusMessage.Raw -> true
+        is StatusMessage.Res -> key in setOf(
+            StatusMessage.Key.CommonUnknownError,
+            StatusMessage.Key.DevicesUpdated,
+            StatusMessage.Key.DeviceConnectionPending,
+            StatusMessage.Key.DeviceConnected,
+            StatusMessage.Key.DeviceDisconnected
+        )
     }
 
     private fun ensureDeviceSelected(): Boolean {
