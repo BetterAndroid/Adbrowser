@@ -102,8 +102,6 @@ data class Strings(
     val dialogCommonOk: String,
     val dialogCommonYes: String,
     val dialogCommonNo: String,
-    val dialogInputTitle: String,
-    val dialogConfirmTitle: String,
     val dialogDeviceConnectTitle: String,
     val dialogDeviceConnectPlaceholder: String,
     val dialogDeviceConnectConnecting: String,
@@ -221,6 +219,5 @@ data class Strings(
     val statusPasted: String,
     val statusPastedMultiple: String,
     val statusClipboardEmpty: String,
-    val statusCrossDevicePasteNotSupported: String,
-    val statusDropDetected: String
+    val statusCrossDevicePasteNotSupported: String
 )
