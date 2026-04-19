@@ -22,6 +22,8 @@
  */
 package com.highcapable.adbrowser.core.domain.setting
 
+import com.highcapable.adbrowser.core.domain.setting.model.type.FileSortMode
+import com.highcapable.adbrowser.core.domain.setting.model.type.FileViewMode
 import kotlinx.serialization.Serializable
 
 /**
@@ -37,7 +39,9 @@ data class AppSettings(
     var useSuperuser: Boolean = false,
     var showHiddenFiles: Boolean = true,
     var rememberLastFileViewMode: Boolean = true,
+    var rememberLastFileSortMode: Boolean = true,
     var lastFileViewMode: FileViewMode = FileViewMode.List,
+    var lastFileSortMode: FileSortMode = FileSortMode.Name,
     var foldersFirst: Boolean = true,
     var lastDeviceSerial: String = "",
     var deviceHomePaths: MutableMap<String, String> = mutableMapOf(),
@@ -57,14 +61,5 @@ data class AppSettings(
 
         const val DEFAULT_MAIN_WINDOW_WIDTH = 1220.0
         const val DEFAULT_MAIN_WINDOW_HEIGHT = 820.0
-    }
-
-    /**
-     * File view mode for file list display.
-     */
-    @Serializable
-    enum class FileViewMode {
-        List,
-        Grid
     }
 }

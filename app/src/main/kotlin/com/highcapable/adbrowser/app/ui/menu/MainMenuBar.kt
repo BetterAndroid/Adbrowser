@@ -136,12 +136,12 @@ fun FrameWindowScope.MainMenuBar(
             )
             Separator()
             Item(
-                text = strings.menuViewMode,
+                text = strings.menuFileViewMode,
                 onClick = viewModel::openViewModeMenu,
                 shortcut = KeyShortcut(Key.M)
             )
             Item(
-                text = strings.menuSortMode,
+                text = strings.menuFileSortMode,
                 onClick = viewModel::openSortModeMenu,
                 shortcut = KeyShortcut(Key.O)
             )

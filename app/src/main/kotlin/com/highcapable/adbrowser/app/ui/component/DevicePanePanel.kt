@@ -62,8 +62,6 @@ fun DevicePanePanel(
     selectedDevice: AndroidDeviceItem?,
     listState: LazyListState,
     title: String,
-    actionDescription: String,
-    refreshDescription: String,
     noDeviceMessage: String,
     onOpenActionMenu: (Offset) -> Unit,
     onRefresh: () -> Unit,
@@ -109,7 +107,7 @@ fun DevicePanePanel(
                     ContentIconButton(
                         key = AppIcons.Plus,
                         outlined = true,
-                        contentDescription = actionDescription,
+                        contentDescription = "Open Device Operations Menu",
                         modifier = Modifier.onGloballyPositioned { actionButtonCoordinates = it },
                         onClick = {
                             val host = popupHostCoordinates()
@@ -125,7 +123,7 @@ fun DevicePanePanel(
                     ContentIconButton(
                         key = AppIcons.Refresh,
                         outlined = true,
-                        contentDescription = refreshDescription,
+                        contentDescription = "Refresh Device List",
                         onClick = onRefresh
                     )
                 }
@@ -157,12 +155,11 @@ fun DevicePanePanel(
                         .align(Alignment.CenterEnd)
                         .fillMaxHeight()
                 )
-                if (devices.isEmpty()) {
+                if (devices.isEmpty())
                     DeviceListHint(
                         message = noDeviceMessage,
                         modifier = Modifier.align(Alignment.Center)
                     )
-                }
             }
         }
     }

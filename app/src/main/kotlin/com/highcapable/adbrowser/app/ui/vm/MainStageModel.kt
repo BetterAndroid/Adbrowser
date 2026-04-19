@@ -34,12 +34,14 @@ import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.app.ui.vm.model.PathBreadcrumbSegment
-import com.highcapable.adbrowser.app.ui.vm.model.SelectionOption
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode.Companion.toUiType
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode.Companion.toUiType
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
-import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -202,10 +204,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private val workspaces = mutableMapOf<AndroidDeviceItem, DeviceWorkspaceState>()
 
     val devices = mutableStateListOf<AndroidDeviceItem>()
-    
     val deviceWorkspaces = mutableStateListOf<DeviceWorkspaceState>()
-    val viewModes = mutableStateListOf<SelectionOption>()
-    val sortModes = mutableStateListOf<SelectionOption>()
 
     var selectedDevice by mutableStateOf<AndroidDeviceItem?>(null)
         private set
@@ -250,16 +249,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     var isBusy by mutableStateOf(false)
     var isStatusBarVisible by mutableStateOf(true)
 
-    var selectedViewMode by mutableStateOf<SelectionOption?>(null)
+    var selectedViewMode by mutableStateOf(FileViewMode.List)
         private set
-    var selectedSortMode by mutableStateOf<SelectionOption?>(null)
+    var selectedSortMode by mutableStateOf(FileSortMode.Name)
         private set
 
     var dialogState by mutableStateOf<DialogState>(DialogState.None)
         private set
 
-    val isListViewMode get() = selectedViewMode?.key == "list"
-    val isIconViewMode get() = selectedViewMode?.key == "icons"
     val canNavigateBack get() = (activeWorkspace?.navigationIndex ?: 0) > 0
     val canNavigateForward get() = activeWorkspace?.let { it.navigationIndex < it.navigationHistory.size - 1 } == true
     val canNavigateUp get() = currentPath != "/"
@@ -289,14 +286,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         private set
 
     init {
-        viewModes += SelectionOption("list", "List")
-        viewModes += SelectionOption("icons", "Icons")
-        sortModes += SelectionOption("name", "Name")
-        sortModes += SelectionOption("size", "Size")
-        sortModes += SelectionOption("modified", "Modified")
-
-        selectedSortMode = sortModes.firstOrNull()
-        applyFileViewModePreference()
+        applyFileViewRelatedPreference()
         normalizeFileColumnWidths()
     }
 
@@ -334,9 +324,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         fileColumnWidthModifiedPx = settings.fileColumnWidthModified.toFloat()
         fileColumnWidthPermissionPx = settings.fileColumnWidthPermission.toFloat()
         normalizeFileColumnWidths()
-        applyFileViewModePreference()
-        if (refreshFileList)
-            selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
+        applyFileViewRelatedPreference()
+
+        if (refreshFileList) selectedDevice?.let { refreshEntriesAsync(device = it, requestedPath = currentPath) }
     }
 
     /** Resizes the Name column and returns the actually applied delta after clamping. */
@@ -817,20 +807,24 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     /** Applies a new file view mode and persists it if the preference is enabled. */
-    fun onViewModeSelected(option: SelectionOption) {
+    fun onViewModeSelected(option: FileViewMode) {
         selectedViewMode = option
+
         if (settingsService.current.rememberLastFileViewMode) {
-            settingsService.current.lastFileViewMode = if (option.key == "icons")
-                AppSettings.FileViewMode.Grid
-            else AppSettings.FileViewMode.List
+            settingsService.current.lastFileViewMode = option.toSettingsType()
             saveSettingsAsync()
         }
     }
 
-    /** Applies a new sort mode to every cached workspace, not just the active one. */
-    fun onSortModeSelected(option: SelectionOption) {
+    /** Applies a new file sort mode to every cached workspace, not just the active one. */
+    fun onSortModeSelected(option: FileSortMode) {
         selectedSortMode = option
         deviceWorkspaces.forEach { applySort(it) }
+
+        if (settingsService.current.rememberLastFileSortMode) {
+            settingsService.current.lastFileSortMode = option.toSettingsType()
+            saveSettingsAsync()
+        }
     }
 
     /** Convenience wrapper that navigates back in the active workspace, if any. */
@@ -1508,37 +1502,37 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     private fun applySort(state: DeviceWorkspaceState) {
-        val sortMode = selectedSortMode?.key ?: "name"
+        val sortMode = selectedSortMode
         val foldersFirst = settingsService.current.foldersFirst
 
         // Sorting is applied on the already-filtered UI entry list, not directly on backend data.
         // That keeps selection reconciliation and view restoration operating on the same ordering
         // the user actually sees on screen.
         val sorted = if (foldersFirst) when (sortMode) {
-            "size" -> state.currentEntries.sortedWith(
+            FileSortMode.Name -> state.currentEntries.sortedWith(
+                compareByDescending<DeviceFileItem> { it.isDirectory }
+                    .thenBy { it.name.lowercase() }
+            )
+            FileSortMode.Size -> state.currentEntries.sortedWith(
                 compareByDescending<DeviceFileItem> { it.isDirectory }
                     .thenByDescending { it.sizeBytes }
                     .thenBy { it.name.lowercase() }
             )
-            "modified" -> state.currentEntries.sortedWith(
+            FileSortMode.ModifiedTime -> state.currentEntries.sortedWith(
                 compareByDescending<DeviceFileItem> { it.isDirectory }
                     .thenByDescending { it.modifiedAt }
                     .thenBy { it.name.lowercase() }
             )
-            else -> state.currentEntries.sortedWith(
-                compareByDescending<DeviceFileItem> { it.isDirectory }
-                    .thenBy { it.name.lowercase() }
-            )
         } else when (sortMode) {
-            "size" -> state.currentEntries.sortedWith(
+            FileSortMode.Name -> state.currentEntries.sortedBy { it.name.lowercase() }
+            FileSortMode.Size -> state.currentEntries.sortedWith(
                 compareByDescending<DeviceFileItem> { it.sizeBytes }
                     .thenBy { it.name.lowercase() }
             )
-            "modified" -> state.currentEntries.sortedWith(
+            FileSortMode.ModifiedTime -> state.currentEntries.sortedWith(
                 compareByDescending<DeviceFileItem> { it.modifiedAt }
                     .thenBy { it.name.lowercase() }
             )
-            else -> state.currentEntries.sortedBy { it.name.lowercase() }
         }
 
         state.currentEntries.clear()
@@ -1758,15 +1752,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         rememberedSelectedDevice() ?: devices.firstOrNull()
     else devices.firstOrNull()
 
-    private fun applyFileViewModePreference() {
-        val target = if (settingsService.current.rememberLastFileViewMode)
-            settingsService.current.lastFileViewMode
-        else AppSettings.FileViewMode.List
-
-        selectedViewMode = when (target) {
-            AppSettings.FileViewMode.Grid -> viewModes.firstOrNull { it.key == "icons" }
-            AppSettings.FileViewMode.List -> viewModes.firstOrNull { it.key == "list" }
-        } ?: viewModes.first()
+    private fun applyFileViewRelatedPreference() {
+        selectedViewMode = if (settingsService.current.rememberLastFileViewMode)
+            settingsService.current.lastFileViewMode.toUiType()
+        else selectedViewMode
+        selectedSortMode = if (settingsService.current.rememberLastFileSortMode)
+            settingsService.current.lastFileSortMode.toUiType()
+        else selectedSortMode
     }
 
     private fun normalizeFileColumnWidths() {

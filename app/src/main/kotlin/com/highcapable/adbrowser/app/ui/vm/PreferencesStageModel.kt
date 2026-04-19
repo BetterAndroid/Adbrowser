@@ -31,6 +31,8 @@ import com.highcapable.adbrowser.app.locale.Locales
 import com.highcapable.adbrowser.app.locale.normalizeStoredLanguageTag
 import com.highcapable.adbrowser.app.ui.utils.SystemFileChooser
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
@@ -92,6 +94,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     var showHiddenFiles by mutableStateOf(false)
     var foldersFirst by mutableStateOf(true)
     var rememberLastFileViewMode by mutableStateOf(true)
+    var rememberLastFileSortMode by mutableStateOf(true)
     var rememberLastDevicePath by mutableStateOf(true)
 
     val adbExecPath = TextFieldState("")
@@ -193,7 +196,8 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 // presented. This avoids unnecessary reloads for unrelated settings such as language.
                 val shouldRefreshFileList = current.showHiddenFiles != showHiddenFiles ||
                     current.foldersFirst != foldersFirst ||
-                    current.rememberLastFileViewMode != rememberLastFileViewMode
+                    current.rememberLastFileViewMode != rememberLastFileViewMode ||
+                    current.rememberLastFileSortMode != rememberLastFileSortMode
 
                 val saved = runPersistActionAsync(
                     successStatus = Status.PreferencesSaved
@@ -205,8 +209,13 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                     settingsService.current.showHiddenFiles = showHiddenFiles
                     settingsService.current.foldersFirst = foldersFirst
                     settingsService.current.rememberLastFileViewMode = rememberLastFileViewMode
+                    settingsService.current.rememberLastFileSortMode = rememberLastFileSortMode
                     settingsService.current.rememberLastDevicePath = rememberLastDevicePath
-                    if (!rememberLastFileViewMode) settingsService.current.lastFileViewMode = AppSettings.FileViewMode.List
+
+                    // If the user unchecks "remember last file view/sort mode", also clear the persisted values
+                    // since they won't be used anymore and may cause confusion if the user later re-enables the setting.
+                    if (!rememberLastFileViewMode) settingsService.current.lastFileViewMode = FileViewMode.List.toSettingsType()
+                    if (!rememberLastFileSortMode) settingsService.current.lastFileSortMode = FileSortMode.Name.toSettingsType()
 
                     withContext(Dispatchers.IO) {
                         settingsService.save()
@@ -254,6 +263,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         showHiddenFiles = settings.showHiddenFiles
         foldersFirst = settings.foldersFirst
         rememberLastFileViewMode = settings.rememberLastFileViewMode
+        rememberLastFileSortMode = settings.rememberLastFileSortMode
         rememberLastDevicePath = settings.rememberLastDevicePath
         rememberLastDevice = settings.rememberLastDevice
         superuser = settings.useSuperuser

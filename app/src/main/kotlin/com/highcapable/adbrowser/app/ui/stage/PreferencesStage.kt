@@ -284,6 +284,10 @@ private fun FilesTab(viewModel: PreferencesStageModel) {
                 checked = viewModel.rememberLastFileViewMode,
                 onCheckedChange = { viewModel.rememberLastFileViewMode = it }
             ) { Text(strings.preferencesRememberLastFileViewMode) }
+            CheckboxRow(
+                checked = viewModel.rememberLastFileSortMode,
+                onCheckedChange = { viewModel.rememberLastFileSortMode = it }
+            ) { Text(strings.preferencesRememberLastFileSortMode) }
         }
     }
     PanelSurface(

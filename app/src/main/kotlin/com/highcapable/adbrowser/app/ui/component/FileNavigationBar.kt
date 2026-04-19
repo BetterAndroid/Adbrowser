@@ -36,9 +36,11 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
-import com.highcapable.adbrowser.app.ui.vm.model.SelectionOption
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import org.jetbrains.jewel.ui.component.TextField
 
 @Composable
@@ -52,18 +54,10 @@ fun FileNavigationBar(
     onNavigateUp: () -> Unit,
     onNavigateHome: () -> Unit,
     onOpenPathInput: () -> Unit,
-    backDescription: String,
-    forwardDescription: String,
-    upDescription: String,
-    homeDescription: String,
-    viewModeOptions: List<SelectionOption>,
-    selectedViewMode: SelectionOption?,
-    viewModeLabelOf: @Composable (String?) -> String,
-    onViewModeSelected: (SelectionOption) -> Unit,
-    sortModeOptions: List<SelectionOption>,
-    selectedSortMode: SelectionOption?,
-    sortModeLabelOf: @Composable (String?) -> String,
-    onSortModeSelected: (SelectionOption) -> Unit,
+    selectedViewMode: FileViewMode,
+    onViewModeSelected: (FileViewMode) -> Unit,
+    selectedSortMode: FileSortMode,
+    onSortModeSelected: (FileSortMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -72,7 +66,7 @@ fun FileNavigationBar(
     ) {
         ContentIconButton(
             key = AppIcons.ArrowLeft,
-            contentDescription = backDescription,
+            contentDescription = "Navigate Back",
             enabled = canNavigateBack,
             outlined = true,
             onClick = onNavigateBack
@@ -80,7 +74,7 @@ fun FileNavigationBar(
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.ArrowRight,
-            contentDescription = forwardDescription,
+            contentDescription = "Navigate Forward",
             enabled = canNavigateForward,
             outlined = true,
             onClick = onNavigateForward
@@ -88,7 +82,7 @@ fun FileNavigationBar(
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.ArrowUp,
-            contentDescription = upDescription,
+            contentDescription = "Navigate Up",
             enabled = canNavigateUp,
             outlined = true,
             onClick = onNavigateUp
@@ -96,7 +90,7 @@ fun FileNavigationBar(
         Spacer(Modifier.width(6.dp))
         ContentIconButton(
             key = AppIcons.Home,
-            contentDescription = homeDescription,
+            contentDescription = "Navigate Home",
             outlined = true,
             onClick = onNavigateHome
         )
@@ -114,20 +108,44 @@ fun FileNavigationBar(
                 }
         )
         Spacer(Modifier.width(6.dp))
-        SelectionDropdown(
-            options = viewModeOptions,
-            selected = selectedViewMode,
-            width = 110.dp,
-            labelOf = viewModeLabelOf,
-            onSelected = onViewModeSelected
+        ContentIconButton(
+            key = when (selectedViewMode) {
+                FileViewMode.List -> AppIcons.FileViewGrid
+                FileViewMode.Grid -> AppIcons.FileViewList
+            },
+            contentDescription = when (selectedViewMode) {
+                FileViewMode.List -> "Switch to Grid View"
+                FileViewMode.Grid -> "Switch to List View"
+            },
+            outlined = true,
+            onClick = {
+                val newMode = when (selectedViewMode) {
+                    FileViewMode.List -> FileViewMode.Grid
+                    FileViewMode.Grid -> FileViewMode.List
+                }
+                onViewModeSelected(newMode)
+            }
         )
         Spacer(Modifier.width(6.dp))
-        SelectionDropdown(
-            options = sortModeOptions,
-            selected = selectedSortMode,
-            width = 130.dp,
-            labelOf = sortModeLabelOf,
-            onSelected = onSortModeSelected
+        ContentIconButton(
+            key = AppIcons.FileSort,
+            contentDescription = "Change Sort Mode",
+            outlined = true,
+            onClick = {
+                val newMode = when (selectedSortMode) {
+                    FileSortMode.Name -> FileSortMode.Size
+                    FileSortMode.Size -> FileSortMode.ModifiedTime
+                    FileSortMode.ModifiedTime -> FileSortMode.Name
+                }
+                onSortModeSelected(newMode)
+            }
         )
     }
+}
+
+@Composable
+private fun SortModeLabel(option: FileSortMode) = when (option) {
+    FileSortMode.Name -> strings.mainFileListSortModeName
+    FileSortMode.Size -> strings.mainFileListSortModeSize
+    FileSortMode.ModifiedTime -> strings.mainFileListSortModeModifiedTime
 }

@@ -18,13 +18,17 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/3.
+ * This file is created by fankes on 2026/4/19.
  */
-package com.highcapable.adbrowser.app.ui.vm.model
+package com.highcapable.adbrowser.core.domain.setting.model.type
 
-data class SelectionOption(
-    val key: String,
-    val label: String
-) {
-    override fun toString() = label
+import kotlinx.serialization.Serializable
+
+/**
+ * File view mode for file list display.
+ */
+@Serializable
+enum class FileViewMode {
+    List,
+    Grid
 }

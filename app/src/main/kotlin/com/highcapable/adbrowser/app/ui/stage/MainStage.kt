@@ -116,6 +116,7 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
+import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -203,8 +204,6 @@ private fun DevicePane(
             selectedDevice = viewModel.selectedDevice,
             listState = listState,
             title = strings.mainDevicesTitle,
-            actionDescription = strings.mainDeviceActionsDescription,
-            refreshDescription = strings.mainRefreshDeviceDescription,
             noDeviceMessage = strings.mainDeviceListHintNoDevice,
             onOpenActionMenu = interactionState::openActionMenu,
             onRefresh = viewModel::refreshDevices,
@@ -314,17 +313,9 @@ private fun NavigationBar(viewModel: MainStageModel, device: AndroidDeviceItem) 
         onNavigateUp = { viewModel.navigateUp(device) },
         onNavigateHome = { viewModel.navigateHome(device) },
         onOpenPathInput = { viewModel.openPathFromInput(device) },
-        backDescription = strings.menuBack,
-        forwardDescription = strings.menuForward,
-        upDescription = strings.menuUp,
-        homeDescription = strings.menuHome,
-        viewModeOptions = viewModel.viewModes,
         selectedViewMode = viewModel.selectedViewMode,
-        viewModeLabelOf = ::ViewModeLabel,
         onViewModeSelected = viewModel::onViewModeSelected,
-        sortModeOptions = viewModel.sortModes,
         selectedSortMode = viewModel.selectedSortMode,
-        sortModeLabelOf = ::SortModeLabel,
         onSortModeSelected = viewModel::onSortModeSelected
     )
 }
@@ -349,7 +340,7 @@ private fun FileListArea(
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
-        if (viewModel.isListViewMode)
+        if (viewModel.selectedViewMode == FileViewMode.List)
             FileListView(
                 viewModel = viewModel,
                 device = device,
@@ -1020,21 +1011,6 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 ownerWindow = window
             )
     }
-}
-
-@Composable
-private fun ViewModeLabel(modeKey: String?) = when (modeKey) {
-    "icons" -> strings.mainViewModeIcons
-    "list" -> strings.mainViewModeList
-    else -> ""
-}
-
-@Composable
-private fun SortModeLabel(modeKey: String?) = when (modeKey) {
-    "size" -> strings.mainSortModeSize
-    "modified" -> strings.mainSortModeModified
-    "name" -> strings.mainSortModeName
-    else -> ""
 }
 
 @Composable
