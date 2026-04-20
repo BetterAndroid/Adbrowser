@@ -110,6 +110,8 @@ fun DevicePairDialog(
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null
 ) {
+    val colors = AdbrowserTheme.colors
+
     val appState = LocalAppState.current
     val viewModel = remember(appState) { DevicePairDialogModel(appState) }
 
@@ -133,7 +135,7 @@ fun DevicePairDialog(
     }
     val leadingColor = when (viewModel.status) {
         is DevicePairDialogModel.Status.Failed -> JewelTheme.globalColors.text.error
-        else -> if (qrError != null) JewelTheme.globalColors.text.error else JewelTheme.contentColor
+        else -> if (qrError != null) JewelTheme.globalColors.text.error else colors.pathBreadcrumbForeground
     }
 
     DialogScaffold(
