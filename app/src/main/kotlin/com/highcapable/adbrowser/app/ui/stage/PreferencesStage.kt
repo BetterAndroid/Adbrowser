@@ -22,12 +22,15 @@
  */
 package com.highcapable.adbrowser.app.ui.stage
 
+import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +38,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -97,21 +101,29 @@ fun FrameWindowScope.PreferencesStage(
                 PreferencesTabs(viewModel)
                 Spacer(Modifier.height(10.dp))
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    when (viewModel.currentTab) {
-                        PreferencesStageModel.Tab.General -> GeneralTab(viewModel)
-                        PreferencesStageModel.Tab.Files -> FilesTab(viewModel)
-                        PreferencesStageModel.Tab.Device -> DeviceTab(
-                            viewModel = viewModel,
-                            parentWindow = window,
-                            browseDialogTitle = selectAdbExecutableText
-                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        when (viewModel.currentTab) {
+                            PreferencesStageModel.Tab.General -> GeneralTab(viewModel)
+                            PreferencesStageModel.Tab.Files -> FilesTab(viewModel)
+                            PreferencesStageModel.Tab.Device -> DeviceTab(
+                                viewModel = viewModel,
+                                parentWindow = window,
+                                browseDialogTitle = selectAdbExecutableText
+                            )
+                        }
                     }
+                    VerticalScrollbar(
+                        adapter = rememberScrollbarAdapter(scrollState),
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                    )
                 }
             }
             Spacer(Modifier.height(12.dp))
