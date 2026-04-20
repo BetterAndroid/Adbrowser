@@ -40,6 +40,7 @@ object AppIcons : AppAssets("icons") {
     val BlockedFolder = createSvg("BlockedFolder")
     val ErrorFolder = createSvg("ErrorFolder")
     val Refresh = createSvg("Refresh")
+    val Reset = createSvg("Reset")
     val Device = createSvg("Device")
     val Devices = createSvg("Devices")
     val Internet = createSvg("Internet")

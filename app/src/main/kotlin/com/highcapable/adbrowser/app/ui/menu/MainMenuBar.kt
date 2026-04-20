@@ -29,6 +29,7 @@ import androidx.compose.ui.window.MenuBar
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.input.KeyShortcut
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.app.ui.window.manager.AppWindow
@@ -43,12 +44,23 @@ fun FrameWindowScope.MainMenuBar(
     val windowManager = LocalWindowManager.current
     val openPreferences = { windowManager.open(AppWindow.Preferences) }
 
+    val openShortcut = viewModel.menuShortcut(MenuShortcut.Action.Open).toComposeShortcut()
+    val newFolderShortcut = viewModel.menuShortcut(MenuShortcut.Action.NewFolder).toComposeShortcut()
+    val renameShortcut = viewModel.menuShortcut(MenuShortcut.Action.Rename).toComposeShortcut()
+    val copyShortcut = viewModel.menuShortcut(MenuShortcut.Action.Copy).toComposeShortcut()
+    val cutShortcut = viewModel.menuShortcut(MenuShortcut.Action.Cut).toComposeShortcut()
+    val pasteShortcut = viewModel.menuShortcut(MenuShortcut.Action.Paste).toComposeShortcut()
+    val deleteShortcut = viewModel.menuShortcut(MenuShortcut.Action.Delete).toComposeShortcut()
+    val propertiesShortcut = viewModel.menuShortcut(MenuShortcut.Action.Properties).toComposeShortcut()
+    val refreshShortcut = viewModel.menuShortcut(MenuShortcut.Action.Refresh).toComposeShortcut()
+
     MenuBar {
         Menu(strings.menuFile) {
             Item(
                 text = strings.menuOpen,
                 enabled = viewModel.hasSingleSelectedEntry,
-                onClick = viewModel::openSelectedEntry
+                onClick = viewModel::openSelectedEntry,
+                shortcut = openShortcut
             )
             if (!viewModel.selectedEntryIsDirectory)
                 Item(
@@ -61,26 +73,26 @@ fun FrameWindowScope.MainMenuBar(
                 text = strings.menuNewFolder,
                 enabled = viewModel.canShowBlankFileContextMenu,
                 onClick = viewModel::createNewFolder,
-                shortcut = KeyShortcut(Key.N)
+                shortcut = newFolderShortcut
             )
             Separator()
             Item(
                 text = strings.menuRename,
                 enabled = viewModel.hasSingleSelectedEntry,
                 onClick = viewModel::renameSelectedEntry,
-                shortcut = KeyShortcut(Key.F2)
+                shortcut = renameShortcut
             )
             Item(
                 text = strings.menuDelete,
                 enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::deleteSelectedEntry,
-                shortcut = KeyShortcut(Key.Delete)
+                shortcut = deleteShortcut
             )
             Item(
                 text = strings.menuProperties,
                 enabled = viewModel.canShowFileProperties,
                 onClick = viewModel::showProperties,
-                shortcut = KeyShortcut(Key.I)
+                shortcut = propertiesShortcut
             )
             if (!OsType.isMacOS) {
                 Separator()
@@ -102,19 +114,19 @@ fun FrameWindowScope.MainMenuBar(
                 text = strings.menuCut,
                 enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::cutSelectedEntry,
-                shortcut = KeyShortcut(Key.X)
+                shortcut = cutShortcut
             )
             Item(
                 text = strings.menuCopy,
                 enabled = viewModel.hasSelectedEntry,
                 onClick = viewModel::copySelectedEntry,
-                shortcut = KeyShortcut(Key.C)
+                shortcut = copyShortcut
             )
             Item(
                 text = strings.menuPaste,
                 enabled = viewModel.canShowBlankFileContextMenu && viewModel.canPasteEntry,
                 onClick = viewModel::pasteToCurrentPath,
-                shortcut = KeyShortcut(Key.V)
+                shortcut = pasteShortcut
             )
             Separator()
             Item(
@@ -135,7 +147,7 @@ fun FrameWindowScope.MainMenuBar(
                 text = strings.menuRefresh,
                 enabled = viewModel.canRefresh,
                 onClick = viewModel::refreshEntries,
-                shortcut = KeyShortcut(Key.F5)
+                shortcut = refreshShortcut
             )
             Separator()
             Menu(

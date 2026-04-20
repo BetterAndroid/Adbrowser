@@ -164,6 +164,8 @@ data class Strings(
     val preferencesRememberLastDevicePath: String,
     val preferencesEnvironment: String,
     val preferencesConnection: String,
+    val preferencesMenuShortcuts: String,
+    val preferencesMenuShortcutHint: String,
     val preferencesResetOptions: String,
     val preferencesResetSidebarSpacing: String,
     val preferencesResetFileColumnWidths: String,

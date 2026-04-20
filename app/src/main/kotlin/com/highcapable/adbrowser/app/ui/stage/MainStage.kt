@@ -116,13 +116,12 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
+import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import kotlinx.coroutines.flow.distinctUntilChanged
-import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CopyMenuItemOptionAction
-import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.CutMenuItemOptionAction
-import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.PasteMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.SelectAllMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.MenuScope
 import org.jetbrains.jewel.ui.component.PopupMenu
@@ -851,6 +850,7 @@ private fun MenuScope.entryFileContextMenu(
     if (!isMultiSelection) {
         selectableItem(
             selected = false,
+            keybinding = viewModel.menuShortcut(MenuShortcut.Action.Open).toMenuKeybinding(),
             onClick = { perform { viewModel.openEntry(device, item) } }
         ) { Text(strings.menuOpen) }
         if (!item.isDirectory)
@@ -862,24 +862,26 @@ private fun MenuScope.entryFileContextMenu(
         selectableItem(
             selected = false,
             iconKey = AllIconsKeys.Actions.Edit,
+            keybinding = viewModel.menuShortcut(MenuShortcut.Action.Rename).toMenuKeybinding(),
             onClick = { perform(viewModel::renameSelectedEntry) }
         ) { Text(strings.menuRename) }
     }
-    selectableItemWithActionType(
+    selectableItem(
         selected = false,
         iconKey = AllIconsKeys.Actions.Copy,
-        actionType = CopyMenuItemOptionAction,
+        keybinding = viewModel.menuShortcut(MenuShortcut.Action.Copy).toMenuKeybinding(),
         onClick = { perform(viewModel::copySelectedEntry) }
     ) { Text(strings.menuCopy) }
-    selectableItemWithActionType(
+    selectableItem(
         selected = false,
         iconKey = AllIconsKeys.Actions.MenuCut,
-        actionType = CutMenuItemOptionAction,
+        keybinding = viewModel.menuShortcut(MenuShortcut.Action.Cut).toMenuKeybinding(),
         onClick = { perform(viewModel::cutSelectedEntry) }
     ) { Text(strings.menuCut) }
     selectableItem(
         selected = false,
         iconKey = AllIconsKeys.General.Delete,
+        keybinding = viewModel.menuShortcut(MenuShortcut.Action.Delete).toMenuKeybinding(),
         onClick = { perform(viewModel::deleteSelectedEntry) }
     ) { Text(strings.menuDelete) }
     if (!isMultiSelection) {
@@ -887,6 +889,7 @@ private fun MenuScope.entryFileContextMenu(
         selectableItem(
             selected = false,
             iconKey = AllIconsKeys.Actions.Properties,
+            keybinding = viewModel.menuShortcut(MenuShortcut.Action.Properties).toMenuKeybinding(),
             onClick = { perform(viewModel::showSelectedEntryProperties) }
         ) { Text(strings.menuProperties) }
     }
@@ -910,6 +913,7 @@ private fun MenuScope.blankFileContextMenu(
         selected = false,
         enabled = hasSelectedDevice,
         iconKey = AllIconsKeys.Actions.Refresh,
+        keybinding = viewModel.menuShortcut(MenuShortcut.Action.Refresh).toMenuKeybinding(),
         onClick = { perform(viewModel::refreshEntries) }
     ) { Text(strings.menuRefresh) }
     if (canShowBlankFileContextMenu) {
@@ -918,14 +922,15 @@ private fun MenuScope.blankFileContextMenu(
             selected = false,
             enabled = hasSelectedDevice,
             iconKey = AllIconsKeys.Actions.NewFolder,
+            keybinding = viewModel.menuShortcut(MenuShortcut.Action.NewFolder).toMenuKeybinding(),
             onClick = { perform(viewModel::createNewFolder) }
         ) { Text(strings.menuNewFolder) }
         separator()
         if (viewModel.canPasteEntry) {
-            selectableItemWithActionType(
+            selectableItem(
                 selected = false,
                 iconKey = AllIconsKeys.Actions.MenuPaste,
-                actionType = PasteMenuItemOptionAction,
+                keybinding = viewModel.menuShortcut(MenuShortcut.Action.Paste).toMenuKeybinding(),
                 onClick = { perform(viewModel::pasteToCurrentPath) }
             ) { Text(strings.menuPaste) }
             separator()
@@ -947,6 +952,7 @@ private fun MenuScope.blankFileContextMenu(
                 selected = false,
                 enabled = hasSelectedDevice,
                 iconKey = AllIconsKeys.Actions.Properties,
+                keybinding = viewModel.menuShortcut(MenuShortcut.Action.Properties).toMenuKeybinding(),
                 onClick = { perform(viewModel::showCurrentDirectoryProperties) }
             ) { Text(strings.menuProperties) }
         }
@@ -1336,12 +1342,10 @@ private fun handleFileAreaShortcut(
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
 
-    val isPrimaryShortcutPressed = event.isCtrlPressed || event.isMetaPressed
-
     // Keep this routing close to the file area instead of a global window handler so shortcuts
     // only trigger when the file area actually owns focus.
     return when {
-        isPrimaryShortcutPressed && event.key == Key.A && !event.isShiftPressed -> {
+        primaryShortcutMatches(event, Key.A) && !event.isShiftPressed -> {
             viewModel.selectAllEntries()
             true
         }
@@ -1349,31 +1353,56 @@ private fun handleFileAreaShortcut(
             viewModel.inverseSelectEntries()
             true
         }
-        isPrimaryShortcutPressed && event.key == Key.C && viewModel.hasSelectedEntry -> {
+        viewModel.menuShortcut(MenuShortcut.Action.Copy).matches(event) && viewModel.hasSelectedEntry -> {
             viewModel.copySelectedEntry()
             true
         }
-        isPrimaryShortcutPressed && event.key == Key.X && viewModel.hasSelectedEntry -> {
+        viewModel.menuShortcut(MenuShortcut.Action.Cut).matches(event) && viewModel.hasSelectedEntry -> {
             viewModel.cutSelectedEntry()
             true
         }
-        isPrimaryShortcutPressed &&
-            event.key == Key.V &&
+        viewModel.menuShortcut(MenuShortcut.Action.NewFolder).matches(event) &&
+            viewModel.canShowBlankFileContextMenu(device) -> {
+            viewModel.createNewFolder()
+            true
+        }
+        viewModel.menuShortcut(MenuShortcut.Action.Paste).matches(event) &&
             viewModel.canShowBlankFileContextMenu(device) &&
             viewModel.canPasteEntry -> {
             viewModel.pasteToCurrentPath()
             true
         }
-        event.key == Key.Delete && viewModel.hasSelectedEntry -> {
+        viewModel.menuShortcut(MenuShortcut.Action.Delete).matches(event) && viewModel.hasSelectedEntry -> {
             viewModel.deleteSelectedEntry()
             true
         }
-        event.key == Key.F2 && viewModel.hasSingleSelectedEntry -> {
+        viewModel.menuShortcut(MenuShortcut.Action.Rename).matches(event) && viewModel.hasSingleSelectedEntry -> {
             viewModel.renameSelectedEntry()
             true
         }
-        (event.key == Key.Enter || event.key == Key.NumPadEnter) && viewModel.hasSingleSelectedEntry -> {
+        viewModel.menuShortcut(MenuShortcut.Action.Open).matches(event) && viewModel.hasSingleSelectedEntry -> {
             viewModel.openSelectedEntry()
+            true
+        }
+        viewModel.menuShortcut(MenuShortcut.Action.Properties).matches(event) && viewModel.canShowFileProperties -> {
+            viewModel.showProperties()
+            true
+        }
+        viewModel.menuShortcut(MenuShortcut.Action.Open).keyCode == Key.Enter.keyCode &&
+            (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
+            viewModel.hasSingleSelectedEntry -> {
+            viewModel.openSelectedEntry()
+            true
+        }
+        viewModel.menuShortcut(MenuShortcut.Action.Rename).keyCode == Key.Enter.keyCode &&
+            event.key == Key.NumPadEnter &&
+            viewModel.hasSingleSelectedEntry -> {
+            viewModel.renameSelectedEntry()
+            true
+        }
+        viewModel.menuShortcut(MenuShortcut.Action.Refresh).matches(event) &&
+            viewModel.canRefresh -> {
+            viewModel.refreshEntries()
             true
         }
         event.key == Key.Escape && viewModel.selectedEntriesOf(device).isNotEmpty() -> {
@@ -1400,6 +1429,12 @@ private fun extractInitialNavigationChar(event: KeyEvent): Char? {
 
     return keyChar.lowercaseChar()
 }
+
+private fun primaryShortcutMatches(event: KeyEvent, key: Key) = event.key == key &&
+    event.type == KeyEventType.KeyDown &&
+    ((OsType.isMacOS && event.isMetaPressed && !event.isCtrlPressed) ||
+        (!OsType.isMacOS && event.isCtrlPressed && !event.isMetaPressed)) &&
+    !event.isAltPressed
 
 private fun selectedEntryIndex(
     entries: List<DeviceFileItem>,

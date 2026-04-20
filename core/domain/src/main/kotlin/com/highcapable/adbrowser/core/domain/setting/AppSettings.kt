@@ -22,6 +22,7 @@
  */
 package com.highcapable.adbrowser.core.domain.setting
 
+import com.highcapable.adbrowser.core.domain.setting.model.MenuShortcut
 import com.highcapable.adbrowser.core.domain.setting.model.type.FileSortMode
 import com.highcapable.adbrowser.core.domain.setting.model.type.FileViewMode
 import kotlinx.serialization.Serializable
@@ -33,6 +34,7 @@ import kotlinx.serialization.Serializable
 data class AppSettings(
     var language: String = "",
     var adbExecPath: String = "",
+    var menuShortcuts: MenuShortcut.Collection = MenuShortcut.Collection(),
     var connectedDeviceAddressHistory: MutableList<String> = mutableListOf(),
     var rememberLastDevice: Boolean = true,
     var rememberLastDevicePath: Boolean = true,

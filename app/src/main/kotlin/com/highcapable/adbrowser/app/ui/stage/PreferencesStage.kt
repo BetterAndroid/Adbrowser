@@ -33,22 +33,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.FrameWindowScope
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.locale.languageOptions
+import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
+import com.highcapable.adbrowser.app.ui.component.ContentIconButton
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.CheckboxRow
@@ -231,6 +240,29 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
         padding = PanelPadding
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(strings.preferencesMenuShortcuts, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = strings.preferencesMenuShortcutHint,
+                color = AdbrowserTheme.colors.pathBreadcrumbForeground,
+                fontSize = 12.sp
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MenuShortcut.Action.entries.forEach { action ->
+                    MenuShortcutRow(
+                        action = action,
+                        shortcut = viewModel.menuShortcuts[action],
+                        onShortcutChanged = { viewModel.updateMenuShortcut(action, it) },
+                        onResetShortcut = { viewModel.resetMenuShortcut(action) }
+                    )
+                }
+            }
+        }
+    }
+    PanelSurface(
+        modifier = Modifier.fillMaxWidth(),
+        padding = PanelPadding
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.preferencesResetOptions, fontWeight = FontWeight.SemiBold)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DefaultButton(onClick = viewModel::resetSidebarSpacing) {
@@ -244,6 +276,53 @@ private fun GeneralTab(viewModel: PreferencesStageModel) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MenuShortcutRow(
+    action: MenuShortcut.Action,
+    shortcut: MenuShortcut,
+    onShortcutChanged: (MenuShortcut) -> Unit,
+    onResetShortcut: () -> Unit
+) {
+    val fieldState = remember(action) { TextFieldState(shortcut.displayText()) }
+
+    LaunchedEffect(shortcut) {
+        val displayText = shortcut.displayText()
+        fieldState.edit { replace(0, length, displayText) }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = MenuShortcut.Label(action),
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        TextField(
+            state = fieldState,
+            readOnly = true,
+            modifier = Modifier
+                .widthIn(min = 180.dp, max = 220.dp)
+                .height(AdbrowserTheme.DefaultTextFieldHeight)
+                .onPreviewKeyEvent { event ->
+                    val recorded = MenuShortcut.fromEvent(event) ?: return@onPreviewKeyEvent false
+                    onShortcutChanged(recorded)
+
+                    true
+                }
+        )
+        ContentIconButton(
+            key = AppIcons.Reset,
+            outlined = true,
+            contentDescription = MenuShortcut.Label(action),
+            onClick = onResetShortcut
+        )
     }
 }
 

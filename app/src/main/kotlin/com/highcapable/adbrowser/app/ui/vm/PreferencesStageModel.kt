@@ -31,6 +31,8 @@ import com.highcapable.adbrowser.app.locale.Locales
 import com.highcapable.adbrowser.app.locale.normalizeStoredLanguageTag
 import com.highcapable.adbrowser.app.ui.utils.SystemFileChooser
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut.Companion.toUiType
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
@@ -90,13 +92,14 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
     var currentTab by mutableStateOf(Tab.General)
 
     var selectedLanguageTag by mutableStateOf(Locales.FOLLOW_SYSTEM)
+    var menuShortcuts by mutableStateOf(MenuShortcut.Collection())
 
     var showHiddenFiles by mutableStateOf(false)
     var foldersFirst by mutableStateOf(true)
     var rememberLastFileViewMode by mutableStateOf(true)
     var rememberLastFileSortMode by mutableStateOf(true)
-    var rememberLastDevicePath by mutableStateOf(true)
 
+    var rememberLastDevicePath by mutableStateOf(true)
     val adbExecPath = TextFieldState("")
     var rememberLastDevice by mutableStateOf(true)
     var superuser by mutableStateOf(false)
@@ -204,6 +207,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
                 ) {
                     settingsService.current.language = normalizeStoredLanguageTag(selectedLanguageTag)
                     settingsService.current.adbExecPath = adbExecPath.text.toString().trim()
+                    settingsService.current.menuShortcuts = menuShortcuts.toSettingsType()
                     settingsService.current.rememberLastDevice = rememberLastDevice
                     settingsService.current.useSuperuser = superuser
                     settingsService.current.showHiddenFiles = showHiddenFiles
@@ -256,10 +260,21 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         status = Status.Cancelled
     }
 
+    /** Replaces one editable shortcut while leaving the rest of the shortcut collection intact. */
+    fun updateMenuShortcut(action: MenuShortcut.Action, shortcut: MenuShortcut) {
+        menuShortcuts = menuShortcuts.updated(action, shortcut)
+    }
+
+    /** Restores one editable shortcut to the default mapping for the current platform. */
+    fun resetMenuShortcut(action: MenuShortcut.Action) {
+        menuShortcuts = menuShortcuts.updated(action, MenuShortcut.defaultFor(action))
+    }
+
     /** Copies the current persisted settings into the editable window state. */
     private fun restoreFromSettings() {
         val settings = settingsService.current
         selectedLanguageTag = normalizeStoredLanguageTag(settings.language)
+        menuShortcuts = settings.menuShortcuts.toUiType()
         showHiddenFiles = settings.showHiddenFiles
         foldersFirst = settings.foldersFirst
         rememberLastFileViewMode = settings.rememberLastFileViewMode

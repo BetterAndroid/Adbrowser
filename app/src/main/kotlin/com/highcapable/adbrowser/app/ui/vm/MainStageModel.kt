@@ -33,6 +33,8 @@ import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
+import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut.Companion.toUiType
 import com.highcapable.adbrowser.app.ui.vm.model.PathBreadcrumbSegment
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode.Companion.toUiType
@@ -249,6 +251,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     var isBusy by mutableStateOf(false)
     var isStatusBarVisible by mutableStateOf(true)
 
+    var menuShortcuts by mutableStateOf(settingsService.current.menuShortcuts.toUiType())
+        private set
     var selectedViewMode by mutableStateOf(FileViewMode.List)
         private set
     var selectedSortMode by mutableStateOf(FileSortMode.Name)
@@ -302,6 +306,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Network transports are the only device entries that can be disconnected explicitly. */
     fun canDisconnectDevice(device: AndroidDeviceItem) = device.type == AndroidDevice.Type.Network
 
+    /** Returns the active shortcut mapping for one user-facing menu action. */
+    fun menuShortcut(action: MenuShortcut.Action) = menuShortcuts[action]
+
     /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
     fun setDevicePaneWidth(widthDp: Float) {
         devicePaneWidthDp = widthDp.coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
@@ -321,6 +328,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun onExternalSettingsChanged(refreshFileList: Boolean = false) {
         val settings = settingsService.current
+        menuShortcuts = settings.menuShortcuts.toUiType()
         devicePaneWidthDp = settings.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
         fileColumnWidthNamePx = settings.fileColumnWidthName.toFloat()
         fileColumnWidthSizePx = settings.fileColumnWidthSize.toFloat()
