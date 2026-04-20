@@ -39,13 +39,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.FrameWindowScope
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.locale.languageOptions
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -72,83 +73,65 @@ fun FrameWindowScope.PreferencesStage(
     val scrollState = rememberScrollState()
     val selectAdbExecutableText = strings.setupSelectAdbExecutable
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colors.mainBackground)
-            .padding(12.dp)
-    ) {
+    ProvidePrimaryAction(window) {
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
+            modifier = modifier
+                .fillMaxSize()
+                .background(colors.mainBackground)
+                .padding(12.dp)
         ) {
-            PreferencesTabs(viewModel)
-            Spacer(Modifier.height(10.dp))
-
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                when (viewModel.currentTab) {
-                    PreferencesStageModel.Tab.General -> GeneralTab(viewModel)
-                    PreferencesStageModel.Tab.Files -> FilesTab(viewModel)
-                    PreferencesStageModel.Tab.Device -> DeviceTab(
-                        viewModel = viewModel,
-                        parentWindow = window,
-                        browseDialogTitle = selectAdbExecutableText
-                    )
+                PreferencesTabs(viewModel)
+                Spacer(Modifier.height(10.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    when (viewModel.currentTab) {
+                        PreferencesStageModel.Tab.General -> GeneralTab(viewModel)
+                        PreferencesStageModel.Tab.Files -> FilesTab(viewModel)
+                        PreferencesStageModel.Tab.Device -> DeviceTab(
+                            viewModel = viewModel,
+                            parentWindow = window,
+                            browseDialogTitle = selectAdbExecutableText
+                        )
+                    }
                 }
             }
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = 8.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.Bottom
-        ) {
+            Spacer(Modifier.height(12.dp))
+
             val statusMessage = preferencesStatusMessage(viewModel.status)
             val statusColor = when (viewModel.statusCategory) {
                 PreferencesStageModel.StatusCategory.Normal -> colors.pathBreadcrumbForeground
                 PreferencesStageModel.StatusCategory.Error -> JewelTheme.globalColors.text.error
             }
 
-            Text(
-                text = statusMessage,
-                color = statusColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .padding(end = 10.dp)
-                    .weight(1f)
-            )
-            OutlinedButton(
-                enabled = !viewModel.isSaving,
-                onClick = {
-                    // Cancel restores the editable state back from saved settings before closing.
-                    viewModel.cancel()
-                    onCloseRequest()
-                },
-                modifier = Modifier.width(80.dp)
-            ) {
-                Text(strings.dialogCommonCancel)
-            }
-            Spacer(Modifier.width(12.dp))
-            DefaultButton(
-                enabled = !viewModel.isSaving,
-                onClick = {
+            ButtonActionRow(
+                primaryText = strings.preferencesSave,
+                secondaryText = strings.dialogCommonCancel,
+                primaryEnabled = !viewModel.isSaving,
+                secondaryEnabled = !viewModel.isSaving,
+                onPrimary = {
                     // The close callback is only invoked after a successful save; validation or
                     // persistence failures leave the window open so the footer can show the reason.
                     viewModel.save(onSuccess = onCloseRequest)
                 },
-                modifier = Modifier.width(80.dp)
-            ) {
-                Text(strings.preferencesSave)
-            }
+                onSecondary = {
+                    // Cancel restores the editable state back from saved settings before closing.
+                    viewModel.cancel()
+                    onCloseRequest()
+                },
+                leadingText = statusMessage,
+                leadingTextColor = statusColor,
+                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp)
+            )
         }
     }
 }

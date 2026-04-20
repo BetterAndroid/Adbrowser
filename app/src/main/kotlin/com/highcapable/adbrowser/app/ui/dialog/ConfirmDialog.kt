@@ -23,8 +23,9 @@
 package com.highcapable.adbrowser.app.ui.dialog
 
 import androidx.compose.runtime.Composable
-import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import org.jetbrains.jewel.ui.component.Text
 import java.awt.Window
 
@@ -43,15 +44,17 @@ fun ConfirmDialog(
         onCloseRequest = onCloseRequest,
         ownerWindow = ownerWindow
     ) {
-        Text(message)
+        ProvidePrimaryAction(window) {
+            Text(message)
 
-        DialogActionRow(
-            primaryText = confirmText,
-            onPrimary = {
-                if (onConfirm()) onCloseRequest()
-            },
-            secondaryText = cancelText,
-            onSecondary = onCloseRequest
-        )
+            ButtonActionRow(
+                primaryText = confirmText,
+                onPrimary = {
+                    if (onConfirm()) onCloseRequest()
+                },
+                secondaryText = cancelText,
+                onSecondary = onCloseRequest
+            )
+        }
     }
 }

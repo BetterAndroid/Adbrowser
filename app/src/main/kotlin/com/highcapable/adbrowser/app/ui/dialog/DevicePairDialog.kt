@@ -81,11 +81,12 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.ContentIcon
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.QrCodePanel
-import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.DevicePairDialogModel
@@ -156,7 +157,7 @@ fun DevicePairDialog(
                 DevicePairDialogModel.Tab.PairingCode -> ManualPairTab(viewModel)
             }
             Spacer(Modifier.height(12.dp))
-            DialogActionRow(
+            ButtonActionRow(
                 primaryText = strings.dialogPropertiesClose,
                 onPrimary = { viewModel.cancelAndClose(onCloseRequest) },
                 primaryEnabled = viewModel.canClose,
@@ -510,63 +511,65 @@ private fun PairingCodeDialog(
         ownerWindow = ownerWindow,
         width = 420.dp
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Text(
-                text = strings.dialogDevicePairCodePrompt,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
+        ProvidePrimaryAction(window) {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                codeStates.forEachIndexed { index, state ->
-                    TextField(
-                        state = state,
-                        enabled = !viewModel.isManualPairing,
-                        textStyle = centeredTextStyle,
-                        modifier = Modifier
-                            .width(35.dp)
-                            .height(AdbrowserTheme.DefaultTextFieldHeight)
-                            .focusRequester(focusRequesters[index])
-                            .onPreviewKeyEvent { event ->
-                                when {
-                                    event.type == KeyEventType.KeyDown && event.key == Key.Backspace -> {
-                                        if (state.text.isNotEmpty()) return@onPreviewKeyEvent false
-                                        if (index == 0) return@onPreviewKeyEvent false
+                Text(
+                    text = strings.dialogDevicePairCodePrompt,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    codeStates.forEachIndexed { index, state ->
+                        TextField(
+                            state = state,
+                            enabled = !viewModel.isManualPairing,
+                            textStyle = centeredTextStyle,
+                            modifier = Modifier
+                                .width(35.dp)
+                                .height(AdbrowserTheme.DefaultTextFieldHeight)
+                                .focusRequester(focusRequesters[index])
+                                .onPreviewKeyEvent { event ->
+                                    when {
+                                        event.type == KeyEventType.KeyDown && event.key == Key.Backspace -> {
+                                            if (state.text.isNotEmpty()) return@onPreviewKeyEvent false
+                                            if (index == 0) return@onPreviewKeyEvent false
 
-                                        val previousState = codeStates[index - 1]
-                                        previousState.edit { replace(0, length, "") }
-                                        focusRequesters[index - 1].requestFocus()
-                                        true
+                                            val previousState = codeStates[index - 1]
+                                            previousState.edit { replace(0, length, "") }
+                                            focusRequesters[index - 1].requestFocus()
+                                            true
+                                        }
+                                        event.type == KeyEventType.KeyDown &&
+                                            (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
+                                            canConfirm -> {
+                                            viewModel.confirmManualPair(code())
+                                            true
+                                        }
+                                        else -> false
                                     }
-                                    event.type == KeyEventType.KeyDown &&
-                                        (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
-                                        canConfirm -> {
-                                        viewModel.confirmManualPair(code())
-                                        true
-                                    }
-                                    else -> false
                                 }
-                            }
-                    )
+                        )
+                    }
                 }
+                ButtonActionRow(
+                    primaryText = strings.dialogCommonOk,
+                    onPrimary = { viewModel.confirmManualPair(code()) },
+                    secondaryText = strings.dialogCommonCancel,
+                    onSecondary = viewModel::dismissPairingCodeDialog,
+                    primaryEnabled = canConfirm,
+                    secondaryEnabled = !viewModel.isManualPairing,
+                    leadingText = viewModel.codeDialogError.orEmpty(),
+                    leadingTextColor = JewelTheme.globalColors.text.error
+                )
             }
-            DialogActionRow(
-                primaryText = strings.dialogCommonOk,
-                onPrimary = { viewModel.confirmManualPair(code()) },
-                secondaryText = strings.dialogCommonCancel,
-                onSecondary = viewModel::dismissPairingCodeDialog,
-                primaryEnabled = canConfirm,
-                secondaryEnabled = !viewModel.isManualPairing,
-                leadingText = viewModel.codeDialogError.orEmpty(),
-                leadingTextColor = JewelTheme.globalColors.text.error
-            )
         }
     }
 }

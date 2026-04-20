@@ -38,8 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
-import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.Text
@@ -75,32 +76,34 @@ fun SimpleInputDialog(
         ownerWindow = ownerWindow,
         width = 480.dp
     ) {
-        Text(prompt)
+        ProvidePrimaryAction(window) {
+            Text(prompt)
 
-        TextField(
-            state = state,
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester)
-                .height(AdbrowserTheme.DefaultTextFieldHeight)
-        )
+            TextField(
+                state = state,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .height(AdbrowserTheme.DefaultTextFieldHeight)
+            )
 
-        DialogActionRow(
-            primaryText = confirmText,
-            onPrimary = {
-                val value = state.text.toString().trim()
-                if (!validate(value)) {
-                    showInvalid = true
-                    return@DialogActionRow
-                }
+            ButtonActionRow(
+                primaryText = confirmText,
+                onPrimary = {
+                    val value = state.text.toString().trim()
+                    if (!validate(value)) {
+                        showInvalid = true
+                        return@ButtonActionRow
+                    }
 
-                showInvalid = false
-                if (onConfirm(value)) onCloseRequest()
-            },
-            secondaryText = cancelText,
-            onSecondary = onCloseRequest,
-            leadingText = if (showInvalid) invalidInputText else "",
-            leadingTextColor = JewelTheme.globalColors.text.error
-        )
+                    showInvalid = false
+                    if (onConfirm(value)) onCloseRequest()
+                },
+                secondaryText = cancelText,
+                onSecondary = onCloseRequest,
+                leadingText = if (showInvalid) invalidInputText else "",
+                leadingTextColor = JewelTheme.globalColors.text.error
+            )
+        }
     }
 }

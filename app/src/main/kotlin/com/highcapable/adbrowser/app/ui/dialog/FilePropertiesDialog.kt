@@ -40,8 +40,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.lyricist.strings
-import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionAccess
@@ -104,93 +105,95 @@ fun FilePropertiesDialog(
         ownerWindow = ownerWindow,
         width = 620.dp
     ) {
-        PropertyRow(
-            strings.dialogPropertiesFieldName,
-            snapshot.name,
-            selectableValue = true
-        )
-        PropertyRow(
-            strings.dialogPropertiesFieldPath,
-            snapshot.fullPath,
-            selectableValue = true
-        )
-        PropertyRow(
-            strings.dialogPropertiesFieldType,
-            when {
-                snapshot.isSymlink -> strings.dialogPropertiesTypeSymlink
-                snapshot.isDirectory -> strings.dialogPropertiesTypeDirectory
-                else -> strings.dialogPropertiesTypeFile
-            }
-        )
-        PropertyRow(
-            strings.dialogPropertiesFieldSize,
-            snapshot.friendlySizeText
-        )
-        PropertyRow(
-            strings.dialogPropertiesFieldModified,
-            DateFormatter.format(snapshot.modifiedAt.atZone(ZoneId.systemDefault()))
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = strings.dialogPropertiesFieldPermission,
-                modifier = Modifier.width(140.dp),
-                fontWeight = FontWeight.SemiBold
+        ProvidePrimaryAction(window) {
+            PropertyRow(
+                strings.dialogPropertiesFieldName,
+                snapshot.name,
+                selectableValue = true
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PropertyRow(
+                strings.dialogPropertiesFieldPath,
+                snapshot.fullPath,
+                selectableValue = true
+            )
+            PropertyRow(
+                strings.dialogPropertiesFieldType,
+                when {
+                    snapshot.isSymlink -> strings.dialogPropertiesTypeSymlink
+                    snapshot.isDirectory -> strings.dialogPropertiesTypeDirectory
+                    else -> strings.dialogPropertiesTypeFile
+                }
+            )
+            PropertyRow(
+                strings.dialogPropertiesFieldSize,
+                snapshot.friendlySizeText
+            )
+            PropertyRow(
+                strings.dialogPropertiesFieldModified,
+                DateFormatter.format(snapshot.modifiedAt.atZone(ZoneId.systemDefault()))
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = viewModel.symbolicPermission,
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .width(80.dp),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = strings.dialogPropertiesFieldPermission,
+                    modifier = Modifier.width(140.dp),
+                    fontWeight = FontWeight.SemiBold
                 )
-                TextField(
-                    state = viewModel.modeState,
-                    modifier = Modifier
-                        .width(80.dp)
-                        .height(AdbrowserTheme.DefaultTextFieldHeight),
-                    placeholder = { Text("---") }
-                )
-                OutlinedButton(
-                    onClick = viewModel::applyPermission,
-                    modifier = Modifier
-                        .width(60.dp)
-                        .height(AdbrowserTheme.DefaultTextFieldHeight)
-                ) {
-                    Text(strings.dialogPropertiesApply)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = viewModel.symbolicPermission,
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .width(80.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    TextField(
+                        state = viewModel.modeState,
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(AdbrowserTheme.DefaultTextFieldHeight),
+                        placeholder = { Text("---") }
+                    )
+                    OutlinedButton(
+                        onClick = viewModel::applyPermission,
+                        modifier = Modifier
+                            .width(60.dp)
+                            .height(AdbrowserTheme.DefaultTextFieldHeight)
+                    ) {
+                        Text(strings.dialogPropertiesApply)
+                    }
                 }
             }
+
+            PermissionBitsRow(
+                title = strings.dialogPropertiesOwner,
+                scope = PermissionScope.Owner,
+                viewModel = viewModel
+            )
+            PermissionBitsRow(
+                title = strings.dialogPropertiesGroup,
+                scope = PermissionScope.Group,
+                viewModel = viewModel
+            )
+            PermissionBitsRow(
+                title = strings.dialogPropertiesOther,
+                scope = PermissionScope.Other,
+                viewModel = viewModel
+            )
+
+            val errorText = viewModel.errorMessageRaw?.let(resolveDialogErrorText).orEmpty()
+            ButtonActionRow(
+                primaryText = strings.dialogPropertiesClose,
+                onPrimary = onCloseRequest,
+                leadingText = errorText,
+                leadingTextColor = JewelTheme.globalColors.text.error
+            )
         }
-
-        PermissionBitsRow(
-            title = strings.dialogPropertiesOwner,
-            scope = PermissionScope.Owner,
-            viewModel = viewModel
-        )
-        PermissionBitsRow(
-            title = strings.dialogPropertiesGroup,
-            scope = PermissionScope.Group,
-            viewModel = viewModel
-        )
-        PermissionBitsRow(
-            title = strings.dialogPropertiesOther,
-            scope = PermissionScope.Other,
-            viewModel = viewModel
-        )
-
-        val errorText = viewModel.errorMessageRaw?.let(resolveDialogErrorText).orEmpty()
-        DialogActionRow(
-            primaryText = strings.dialogPropertiesClose,
-            onPrimary = onCloseRequest,
-            leadingText = errorText,
-            leadingTextColor = JewelTheme.globalColors.text.error
-        )
     }
 }
 

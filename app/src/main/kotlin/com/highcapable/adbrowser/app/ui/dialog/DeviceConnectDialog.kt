@@ -57,9 +57,10 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.ContentIcon
-import com.highcapable.adbrowser.app.ui.dialog.base.DialogActionRow
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
+import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.DeviceConnectDialogModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -121,46 +122,48 @@ fun DeviceConnectDialog(
         horizontalAlignment = Alignment.CenterHorizontally,
         ownerWindow = ownerWindow
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
-            ContentIcon(
-                key = AppIcons.Internet,
-                tint = colors.primaryAccent,
-                modifier = Modifier.size(LogoIconSize)
+        ProvidePrimaryAction(window) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(15.dp)
+            ) {
+                ContentIcon(
+                    key = AppIcons.Internet,
+                    tint = colors.primaryAccent,
+                    modifier = Modifier.size(LogoIconSize)
+                )
+                ContentIcon(
+                    key = AppIcons.Ellipsis,
+                    tint = colors.primaryAccent,
+                    modifier = Modifier
+                        .size(DotIconSize)
+                        .alpha(0.5f)
+                )
+                ContentIcon(
+                    key = AppIcons.Device,
+                    tint = colors.primaryAccent,
+                    modifier = Modifier.size(LogoIconSize)
+                )
+            }
+            DeviceAddressComboBox(
+                viewModel = viewModel,
+                popupManager = popupManager,
+                focusRequester = focusRequester,
+                suggestions = suggestions,
+                onConfirm = { viewModel.connect(onCloseRequest = onCloseRequest) }
             )
-            ContentIcon(
-                key = AppIcons.Ellipsis,
-                tint = colors.primaryAccent,
-                modifier = Modifier
-                    .size(DotIconSize)
-                    .alpha(0.5f)
-            )
-            ContentIcon(
-                key = AppIcons.Device,
-                tint = colors.primaryAccent,
-                modifier = Modifier.size(LogoIconSize)
+            ButtonActionRow(
+                primaryText = strings.dialogCommonOk,
+                onPrimary = {
+                    viewModel.connect(onCloseRequest = onCloseRequest)
+                },
+                secondaryText = strings.dialogCommonCancel,
+                onSecondary = { viewModel.cancelAndClose(onCloseRequest) },
+                primaryEnabled = viewModel.canConfirm,
+                leadingText = leadingText,
+                leadingTextColor = leadingColor
             )
         }
-        DeviceAddressComboBox(
-            viewModel = viewModel,
-            popupManager = popupManager,
-            focusRequester = focusRequester,
-            suggestions = suggestions,
-            onConfirm = { viewModel.connect(onCloseRequest = onCloseRequest) }
-        )
-        DialogActionRow(
-            primaryText = strings.dialogCommonOk,
-            onPrimary = {
-                viewModel.connect(onCloseRequest = onCloseRequest)
-            },
-            secondaryText = strings.dialogCommonCancel,
-            onSecondary = { viewModel.cancelAndClose(onCloseRequest) },
-            primaryEnabled = viewModel.canConfirm,
-            leadingText = leadingText,
-            leadingTextColor = leadingColor
-        )
     }
 }
 
