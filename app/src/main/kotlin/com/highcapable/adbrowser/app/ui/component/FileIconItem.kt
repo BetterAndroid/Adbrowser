@@ -99,6 +99,7 @@ fun FileIconItem(
     var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var bridgeCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var textCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var editorBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
     var iconBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var bridgeBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
     var textBoundsInRoot by remember { mutableStateOf<Rect?>(null) }
@@ -129,17 +130,27 @@ fun FileIconItem(
             onPositioned(coordinates, coordinates.boundsInRoot())
         }
         .hoverable(interactionSource = interactionSource)
+        .onSecondaryPress(
+            pass = PointerEventPass.Initial,
+            shouldHandle = { position ->
+                val target = targetCoordinates()
+                val editorBounds = editorBoundsInRoot
+                if (!isInlineRenaming || target == null || editorBounds == null) true
+                else !editorBounds.contains(target.localToRoot(position))
+            }
+        ) { position ->
+            val target = targetCoordinates()
+            val container = containerCoordinates
+            val translatedPosition = if (target != null && container != null)
+                container.localPositionOf(target, position)
+            else position
+
+            if (isInlineRenaming) onCancelInlineRename()
+            onSecondaryClick(translatedPosition)
+        }
         .then(
             if (!isInlineRenaming)
-                Modifier.onSecondaryPress(pass = PointerEventPass.Initial) { position ->
-                    val target = targetCoordinates()
-                    val container = containerCoordinates
-                    val translatedPosition = if (target != null && container != null)
-                        container.localPositionOf(target, position)
-                    else position
-
-                    onSecondaryClick(translatedPosition)
-                }.onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
+                Modifier.onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
                     onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
                 }.onPressRelease(
                     key = item,
@@ -197,14 +208,11 @@ fun FileIconItem(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
                     .background(textHighlight)
-                    .then(
-                        if (isInlineRenaming) Modifier
-                        else Modifier.hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
-                            textCoordinates = coordinates
-                            textBoundsInRoot = bounds
-                            onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
-                        }
-                    )
+                    .hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
+                        textCoordinates = coordinates
+                        textBoundsInRoot = bounds
+                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                    }
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 BoxWithConstraints {
@@ -230,6 +238,7 @@ fun FileIconItem(
                             onConfirm = onConfirmInlineRename,
                             onCancel = onCancelInlineRename,
                             modifier = Modifier.width(inlineRenameWidth),
+                            onBoundsInRootChanged = { editorBoundsInRoot = it },
                             centeredMultiline = true
                         )
                 }

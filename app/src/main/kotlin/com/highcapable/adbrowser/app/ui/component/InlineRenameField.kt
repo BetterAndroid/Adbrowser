@@ -45,12 +45,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -79,6 +82,7 @@ fun InlineRenameField(
     minWidth: Dp = 0.dp,
     maxWidth: Dp = Dp.Unspecified,
     contentPadding: PaddingValues = PaddingValues.Zero,
+    onBoundsInRootChanged: (Rect) -> Unit = {},
     centeredMultiline: Boolean = false
 ) {
     val backgroundColor = if (JewelTheme.isDark) Color.Black else Color.White
@@ -149,6 +153,9 @@ fun InlineRenameField(
         modifier = containerModifier
             .clip(RoundedCornerShape(2.dp))
             .background(backgroundColor)
+            .onGloballyPositioned { coordinates ->
+                onBoundsInRootChanged(coordinates.boundsInRoot())
+            }
     ) {
         if (centeredMultiline)
             TextArea(

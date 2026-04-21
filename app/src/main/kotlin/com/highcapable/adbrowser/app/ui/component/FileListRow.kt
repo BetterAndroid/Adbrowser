@@ -51,8 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,6 +97,8 @@ fun FileListRow(
     val currentOnDoubleClick by rememberUpdatedState(onDoubleClick)
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
+    var rowCoordinates by remember(item) { mutableStateOf<LayoutCoordinates?>(null) }
+    var editorBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
     val background = resolveListItemBackground(
         colors = colors,
         selected = selected,
@@ -112,11 +117,19 @@ fun FileListRow(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (!isInlineRenaming)
-                    Modifier.onSecondaryPress(pass = PointerEventPass.Initial, onSecondaryPress = onSecondaryClick)
-                else Modifier
-            )
+            .onGloballyPositioned { rowCoordinates = it }
+            .onSecondaryPress(
+                pass = PointerEventPass.Initial,
+                shouldHandle = { position ->
+                    val row = rowCoordinates
+                    val editorBounds = editorBoundsInRoot
+                    if (!isInlineRenaming || row == null || editorBounds == null) true
+                    else !editorBounds.contains(row.localToRoot(position))
+                }
+            ) { position ->
+                if (isInlineRenaming) onCancelInlineRename()
+                onSecondaryClick(position)
+            }
     ) {
         Row(
             modifier = Modifier
@@ -173,7 +186,8 @@ fun FileListRow(
                                     onConfirm = onConfirmInlineRename,
                                     onCancel = onCancelInlineRename,
                                     modifier = Modifier.width(inlineRenameWidth),
-                                    contentPadding = PaddingValues(4.dp)
+                                    contentPadding = PaddingValues(4.dp),
+                                    onBoundsInRootChanged = { editorBoundsInRoot = it }
                                 )
                         }
                     }

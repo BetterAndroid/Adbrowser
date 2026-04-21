@@ -448,6 +448,7 @@ private fun FileListView(
                     viewModel = viewModel,
                     device = device,
                     event = it,
+                    onBeginInlineRename = interactionState::dismissContextMenu,
                     onNavigateSelection = { direction ->
                         val targetIndex = when (direction) {
                             MainStageModel.NavigationDirection.Up,
@@ -683,6 +684,7 @@ private fun FileIconView(
                         viewModel = viewModel,
                         device = device,
                         event = it,
+                        onBeginInlineRename = interactionState::dismissContextMenu,
                         onNavigateSelection = { direction ->
                             val targetIndex = viewModel.navigateSelection(
                                 device = device,
@@ -1359,6 +1361,7 @@ private fun handleFileAreaShortcut(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
     event: KeyEvent,
+    onBeginInlineRename: () -> Unit = {},
     onNavigateSelection: (MainStageModel.NavigationDirection) -> Boolean = { false },
     onNavigateByInitialChar: (Char) -> Boolean = { false }
 ): Boolean {
@@ -1399,6 +1402,7 @@ private fun handleFileAreaShortcut(
             true
         }
         viewModel.menuShortcut(MenuShortcut.Action.Rename).matches(event) && viewModel.hasSingleSelectedEntry -> {
+            onBeginInlineRename()
             viewModel.renameSelectedEntry()
             true
         }
@@ -1419,6 +1423,7 @@ private fun handleFileAreaShortcut(
         viewModel.menuShortcut(MenuShortcut.Action.Rename).keyCode == Key.Enter.keyCode &&
             event.key == Key.NumPadEnter &&
             viewModel.hasSingleSelectedEntry -> {
+            onBeginInlineRename()
             viewModel.renameSelectedEntry()
             true
         }

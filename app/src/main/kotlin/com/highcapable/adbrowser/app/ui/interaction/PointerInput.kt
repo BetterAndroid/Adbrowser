@@ -33,12 +33,14 @@ import androidx.compose.ui.input.pointer.onPointerEvent
 
 fun Modifier.onSecondaryPress(
     pass: PointerEventPass,
+    shouldHandle: (Offset) -> Boolean = { true },
     onSecondaryPress: (Offset) -> Unit
 ) = onPointerEvent(PointerEventType.Press, pass = pass) { event ->
     if (!event.buttons.isSecondaryPressed) return@onPointerEvent
     if (event.changes.any { it.isConsumed }) return@onPointerEvent
 
     val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    if (!shouldHandle(change.position)) return@onPointerEvent
     onSecondaryPress(change.position)
     event.changes.forEach { it.consume() }
 }
