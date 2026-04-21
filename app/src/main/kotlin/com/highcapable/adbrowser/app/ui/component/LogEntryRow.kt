@@ -25,7 +25,6 @@
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -47,20 +46,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.isCtrlPressed
-import androidx.compose.ui.input.pointer.isMetaPressed
-import androidx.compose.ui.input.pointer.isPrimaryPressed
-import androidx.compose.ui.input.pointer.isShiftPressed
-import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.highcapable.adbrowser.app.ui.interaction.onPressRelease
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
+import com.highcapable.adbrowser.app.ui.interaction.onSelectionPrimaryPress
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.LogEntryItem
@@ -105,24 +98,13 @@ fun LogEntryRow(
                 .fillMaxWidth()
                 .background(background, RoundedCornerShape(6.dp))
                 .hoverable(interactionSource = interactionSource)
-                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
-                    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
-
-                    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
-                    pressed = true
-                    onPrimaryClick(
-                        event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed,
-                        event.keyboardModifiers.isShiftPressed
-                    )
+                .onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
+                    onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
                 }
-                .pointerInput(entry.id) {
-                    detectTapGestures(
-                        onPress = {
-                            tryAwaitRelease()
-                            pressed = false
-                        }
-                    )
-                }
+                .onPressRelease(
+                    key = entry.id,
+                    onPressedChange = { pressed = it }
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Top
         ) {

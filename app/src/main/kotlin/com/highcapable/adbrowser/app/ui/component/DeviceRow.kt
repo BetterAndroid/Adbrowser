@@ -51,10 +51,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.isPrimaryPressed
-import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +59,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.interaction.onPressRelease
+import com.highcapable.adbrowser.app.ui.interaction.onPrimaryPress
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
@@ -113,16 +111,8 @@ fun DeviceRow(
                 .clip(RoundedCornerShape(8.dp))
                 .background(background)
                 .hoverable(interactionSource = interactionSource)
-                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
-                    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
-
-                    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
-                    pressed = true
-                    onClick()
-                }
-                .onPointerEvent(PointerEventType.Release, pass = PointerEventPass.Initial) {
-                    pressed = false
-                }
+                .onPrimaryPress(onPressedChange = { pressed = it }, onPrimaryPress = onClick)
+                .onPressRelease(key = item, onPressedChange = { pressed = it })
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
