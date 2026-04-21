@@ -518,7 +518,8 @@ private fun FileListView(
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                    interactionState.openBlankContextMenu(position)
+                    if (viewModel.commitInlineRenameOnFocusLoss(device))
+                        interactionState.openBlankContextMenu(position)
                 }
         ) {
             val showHorizontalScrollbar = horizontalScrollState.maxValue > 0
@@ -730,7 +731,8 @@ private fun FileIconView(
                     }
                 )
                 .onSecondaryPress(pass = PointerEventPass.Main) { position ->
-                    interactionState.openBlankContextMenu(position)
+                    if (viewModel.commitInlineRenameOnFocusLoss(device))
+                        interactionState.openBlankContextMenu(position)
                 }
         ) {
             LazyVerticalGrid(

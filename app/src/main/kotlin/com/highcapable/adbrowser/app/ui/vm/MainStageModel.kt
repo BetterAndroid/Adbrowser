@@ -395,6 +395,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun selectDevice(device: AndroidDeviceItem) {
         if (selectedDevice == device) return
+        selectedDevice?.let {
+            if (!commitInlineRenameOnFocusLoss(it)) return
+        }
 
         selectedDevice = device
         rememberLastSelectedDevice(device)
@@ -629,7 +632,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      * Success clears the editor immediately and then refreshes the current directory, restoring the
      * renamed entry as the primary selection so keyboard navigation can continue seamlessly.
      */
-    fun confirmInlineRename(device: AndroidDeviceItem): Boolean {
+    fun confirmInlineRename(
+        device: AndroidDeviceItem,
+        restoreRenamedSelection: Boolean = true
+    ): Boolean {
         val state = workspace(device) ?: return false
         val sourcePath = state.inlineRenamePath ?: return false
         val sourceEntry = state.currentEntries.firstOrNull { buildEntryFullPath(it) == sourcePath } ?: run {
@@ -658,20 +664,35 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             "/$targetName"
         else "${state.currentPath.trimEnd('/')}/$targetName"
 
-        refreshEntriesAsync(device = device, requestedPath = state.currentPath) { success ->
-            if (!success) return@refreshEntriesAsync
+        if (restoreRenamedSelection) {
+            refreshEntriesAsync(device = device, requestedPath = state.currentPath) { success ->
+                if (!success) return@refreshEntriesAsync
 
-            workspace(device)?.let { refreshed ->
-                setSelection(
-                    state = refreshed,
-                    selectedPaths = setOf(renamedPath),
-                    primaryPath = renamedPath,
-                    anchorPath = renamedPath
-                )
+                workspace(device)?.let { refreshed ->
+                    setSelection(
+                        state = refreshed,
+                        selectedPaths = setOf(renamedPath),
+                        primaryPath = renamedPath,
+                        anchorPath = renamedPath
+                    )
+                }
             }
-        }
+        } else refreshEntriesAsync(device = device, requestedPath = state.currentPath)
 
         return true
+    }
+
+    /**
+     * Finalizes inline rename as a focus-loss side effect.
+     *
+     * Unlike Enter-confirm, this path must not restore the renamed entry as the active selection
+     * because the caller is usually in the middle of selecting something else or moving focus away.
+     */
+    fun commitInlineRenameOnFocusLoss(device: AndroidDeviceItem): Boolean {
+        val state = workspace(device) ?: return true
+        if (state.inlineRenamePath == null) return true
+
+        return confirmInlineRename(device, restoreRenamedSelection = false)
     }
 
     /** Opens the delete confirmation dialog for the current selection. */
@@ -864,6 +885,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Selects all visible entries in the active workspace. */
     fun selectAllEntries() {
         val state = activeWorkspace ?: return
+        if (!commitInlineRenameOnFocusLoss(state.device)) return
+
         val paths = state.currentEntries.map(::buildEntryFullPath).toSet()
         val primaryPath = state.selectedEntry
             ?.let(::buildEntryFullPath)
@@ -881,6 +904,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Inverts selection against the currently visible entry set. */
     fun inverseSelectEntries() {
         val state = activeWorkspace ?: return
+        if (!commitInlineRenameOnFocusLoss(state.device)) return
+
         val allPaths = state.currentEntries.map(::buildEntryFullPath).toSet()
         val inverted = allPaths - state.selectedEntryPaths.toSet()
         val primaryPath = state.currentEntries.firstOrNull { buildEntryFullPath(it) in inverted }?.let(::buildEntryFullPath)
@@ -1060,6 +1085,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Replaces selection with a single entry or clears it when `entry` is null. */
     fun setSelectedEntry(device: AndroidDeviceItem, entry: DeviceFileItem?) {
+        if (!commitInlineRenameOnFocusLoss(device)) return
+
         workspace(device)?.let { state ->
             setSelection(
                 state = state,
@@ -1126,7 +1153,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Clears selection and resets the double-open suppression flag for one workspace. */
     fun clearSelectedEntries(device: AndroidDeviceItem) {
         workspace(device)?.let {
-            clearInlineRename(it)
+            if (!commitInlineRenameOnFocusLoss(device)) return
+
             it.suppressNextDoubleOpen = false
             setSelection(it, emptySet())
         }
@@ -1196,6 +1224,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         rangeSelection: Boolean
     ) {
         val state = workspace(device) ?: return
+        if (!commitInlineRenameOnFocusLoss(device)) return
+
         val entryPath = buildEntryFullPath(entry)
 
         when {
@@ -1238,6 +1268,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun ensureEntrySelectedForContextMenu(device: AndroidDeviceItem, entry: DeviceFileItem) {
         val state = workspace(device) ?: return
+        if (!commitInlineRenameOnFocusLoss(device)) return
 
         val entryPath = buildEntryFullPath(entry)
         if (state.selectedEntryPaths.size > 1 && entryPath in state.selectedEntryPaths) {
@@ -1282,6 +1313,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         initialSelectionPaths: Set<String>
     ) {
         val state = workspace(device) ?: return
+        if (!commitInlineRenameOnFocusLoss(device)) return
+
         state.suppressNextDoubleOpen = false
 
         val validCandidatePaths = candidatePaths.filterTo(linkedSetOf()) { path ->

@@ -145,7 +145,6 @@ fun FileIconItem(
                 container.localPositionOf(target, position)
             else position
 
-            if (isInlineRenaming) onCancelInlineRename()
             onSecondaryClick(translatedPosition)
         }
         .then(

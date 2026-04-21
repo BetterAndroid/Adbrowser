@@ -127,7 +127,6 @@ fun FileListRow(
                     else !editorBounds.contains(row.localToRoot(position))
                 }
             ) { position ->
-                if (isInlineRenaming) onCancelInlineRename()
                 onSecondaryClick(position)
             }
     ) {
