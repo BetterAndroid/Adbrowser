@@ -81,15 +81,15 @@ data class MenuShortcut(
         }
 
         fun defaultFor(action: Action) = when (action) {
-            Action.Open -> if (OsType.isMacOS) primary(Key.O, "O") else single(Key.Enter, "Enter")
-            Action.NewFolder -> primary(Key.N, "N", shift = true)
-            Action.Rename -> if (OsType.isMacOS) single(Key.Enter, "Enter") else single(Key.F2, "F2")
-            Action.Copy -> primary(Key.C, "C")
-            Action.Cut -> primary(Key.X, "X")
-            Action.Paste -> primary(Key.V, "V")
-            Action.Delete -> if (OsType.isMacOS) primary(Key.Backspace, "⌫") else single(Key.Delete, "Delete")
-            Action.Properties -> primary(Key.I, "I")
-            Action.Refresh -> single(Key.F5, "F5")
+            Action.Open -> if (OsType.isMacOS) primary(Key.O) else single(Key.Enter)
+            Action.NewFolder -> primary(Key.N, shift = true)
+            Action.Rename -> if (OsType.isMacOS) single(Key.Enter) else single(Key.F2)
+            Action.Copy -> primary(Key.C)
+            Action.Cut -> primary(Key.X)
+            Action.Paste -> primary(Key.V)
+            Action.Delete -> if (OsType.isMacOS) primary(Key.Backspace) else single(Key.Delete)
+            Action.Properties -> primary(Key.I)
+            Action.Refresh -> single(Key.F5)
         }
 
         fun SettingsMenuShortcut.Collection.toUiType() = Collection(
@@ -128,7 +128,7 @@ data class MenuShortcut(
             shift = shift
         )
 
-        private fun primary(key: Key, label: String, shift: Boolean = false) = MenuShortcut(
+        private fun primary(key: Key, label: String = displayKeyLabel(key) ?: "", shift: Boolean = false) = MenuShortcut(
             keyCode = key.keyCode,
             keyLabel = label,
             ctrl = !OsType.isMacOS,
@@ -136,7 +136,7 @@ data class MenuShortcut(
             shift = shift
         )
 
-        private fun single(key: Key, label: String) = MenuShortcut(
+        private fun single(key: Key, label: String = displayKeyLabel(key) ?: "") = MenuShortcut(
             keyCode = key.keyCode,
             keyLabel = label
         )
@@ -178,7 +178,7 @@ data class MenuShortcut(
             Key.Seven -> "7"
             Key.Eight -> "8"
             Key.Nine -> "9"
-            Key.Enter, Key.NumPadEnter -> "Enter"
+            Key.Enter, Key.NumPadEnter -> "↵"
             Key.Backspace -> "⌫"
             Key.Delete -> "⌦"
             Key.Spacebar -> "␣"
