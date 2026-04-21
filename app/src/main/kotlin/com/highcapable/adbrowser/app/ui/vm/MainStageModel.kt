@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.app.ui.vm
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.cl.AppState
@@ -73,7 +74,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object DeviceConnect : DialogState
         data object DevicePair : DialogState
         data object NewFolder : DialogState
-        data class Rename(val initialName: String) : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
     }
@@ -95,11 +95,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             DeviceConnected,
             DeviceDisconnected,
             SelectDeviceFirst,
-            InvalidFolderName,
-            FolderCreated,
             SelectEntryFirst,
-            InvalidName,
-            Renamed,
             EntryDeleted,
             EntryDeletedMultiple,
             Copied,
@@ -166,12 +162,15 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         var device by mutableStateOf(device)
         var currentPath by mutableStateOf("/")
         val pathInput = TextFieldState("/")
+        val inlineRenameInput = TextFieldState("")
+        val entryDisplayNameOverrides = mutableStateMapOf<String, String>()
         val currentEntries = mutableStateListOf<DeviceFileItem>()
         val directorySnapshots = mutableMapOf<String, FileEntrySnapshot>()
         var hiddenEntryCount by mutableStateOf(0)
         var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
         val selectedEntryPaths = mutableStateListOf<String>()
         var selectionAnchorPath by mutableStateOf<String?>(null)
+        var inlineRenamePath by mutableStateOf<String?>(null)
         var suppressNextDoubleOpen by mutableStateOf(false)
         val pathBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
         val navigationHistory = mutableStateListOf("/")
@@ -542,10 +541,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun confirmCreateFolder(folderName: String): Boolean {
         val device = selectedDevice?.toDomain() ?: return false
         val name = folderName.trim()
-        if (name.isBlank()) {
-            setStatus(StatusMessage.Key.InvalidFolderName)
-            return false
-        }
+        if (name.isBlank()) return false
 
         val result = runBlocking { fileSystemService.createFolder(device, currentPath, name) }
         if (!result.isOk) {
@@ -553,7 +549,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return false
         }
 
-        setStatus(StatusMessage.Key.FolderCreated, name)
         selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
 
         return true
@@ -561,31 +556,120 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Opens the rename dialog using the current single selection as the initial value. */
     fun renameSelectedEntry() {
+        val device = selectedDevice ?: return
         val entry = selectedEntry ?: return
+        if (selectedEntries.size != 1) return
 
-        dialogState = DialogState.Rename(initialName = entry.name)
+        beginInlineRename(device, entry)
     }
 
-    /** Renames the selected entry and refreshes the current directory on success. */
-    fun confirmRenameSelectedEntry(newName: String): Boolean {
-        val device = selectedDevice?.toDomain() ?: return false
-        val entry = selectedEntry ?: return false
+    /**
+     * Starts inline rename mode for one entry in one workspace.
+     *
+     * The workspace stores the full entry path rather than only the selected object reference so
+     * temporary recompositions do not break the editing session before it is confirmed or cancelled.
+     */
+    fun beginInlineRename(device: AndroidDeviceItem, entry: DeviceFileItem) {
+        val state = workspace(device) ?: return
+        val entryPath = buildEntryFullPath(entry)
 
-        val targetName = newName.trim()
-        if (targetName.isBlank()) {
-            setStatus(StatusMessage.Key.InvalidName)
+        state.entryDisplayNameOverrides.remove(entryPath)
+        state.inlineRenamePath = entryPath
+        state.inlineRenameInput.edit {
+            replace(0, length, entry.name)
+        }
+        state.suppressNextDoubleOpen = false
+
+        setSelection(
+            state = state,
+            selectedPaths = setOf(entryPath),
+            primaryPath = entryPath,
+            anchorPath = entryPath
+        )
+    }
+
+    /** Returns true when the workspace currently owns an active inline rename editor. */
+    fun isInlineRenameActive(device: AndroidDeviceItem) = workspace(device)?.inlineRenamePath != null
+
+    /** Exposes the shared inline rename editor state so both file views edit the same value. */
+    fun inlineRenameInputOf(device: AndroidDeviceItem) = workspace(device)?.inlineRenameInput ?: fallbackPathInput
+
+    /** Checks whether the given entry is the one currently being renamed inline. */
+    fun isEntryInlineRenaming(device: AndroidDeviceItem, entry: DeviceFileItem): Boolean =
+        workspace(device)?.inlineRenamePath == buildEntryFullPath(entry)
+
+    /**
+     * Resolves the name currently shown for one entry.
+     *
+     * While inline rename is active we expose the live text field content so closing the editor
+     * does not momentarily snap back to the stale backend name. After a successful rename we keep
+     * a short-lived optimistic override until the next directory refresh replaces the entry list.
+     */
+    fun displayNameOf(device: AndroidDeviceItem, entry: DeviceFileItem): String {
+        val state = workspace(device) ?: return entry.name
+        val entryPath = buildEntryFullPath(entry)
+
+        if (state.inlineRenamePath == entryPath)
+            return state.inlineRenameInput.text.toString()
+
+        return state.entryDisplayNameOverrides[entryPath] ?: entry.name
+    }
+
+    /** Cancels inline rename mode without touching the backend. */
+    fun cancelInlineRename(device: AndroidDeviceItem) {
+        workspace(device)?.let { state ->
+            state.inlineRenamePath?.let(state.entryDisplayNameOverrides::remove)
+            clearInlineRename(state)
+        }
+    }
+
+    /**
+     * Commits the current inline rename request.
+     *
+     * Success clears the editor immediately and then refreshes the current directory, restoring the
+     * renamed entry as the primary selection so keyboard navigation can continue seamlessly.
+     */
+    fun confirmInlineRename(device: AndroidDeviceItem): Boolean {
+        val state = workspace(device) ?: return false
+        val sourcePath = state.inlineRenamePath ?: return false
+        val sourceEntry = state.currentEntries.firstOrNull { buildEntryFullPath(it) == sourcePath } ?: run {
+            clearInlineRename(state)
             return false
         }
 
-        val sourcePath = buildEntryFullPath(entry)
-        val result = runBlocking { fileSystemService.rename(device, sourcePath, targetName) }
+        val targetName = state.inlineRenameInput.text.toString().trim()
+        if (targetName.isBlank()) return false
+
+        if (targetName == sourceEntry.name) {
+            clearInlineRename(state)
+            return true
+        }
+
+        val result = runBlocking { fileSystemService.rename(device.toDomain(), sourcePath, targetName) }
         if (!result.isOk) {
             setErrorStatus(result.errorMessage)
             return false
         }
 
-        setStatus(StatusMessage.Key.Renamed, entry.name, targetName)
-        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
+        state.entryDisplayNameOverrides[sourcePath] = targetName
+        clearInlineRename(state)
+
+        val renamedPath = if (state.currentPath == "/")
+            "/$targetName"
+        else "${state.currentPath.trimEnd('/')}/$targetName"
+
+        refreshEntriesAsync(device = device, requestedPath = state.currentPath) { success ->
+            if (!success) return@refreshEntriesAsync
+
+            workspace(device)?.let { refreshed ->
+                setSelection(
+                    state = refreshed,
+                    selectedPaths = setOf(renamedPath),
+                    primaryPath = renamedPath,
+                    anchorPath = renamedPath
+                )
+            }
+        }
 
         return true
     }
@@ -1042,6 +1126,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Clears selection and resets the double-open suppression flag for one workspace. */
     fun clearSelectedEntries(device: AndroidDeviceItem) {
         workspace(device)?.let {
+            clearInlineRename(it)
             it.suppressNextDoubleOpen = false
             setSelection(it, emptySet())
         }
@@ -1316,6 +1401,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         requestedPath: String? = null,
         useRememberedPathWhenRequestedPathIsNull: Boolean = false
     ): Boolean {
+        clearInlineRename(state)
+
         val targetPath = resolveTargetPath(state, device, requestedPath, useRememberedPathWhenRequestedPathIsNull)
         val previousPath = state.currentPath
         val result = fileSystemService.list(device, targetPath.path)
@@ -1458,6 +1545,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         cacheDirectorySnapshots(state, entries)
 
         applySort(state)
+        trimEntryDisplayNameOverrides(state)
 
         // Reconcile selection after every reload because sorting and hidden-file filtering can
         // invalidate previously selected paths or reorder which entry should be primary.
@@ -1573,6 +1661,32 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return state.currentEntries.filter { buildEntryFullPath(it) in selectedPaths }
     }
 
+    /**
+     * Resets transient inline rename state.
+     *
+     * Reloads, selection clears, and device switches all invalidate the editor session because the
+     * underlying entry identity may change underneath the currently edited path.
+     */
+    private fun clearInlineRename(state: DeviceWorkspaceState) {
+        state.inlineRenamePath = null
+        if (state.inlineRenameInput.text.isNotEmpty())
+            state.inlineRenameInput.edit { replace(0, length, "") }
+    }
+
+    /**
+     * Optimistic display-name overrides only exist to bridge the gap until a real refresh lands.
+     * Once entries are replaced, any override whose path no longer exists must be dropped.
+     */
+    private fun trimEntryDisplayNameOverrides(state: DeviceWorkspaceState) {
+        val validPaths = state.currentEntries
+            .map(::buildEntryFullPath)
+            .toSet()
+
+        state.entryDisplayNameOverrides.keys.toList().forEach { path ->
+            if (path !in validPaths) state.entryDisplayNameOverrides.remove(path)
+        }
+    }
+
     private fun setSelection(
         state: DeviceWorkspaceState,
         selectedPaths: Set<String>,
@@ -1591,6 +1705,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         val resolvedPrimaryPath = primaryPath
             ?.takeIf { it in validPaths }
             ?: validPaths.firstOrNull()
+
+        // Inline rename is tied to one concrete primary selection. As soon as selection moves to a
+        // different item, grows into multi-selection, or gets cleared, the editor must be closed so
+        // the UI does not leave an orphaned text field behind.
+        val inlineRenamePath = state.inlineRenamePath
+        if (inlineRenamePath != null && (validPaths.size != 1 || resolvedPrimaryPath != inlineRenamePath))
+            clearInlineRename(state)
+
         state.selectedEntry = resolvedPrimaryPath?.let { path ->
             state.currentEntries.firstOrNull { buildEntryFullPath(it) == path }
         }

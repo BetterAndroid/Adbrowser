@@ -381,6 +381,8 @@ private fun FileListView(
     val horizontalScrollState = rememberScrollState(viewModel.listHorizontalScrollOffsetOf(device))
     val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
+    val inlineRenameActive = viewModel.isInlineRenameActive(device)
+    var previousInlineRenameActive by remember(device) { mutableStateOf(inlineRenameActive) }
 
     val entries = viewModel.entriesOf(device)
 
@@ -427,6 +429,12 @@ private fun FileListView(
                 viewModel.updateListHorizontalScrollState(device, offset)
             }
     }
+    LaunchedEffect(device, inlineRenameActive) {
+        // Enter/Escape closes the inline editor by removing the focused composable. We explicitly
+        // return focus to the file area so arrow keys and shortcuts keep working immediately.
+        if (previousInlineRenameActive && !inlineRenameActive) focusRequester.requestFocus()
+        previousInlineRenameActive = inlineRenameActive
+    }
 
     Column(
         modifier = Modifier
@@ -434,6 +442,8 @@ private fun FileListView(
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent {
+                if (inlineRenameActive) return@onPreviewKeyEvent false
+
                 handleFileAreaShortcut(
                     viewModel = viewModel,
                     device = device,
@@ -469,6 +479,7 @@ private fun FileListView(
             .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
                 // File area shortcuts should work immediately after a click, so focus is claimed
                 // on pointer press instead of waiting for child composable to become focused.
+                if (inlineRenameActive) return@onPointerEvent
                 focusRequester.requestFocus()
             }
     ) {
@@ -523,7 +534,10 @@ private fun FileListView(
                     FileListRow(
                         horizontalScrollState = horizontalScrollState,
                         item = entry,
+                        displayName = viewModel.displayNameOf(device, entry),
                         selected = viewModel.isEntrySelected(device, entry),
+                        isInlineRenaming = viewModel.isEntryInlineRenaming(device, entry),
+                        inlineRenameInput = viewModel.inlineRenameInputOf(device),
                         nameWidth = viewModel.fileColumnWidthNamePx.dp,
                         sizeWidth = viewModel.fileColumnWidthSizePx.dp,
                         modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp,
@@ -540,6 +554,12 @@ private fun FileListView(
                         onSecondaryClick = { position ->
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
+                        },
+                        onConfirmInlineRename = {
+                            viewModel.confirmInlineRename(device)
+                        },
+                        onCancelInlineRename = {
+                            viewModel.cancelInlineRename(device)
                         },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
                             // Visible entry bounds drive blank-area hit testing and marquee
@@ -601,6 +621,8 @@ private fun FileIconView(
 
     val directoryChangeVersion = viewModel.directoryChangeVersionOf(device)
     var handledDirectoryChangeVersion by remember(device) { mutableStateOf(directoryChangeVersion) }
+    val inlineRenameActive = viewModel.isInlineRenameActive(device)
+    var previousInlineRenameActive by remember(device) { mutableStateOf(inlineRenameActive) }
 
     val entries = viewModel.entriesOf(device)
 
@@ -636,6 +658,10 @@ private fun FileIconView(
         }
         entryPositionController.consume(request)
     }
+    LaunchedEffect(device, inlineRenameActive) {
+        if (previousInlineRenameActive && !inlineRenameActive) focusRequester.requestFocus()
+        previousInlineRenameActive = inlineRenameActive
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -651,6 +677,8 @@ private fun FileIconView(
                 .focusRequester(focusRequester)
                 .focusable()
                 .onPreviewKeyEvent {
+                    if (inlineRenameActive) return@onPreviewKeyEvent false
+
                     handleFileAreaShortcut(
                         viewModel = viewModel,
                         device = device,
@@ -681,6 +709,7 @@ private fun FileIconView(
                     )
                 }
                 .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) {
+                    if (inlineRenameActive) return@onPointerEvent
                     focusRequester.requestFocus()
                 }
                 .nestedScroll(interactionState.selectionAreaState.nestedScrollConnection)
@@ -713,7 +742,10 @@ private fun FileIconView(
                     }
                     FileIconItem(
                         item = entry,
+                        displayName = viewModel.displayNameOf(device, entry),
                         selected = viewModel.isEntrySelected(device, entry),
+                        isInlineRenaming = viewModel.isEntryInlineRenaming(device, entry),
+                        inlineRenameInput = viewModel.inlineRenameInputOf(device),
                         onPrimaryClick = { appendSelection, rangeSelection ->
                             viewModel.selectEntryByGesture(device, entry, appendSelection, rangeSelection)
                         },
@@ -726,6 +758,12 @@ private fun FileIconView(
                         onSecondaryClick = { position ->
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
+                        },
+                        onConfirmInlineRename = {
+                            viewModel.confirmInlineRename(device)
+                        },
+                        onCancelInlineRename = {
+                            viewModel.cancelInlineRename(device)
                         },
                         modifier = Modifier.fillMaxWidth()
                             .padding(vertical = DefaultFileItemOuterPadding),
@@ -984,18 +1022,6 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 ownerWindow = window,
                 onConfirm = viewModel::confirmCreateFolder
             )
-        is MainStageModel.DialogState.Rename ->
-            SimpleInputDialog(
-                title = strings.dialogRenameTitle,
-                prompt = strings.dialogRenamePrompt.replace("{0}", state.initialName),
-                confirmText = strings.dialogRenameConfirm,
-                cancelText = strings.dialogCommonCancel,
-                invalidInputText = strings.dialogInputInvalid,
-                onCloseRequest = viewModel::dismissDialog,
-                ownerWindow = window,
-                onConfirm = viewModel::confirmRenameSelectedEntry,
-                initialValue = state.initialName
-            )
         is MainStageModel.DialogState.DeleteConfirm ->
             ConfirmDialog(
                 title = strings.dialogDeleteTitle,
@@ -1031,11 +1057,7 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DeviceConnected -> strings.statusDeviceConnected
             MainStageModel.StatusMessage.Key.DeviceDisconnected -> strings.statusDeviceDisconnected
             MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
-            MainStageModel.StatusMessage.Key.InvalidFolderName -> strings.statusInvalidFolderName
-            MainStageModel.StatusMessage.Key.FolderCreated -> strings.statusFolderCreated
             MainStageModel.StatusMessage.Key.SelectEntryFirst -> strings.statusSelectEntryFirst
-            MainStageModel.StatusMessage.Key.InvalidName -> strings.statusInvalidName
-            MainStageModel.StatusMessage.Key.Renamed -> strings.statusRenamed
             MainStageModel.StatusMessage.Key.EntryDeleted -> strings.statusEntryDeleted
             MainStageModel.StatusMessage.Key.EntryDeletedMultiple -> strings.statusEntryDeletedMultiple
             MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied

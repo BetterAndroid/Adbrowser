@@ -31,7 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.intui.standalone.styling.Default
 import org.jetbrains.jewel.intui.standalone.styling.Editor
@@ -52,10 +54,13 @@ import org.jetbrains.jewel.ui.component.styling.LocalDefaultButtonStyle
 import org.jetbrains.jewel.ui.component.styling.LocalOutlinedButtonStyle
 import org.jetbrains.jewel.ui.component.styling.TabColors
 import org.jetbrains.jewel.ui.component.styling.TabStyle
+import org.jetbrains.jewel.ui.component.styling.TextAreaMetrics
+import org.jetbrains.jewel.ui.component.styling.TextAreaStyle
 import org.jetbrains.jewel.ui.theme.defaultButtonStyle
 import org.jetbrains.jewel.ui.theme.defaultTabStyle
 import org.jetbrains.jewel.ui.theme.dividerStyle
 import org.jetbrains.jewel.ui.theme.outlinedButtonStyle
+import org.jetbrains.jewel.ui.theme.textAreaStyle
 
 object AdbrowserTheme {
 
@@ -126,8 +131,20 @@ object AdbrowserTheme {
         )
     )
 
+    val undecoratedTextAreaStyle @Composable get() = TextAreaStyle(
+        colors = JewelTheme.textAreaStyle.colors,
+        metrics = TextAreaMetrics(
+            borderWidth = JewelTheme.textAreaStyle.metrics.borderWidth,
+            contentPadding = PaddingValues.Zero,
+            cornerSize = JewelTheme.textAreaStyle.metrics.cornerSize,
+            minSize = DpSize.Zero
+        )
+    )
+
     val DefaultButtonPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
     val DefaultTextFieldHeight = 30.dp
+
+    val DefaultItemFontSize = 14.sp
 }
 
 @Composable

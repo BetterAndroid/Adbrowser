@@ -20,23 +20,24 @@
  *
  * This file is created by fankes on 2026/4/8.
  */
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "COMPOSE_APPLIER_CALL_MISMATCH")
 
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,14 +51,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
-import androidx.compose.ui.input.pointer.isCtrlPressed
-import androidx.compose.ui.input.pointer.isMetaPressed
-import androidx.compose.ui.input.pointer.isPrimaryPressed
-import androidx.compose.ui.input.pointer.isShiftPressed
-import androidx.compose.ui.input.pointer.onPointerEvent
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -65,8 +58,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.highcapable.adbrowser.app.ui.foundation.rememberInlineRenameWidth
+import com.highcapable.adbrowser.app.ui.interaction.onPressRelease
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
+import com.highcapable.adbrowser.app.ui.interaction.onSelectionPrimaryPress
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
@@ -76,17 +71,24 @@ import kotlin.math.max
 @Composable
 fun FileIconItem(
     item: DeviceFileItem,
+    displayName: String,
     selected: Boolean,
+    isInlineRenaming: Boolean,
+    inlineRenameInput: TextFieldState,
     onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
+    onConfirmInlineRename: (String) -> Boolean,
+    onCancelInlineRename: () -> Unit,
     onHitBoundsChanged: (List<Rect>) -> Unit = {},
     modifier: Modifier = Modifier,
     contentModifier: Modifier = Modifier,
     overlay: @Composable BoxScope.() -> Unit = {}
 ) {
-    val density = LocalDensity.current
     val colors = AdbrowserTheme.colors
+    val fontSize = AdbrowserTheme.DefaultItemFontSize
+
+    val density = LocalDensity.current
     val currentOnDoubleClick by rememberUpdatedState(onDoubleClick)
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -119,27 +121,17 @@ fun FileIconItem(
     }
     val foreground = if (selected) Color.White else Color.Unspecified
 
-    Box(
-        modifier = modifier.onGloballyPositioned { coordinates ->
-            containerCoordinates = coordinates
-        },
-        contentAlignment = Alignment.TopCenter
-    ) {
-        Column(
-            modifier = contentModifier
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            fun Modifier.hitTarget(
-                targetCoordinates: () -> LayoutCoordinates?,
-                onPositioned: (LayoutCoordinates, Rect) -> Unit
-            ) = clip(RoundedCornerShape(8.dp))
-                .hoverable(interactionSource = interactionSource)
-                .onGloballyPositioned { coordinates ->
-                    onPositioned(coordinates, coordinates.boundsInRoot())
-                }
-                .onSecondaryPress(pass = PointerEventPass.Initial) { position ->
+    fun Modifier.hitTarget(
+        targetCoordinates: () -> LayoutCoordinates?,
+        onPositioned: (LayoutCoordinates, Rect) -> Unit
+    ) = clip(RoundedCornerShape(8.dp))
+        .onGloballyPositioned { coordinates ->
+            onPositioned(coordinates, coordinates.boundsInRoot())
+        }
+        .hoverable(interactionSource = interactionSource)
+        .then(
+            if (!isInlineRenaming)
+                Modifier.onSecondaryPress(pass = PointerEventPass.Initial) { position ->
                     val target = targetCoordinates()
                     val container = containerCoordinates
                     val translatedPosition = if (target != null && container != null)
@@ -147,27 +139,27 @@ fun FileIconItem(
                     else position
 
                     onSecondaryClick(translatedPosition)
-                }
-                .onPointerEvent(PointerEventType.Press, pass = PointerEventPass.Initial) { event ->
-                    if (!event.buttons.isPrimaryPressed) return@onPointerEvent
+                }.onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
+                    onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
+                }.onPressRelease(
+                    key = item,
+                    onPressedChange = { pressed = it },
+                    onDoubleTap = currentOnDoubleClick
+                )
+            else Modifier
+        )
 
-                    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
-                    pressed = true
-                    onPrimaryClick(
-                        event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed,
-                        event.keyboardModifiers.isShiftPressed
-                    )
-                }
-                .pointerInput(item) {
-                    detectTapGestures(
-                        onPress = {
-                            tryAwaitRelease()
-                            pressed = false
-                        },
-                        onDoubleTap = { currentOnDoubleClick() }
-                    )
-                }
-
+    Box(
+        modifier = modifier.onGloballyPositioned { coordinates ->
+            containerCoordinates = coordinates
+        },
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(
+            modifier = contentModifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
             Box(
                 modifier = Modifier
                     .hitTarget(targetCoordinates = { iconCoordinates }) { coordinates, bounds ->
@@ -203,23 +195,44 @@ fun FileIconItem(
             )
             Box(
                 modifier = Modifier
-                    .hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
-                        textCoordinates = coordinates
-                        textBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
-                    }
                     .clip(RoundedCornerShape(6.dp))
                     .background(textHighlight)
+                    .then(
+                        if (isInlineRenaming) Modifier
+                        else Modifier.hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
+                            textCoordinates = coordinates
+                            textBoundsInRoot = bounds
+                            onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                        }
+                    )
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text(
-                    text = item.name,
-                    color = foreground,
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
+                BoxWithConstraints {
+                    val inlineRenameWidth = rememberInlineRenameWidth(
+                        text = displayName,
+                        maxWidth = maxWidth,
+                        maxLines = 2,
+                        softWrap = true
+                    )
+
+                    Text(
+                        text = displayName,
+                        color = foreground,
+                        fontSize = fontSize,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                    if (isInlineRenaming)
+                        InlineRenameField(
+                            state = inlineRenameInput,
+                            sessionKey = item.path to item.name,
+                            onConfirm = onConfirmInlineRename,
+                            onCancel = onCancelInlineRename,
+                            modifier = Modifier.width(inlineRenameWidth),
+                            centeredMultiline = true
+                        )
+                }
             }
         }
         overlay()
