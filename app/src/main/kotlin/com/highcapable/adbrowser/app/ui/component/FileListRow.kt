@@ -26,6 +26,7 @@ package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,7 +55,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -74,6 +77,7 @@ fun FileListRow(
     item: DeviceFileItem,
     displayName: String,
     selected: Boolean,
+    canTapLabelToRename: Boolean,
     isInlineRenaming: Boolean,
     inlineRenameInput: TextFieldState,
     nameWidth: Dp,
@@ -83,6 +87,7 @@ fun FileListRow(
     onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
+    onBeginInlineRename: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
     onCancelInlineRename: () -> Unit,
     modifier: Modifier = Modifier,
@@ -98,6 +103,7 @@ fun FileListRow(
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
     var rowCoordinates by remember(item) { mutableStateOf<LayoutCoordinates?>(null) }
+    var labelBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
     var editorBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
     val background = resolveListItemBackground(
         colors = colors,
@@ -113,6 +119,13 @@ fun FileListRow(
         softWrap = false,
         extraWidth = 12.dp
     )
+    val shouldHandleRowPrimaryInput: (Offset) -> Boolean = shouldHandle@{ position ->
+        if (!canTapLabelToRename || isInlineRenaming) return@shouldHandle true
+
+        val row = rowCoordinates ?: return@shouldHandle true
+        val labelBounds = labelBoundsInRoot ?: return@shouldHandle true
+        !labelBounds.contains(row.localToRoot(position))
+    }
 
     Box(
         modifier = modifier
@@ -138,10 +151,14 @@ fun FileListRow(
                 .hoverable(interactionSource = interactionSource)
                 .then(
                     if (!isInlineRenaming)
-                        Modifier.onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
+                        Modifier.onSelectionPrimaryPress(
+                            shouldHandle = shouldHandleRowPrimaryInput,
+                            onPressedChange = { pressed = it }
+                        ) { modifiers ->
                             onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
                         }.onPressRelease(
                             key = item,
+                            shouldHandle = shouldHandleRowPrimaryInput,
                             onPressedChange = { pressed = it },
                             onDoubleTap = currentOnDoubleClick
                         )
@@ -170,7 +187,26 @@ fun FileListRow(
                             selected = selected
                         )
                         Spacer(Modifier.width(if (isInlineRenaming) 4.dp else 8.dp))
-                        Box(modifier = Modifier.width(nameContentWidth)) {
+                        Box(
+                            modifier = Modifier
+                                .width(nameContentWidth)
+                                .onGloballyPositioned { labelBoundsInRoot = it.boundsInRoot() }
+                                .then(
+                                    if (canTapLabelToRename && !isInlineRenaming)
+                                        Modifier
+                                            .pointerInput(item, canTapLabelToRename) {
+                                                detectTapGestures(
+                                                    onTap = {
+                                                        onBeginInlineRename()
+                                                    },
+                                                    onDoubleTap = {
+                                                        currentOnDoubleClick()
+                                                    }
+                                                )
+                                            }
+                                    else Modifier
+                                )
+                        ) {
                             Text(
                                 text = displayName,
                                 color = foreground,

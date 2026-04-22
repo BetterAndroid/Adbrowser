@@ -538,6 +538,8 @@ private fun FileListView(
                         item = entry,
                         displayName = viewModel.displayNameOf(device, entry),
                         selected = viewModel.isEntrySelected(device, entry),
+                        canTapLabelToRename = viewModel.isEntrySelected(device, entry) &&
+                            !viewModel.hasMultipleSelectedEntries(device),
                         isInlineRenaming = viewModel.isEntryInlineRenaming(device, entry),
                         inlineRenameInput = viewModel.inlineRenameInputOf(device),
                         nameWidth = viewModel.fileColumnWidthNamePx.dp,
@@ -556,6 +558,10 @@ private fun FileListView(
                         onSecondaryClick = { position ->
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
+                        },
+                        onBeginInlineRename = {
+                            interactionState.dismissContextMenu()
+                            viewModel.beginInlineRename(device, entry)
                         },
                         onConfirmInlineRename = {
                             viewModel.confirmInlineRename(device)
@@ -748,6 +754,8 @@ private fun FileIconView(
                         item = entry,
                         displayName = viewModel.displayNameOf(device, entry),
                         selected = viewModel.isEntrySelected(device, entry),
+                        canTapLabelToRename = viewModel.isEntrySelected(device, entry) &&
+                            !viewModel.hasMultipleSelectedEntries(device),
                         isInlineRenaming = viewModel.isEntryInlineRenaming(device, entry),
                         inlineRenameInput = viewModel.inlineRenameInputOf(device),
                         onPrimaryClick = { appendSelection, rangeSelection ->
@@ -762,6 +770,10 @@ private fun FileIconView(
                         onSecondaryClick = { position ->
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
+                        },
+                        onBeginInlineRename = {
+                            interactionState.dismissContextMenu()
+                            viewModel.beginInlineRename(device, entry)
                         },
                         onConfirmInlineRename = {
                             viewModel.confirmInlineRename(device)

@@ -25,6 +25,7 @@
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -51,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -73,11 +75,13 @@ fun FileIconItem(
     item: DeviceFileItem,
     displayName: String,
     selected: Boolean,
+    canTapLabelToRename: Boolean,
     isInlineRenaming: Boolean,
     inlineRenameInput: TextFieldState,
     onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
+    onBeginInlineRename: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
     onCancelInlineRename: () -> Unit,
     onHitBoundsChanged: (List<Rect>) -> Unit = {},
@@ -124,7 +128,8 @@ fun FileIconItem(
 
     fun Modifier.hitTarget(
         targetCoordinates: () -> LayoutCoordinates?,
-        onPositioned: (LayoutCoordinates, Rect) -> Unit
+        onPositioned: (LayoutCoordinates, Rect) -> Unit,
+        shouldHandlePrimaryInput: (Offset) -> Boolean = { true }
     ) = clip(RoundedCornerShape(8.dp))
         .onGloballyPositioned { coordinates ->
             onPositioned(coordinates, coordinates.boundsInRoot())
@@ -149,10 +154,14 @@ fun FileIconItem(
         }
         .then(
             if (!isInlineRenaming)
-                Modifier.onSelectionPrimaryPress(onPressedChange = { pressed = it }) { modifiers ->
+                Modifier.onSelectionPrimaryPress(
+                    shouldHandle = shouldHandlePrimaryInput,
+                    onPressedChange = { pressed = it }
+                ) { modifiers ->
                     onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
                 }.onPressRelease(
                     key = item,
+                    shouldHandle = shouldHandlePrimaryInput,
                     onPressedChange = { pressed = it },
                     onDoubleTap = currentOnDoubleClick
                 )
@@ -172,11 +181,14 @@ fun FileIconItem(
         ) {
             Box(
                 modifier = Modifier
-                    .hitTarget(targetCoordinates = { iconCoordinates }) { coordinates, bounds ->
-                        iconCoordinates = coordinates
-                        iconBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
-                    }
+                    .hitTarget(
+                        targetCoordinates = { iconCoordinates },
+                        onPositioned = { coordinates, bounds ->
+                            iconCoordinates = coordinates
+                            iconBoundsInRoot = bounds
+                            onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                        }
+                    )
                     .background(iconHighlight)
                     .padding(8.dp),
                 contentAlignment = Alignment.Center
@@ -197,21 +209,45 @@ fun FileIconItem(
                         }
                     )
                     .height(4.dp)
-                    .hitTarget(targetCoordinates = { bridgeCoordinates }) { coordinates, bounds ->
-                        bridgeCoordinates = coordinates
-                        bridgeBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
-                    }
+                    .hitTarget(
+                        targetCoordinates = { bridgeCoordinates },
+                        onPositioned = { coordinates, bounds ->
+                            bridgeCoordinates = coordinates
+                            bridgeBoundsInRoot = bounds
+                            onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                        }
+                    )
             )
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
                     .background(textHighlight)
-                    .hitTarget(targetCoordinates = { textCoordinates }) { coordinates, bounds ->
-                        textCoordinates = coordinates
-                        textBoundsInRoot = bounds
-                        onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
-                    }
+                    .hitTarget(
+                        targetCoordinates = { textCoordinates },
+                        onPositioned = { coordinates, bounds ->
+                            textCoordinates = coordinates
+                            textBoundsInRoot = bounds
+                            onHitBoundsChanged(listOfNotNull(iconBoundsInRoot, bridgeBoundsInRoot, textBoundsInRoot))
+                        },
+                        shouldHandlePrimaryInput = {
+                            !(canTapLabelToRename && !isInlineRenaming)
+                        }
+                    )
+                    .then(
+                        if (canTapLabelToRename && !isInlineRenaming)
+                            Modifier
+                                .pointerInput(item, canTapLabelToRename) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            onBeginInlineRename()
+                                        },
+                                        onDoubleTap = {
+                                            currentOnDoubleClick()
+                                        }
+                                    )
+                                }
+                        else Modifier
+                    )
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 BoxWithConstraints {

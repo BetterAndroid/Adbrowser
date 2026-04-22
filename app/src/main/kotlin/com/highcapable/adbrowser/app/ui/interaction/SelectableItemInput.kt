@@ -24,6 +24,7 @@ package com.highcapable.adbrowser.app.ui.interaction
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
@@ -51,12 +52,14 @@ data class SelectionPressModifiers(
  */
 fun Modifier.onSelectionPrimaryPress(
     pass: PointerEventPass = PointerEventPass.Initial,
+    shouldHandle: (Offset) -> Boolean = { true },
     onPressedChange: ((Boolean) -> Unit)? = null,
     onPrimaryPress: (SelectionPressModifiers) -> Unit
 ): Modifier = onPointerEvent(PointerEventType.Press, pass = pass) { event ->
     if (!event.buttons.isPrimaryPressed) return@onPointerEvent
 
-    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    if (!shouldHandle(change.position)) return@onPointerEvent
     onPressedChange?.invoke(true)
     onPrimaryPress(
         SelectionPressModifiers(
@@ -71,12 +74,14 @@ fun Modifier.onSelectionPrimaryPress(
  */
 fun Modifier.onPrimaryPress(
     pass: PointerEventPass = PointerEventPass.Initial,
+    shouldHandle: (Offset) -> Boolean = { true },
     onPressedChange: ((Boolean) -> Unit)? = null,
     onPrimaryPress: () -> Unit
 ): Modifier = onPointerEvent(PointerEventType.Press, pass = pass) { event ->
     if (!event.buttons.isPrimaryPressed) return@onPointerEvent
 
-    event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    val change = event.changes.firstOrNull { it.changedToDownIgnoreConsumed() } ?: return@onPointerEvent
+    if (!shouldHandle(change.position)) return@onPointerEvent
     onPressedChange?.invoke(true)
     onPrimaryPress()
 }
@@ -89,14 +94,19 @@ fun Modifier.onPrimaryPress(
  */
 fun Modifier.onPressRelease(
     key: Any,
+    shouldHandle: (Offset) -> Boolean = { true },
     onPressedChange: (Boolean) -> Unit,
     onDoubleTap: (() -> Unit)? = null
 ): Modifier = pointerInput(key) {
     detectTapGestures(
-        onPress = {
+        onPress = { offset ->
+            if (!shouldHandle(offset)) return@detectTapGestures
             tryAwaitRelease()
             onPressedChange(false)
         },
-        onDoubleTap = { onDoubleTap?.invoke() }
+        onDoubleTap = { offset ->
+            if (!shouldHandle(offset)) return@detectTapGestures
+            onDoubleTap?.invoke()
+        }
     )
 }
