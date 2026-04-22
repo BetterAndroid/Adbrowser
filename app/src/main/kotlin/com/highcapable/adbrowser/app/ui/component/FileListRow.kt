@@ -26,14 +26,12 @@ package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,20 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.highcapable.adbrowser.app.ui.foundation.rememberInlineRenameWidth
+import com.highcapable.adbrowser.app.ui.interaction.avoidingBounds
 import com.highcapable.adbrowser.app.ui.interaction.onPressRelease
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.interaction.onSelectionPrimaryPress
+import com.highcapable.adbrowser.app.ui.interaction.rememberPointerBoundsGuard
+import com.highcapable.adbrowser.app.ui.interaction.trackPointerContainer
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
@@ -87,6 +82,7 @@ fun FileListRow(
     onPrimaryClick: (appendSelection: Boolean, rangeSelection: Boolean) -> Unit,
     onDoubleClick: () -> Unit,
     onSecondaryClick: (Offset) -> Unit,
+    shouldHandlePrimaryInteraction: () -> Boolean = { true },
     onBeginInlineRename: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
     onCancelInlineRename: () -> Unit,
@@ -94,17 +90,14 @@ fun FileListRow(
     overlay: @Composable BoxScope.() -> Unit = {}
 ) {
     val colors = AdbrowserTheme.colors
-    val fontSize = AdbrowserTheme.DefaultItemFontSize
 
-    val nameContentWidth = (nameWidth - 24.dp).coerceAtLeast(80.dp)
     val contentWidth = nameWidth + sizeWidth + modifiedWidth + permissionWidth + 30.dp
     val interactionSource = remember { MutableInteractionSource() }
     val currentOnDoubleClick by rememberUpdatedState(onDoubleClick)
     val hovered by interactionSource.collectIsHoveredAsState()
     var pressed by remember { mutableStateOf(false) }
-    var rowCoordinates by remember(item) { mutableStateOf<LayoutCoordinates?>(null) }
-    var labelBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
-    var editorBoundsInRoot by remember(item) { mutableStateOf<Rect?>(null) }
+    val labelBoundsGuard = rememberPointerBoundsGuard(item)
+    val editorBoundsGuard = rememberPointerBoundsGuard(item)
     val background = resolveListItemBackground(
         colors = colors,
         selected = selected,
@@ -112,33 +105,25 @@ fun FileListRow(
         pressed = pressed
     )
     val foreground = if (selected) Color.White else Color.Unspecified
-    val inlineRenameWidth = rememberInlineRenameWidth(
-        text = displayName,
-        maxWidth = nameContentWidth,
-        maxLines = 1,
-        softWrap = false,
-        extraWidth = 12.dp
-    )
-    val shouldHandleRowPrimaryInput: (Offset) -> Boolean = shouldHandle@{ position ->
-        if (!canTapLabelToRename || isInlineRenaming) return@shouldHandle true
-
-        val row = rowCoordinates ?: return@shouldHandle true
-        val labelBounds = labelBoundsInRoot ?: return@shouldHandle true
-        !labelBounds.contains(row.localToRoot(position))
-    }
+    val rowVerticalPadding = if (isInlineRenaming) 4.dp else 8.dp
+    val shouldAvoidLabelBounds = canTapLabelToRename && !isInlineRenaming
+    val shouldHandleSecondaryPress: (Offset) -> Boolean =
+        if (isInlineRenaming) editorBoundsGuard::shouldHandle else { _ -> true }
+    val shouldHandlePrimaryPress: (Offset) -> Boolean =
+        if (shouldAvoidLabelBounds) { position ->
+            labelBoundsGuard.shouldHandle(position) && shouldHandlePrimaryInteraction()
+        } else { _ ->
+            shouldHandlePrimaryInteraction()
+        }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .onGloballyPositioned { rowCoordinates = it }
+            .trackPointerContainer(labelBoundsGuard)
+            .trackPointerContainer(editorBoundsGuard)
             .onSecondaryPress(
                 pass = PointerEventPass.Initial,
-                shouldHandle = { position ->
-                    val row = rowCoordinates
-                    val editorBounds = editorBoundsInRoot
-                    if (!isInlineRenaming || row == null || editorBounds == null) true
-                    else !editorBounds.contains(row.localToRoot(position))
-                }
+                shouldHandle = shouldHandleSecondaryPress
             ) { position ->
                 onSecondaryClick(position)
             }
@@ -149,21 +134,21 @@ fun FileListRow(
                 .clip(RoundedCornerShape(6.dp))
                 .background(background)
                 .hoverable(interactionSource = interactionSource)
-                .then(
+                .avoidingBounds(labelBoundsGuard) {
                     if (!isInlineRenaming)
-                        Modifier.onSelectionPrimaryPress(
-                            shouldHandle = shouldHandleRowPrimaryInput,
+                        onSelectionPrimaryPress(
+                            shouldHandle = shouldHandlePrimaryPress,
                             onPressedChange = { pressed = it }
                         ) { modifiers ->
                             onPrimaryClick(modifiers.appendSelection, modifiers.rangeSelection)
                         }.onPressRelease(
                             key = item,
-                            shouldHandle = shouldHandleRowPrimaryInput,
+                            shouldHandle = shouldHandlePrimaryPress,
                             onPressedChange = { pressed = it },
                             onDoubleTap = currentOnDoubleClick
                         )
-                    else Modifier
-                ),
+                    else this
+                },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -175,57 +160,25 @@ fun FileListRow(
                 Row(
                     modifier = Modifier
                         .width(contentWidth)
-                        .padding(horizontal = 10.dp, vertical = if (isInlineRenaming) 4.dp else 8.dp),
+                        .padding(horizontal = 10.dp, vertical = rowVerticalPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.width(nameWidth),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        FileEntryIcon(
-                            item = item,
-                            selected = selected
-                        )
-                        Spacer(Modifier.width(if (isInlineRenaming) 4.dp else 8.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(nameContentWidth)
-                                .onGloballyPositioned { labelBoundsInRoot = it.boundsInRoot() }
-                                .then(
-                                    if (canTapLabelToRename && !isInlineRenaming)
-                                        Modifier
-                                            .pointerInput(item, canTapLabelToRename) {
-                                                detectTapGestures(
-                                                    onTap = {
-                                                        onBeginInlineRename()
-                                                    },
-                                                    onDoubleTap = {
-                                                        currentOnDoubleClick()
-                                                    }
-                                                )
-                                            }
-                                    else Modifier
-                                )
-                        ) {
-                            Text(
-                                text = displayName,
-                                color = foreground,
-                                fontSize = fontSize,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (isInlineRenaming)
-                                InlineRenameField(
-                                    state = inlineRenameInput,
-                                    sessionKey = item.path to item.name,
-                                    onConfirm = onConfirmInlineRename,
-                                    onCancel = onCancelInlineRename,
-                                    modifier = Modifier.width(inlineRenameWidth),
-                                    contentPadding = PaddingValues(4.dp),
-                                    onBoundsInRootChanged = { editorBoundsInRoot = it }
-                                )
-                        }
-                    }
+                    FileListNameSection(
+                        item = item,
+                        displayName = displayName,
+                        selected = selected,
+                        isInlineRenaming = isInlineRenaming,
+                        canTapLabelToRename = canTapLabelToRename,
+                        inlineRenameInput = inlineRenameInput,
+                        nameWidth = nameWidth,
+                        labelBoundsGuard = labelBoundsGuard,
+                        editorBoundsGuard = editorBoundsGuard,
+                        shouldHandlePrimaryInteraction = shouldHandlePrimaryInteraction,
+                        onBeginInlineRename = onBeginInlineRename,
+                        onOpen = currentOnDoubleClick,
+                        onConfirmInlineRename = onConfirmInlineRename,
+                        onCancelInlineRename = onCancelInlineRename
+                    )
                     Spacer(Modifier.width(10.dp))
                     FileRowText(text = item.friendlySizeText, width = sizeWidth, color = foreground)
                     Spacer(Modifier.width(10.dp))

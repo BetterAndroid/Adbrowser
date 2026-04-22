@@ -559,6 +559,7 @@ private fun FileListView(
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
                         },
+                        shouldHandlePrimaryInteraction = interactionState::prepareEntryPrimaryInteraction,
                         onBeginInlineRename = {
                             interactionState.dismissContextMenu()
                             viewModel.beginInlineRename(device, entry)
@@ -582,7 +583,7 @@ private fun FileListView(
                                 item = entry,
                                 state = interactionState.contextMenuState,
                                 onDismissRequest = interactionState::dismissContextMenu,
-                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextPrimaryPress
                             )
                         }
                     )
@@ -608,7 +609,7 @@ private fun FileListView(
                 device = device,
                 state = interactionState.contextMenuState,
                 onDismissRequest = interactionState::dismissContextMenu,
-                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextPrimaryPress
             )
         }
     }
@@ -771,6 +772,7 @@ private fun FileIconView(
                             viewModel.ensureEntrySelectedForContextMenu(device, entry)
                             interactionState.openEntryContextMenu(entry, position)
                         },
+                        shouldHandlePrimaryInteraction = interactionState::prepareEntryPrimaryInteraction,
                         onBeginInlineRename = {
                             interactionState.dismissContextMenu()
                             viewModel.beginInlineRename(device, entry)
@@ -795,7 +797,7 @@ private fun FileIconView(
                                 item = entry,
                                 state = interactionState.contextMenuState,
                                 onDismissRequest = interactionState::dismissContextMenu,
-                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextPrimaryPress
                             )
                         }
                     )
@@ -829,7 +831,7 @@ private fun FileIconView(
                 device = device,
                 state = interactionState.contextMenuState,
                 onDismissRequest = interactionState::dismissContextMenu,
-                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextBlankPress
+                onDismissByOutsidePress = interactionState::dismissContextMenuConsumingNextPrimaryPress
             )
         }
     }
@@ -1272,52 +1274,68 @@ private sealed interface FileContextMenuState {
 private class FileAreaInteractionState {
 
     private var contextMenuRequestId by mutableStateOf(0L)
-    private var consumeNextBlankPrimaryPress by mutableStateOf(false)
+    private var consumeNextPrimaryPress by mutableStateOf(false)
 
     val selectionAreaState = SelectionAreaState<DeviceFileItem>()
     var contextMenuState by mutableStateOf<FileContextMenuState?>(null)
 
     fun openBlankContextMenu(position: Offset) {
-        consumeNextBlankPrimaryPress = false
+        consumeNextPrimaryPress = false
         contextMenuRequestId += 1L
         contextMenuState = FileContextMenuState.Blank(position, contextMenuRequestId)
     }
 
     fun openEntryContextMenu(entry: DeviceFileItem, position: Offset) {
-        consumeNextBlankPrimaryPress = false
+        consumeNextPrimaryPress = false
         contextMenuRequestId += 1L
         contextMenuState = FileContextMenuState.Entry(entry, position, contextMenuRequestId)
     }
 
     fun dismissContextMenu() {
         contextMenuState = null
-        consumeNextBlankPrimaryPress = false
+        consumeNextPrimaryPress = false
     }
 
-    fun dismissContextMenuConsumingNextBlankPress() {
+    fun dismissContextMenuConsumingNextPrimaryPress() {
         if (contextMenuState == null) {
-            consumeNextBlankPrimaryPress = false
+            consumeNextPrimaryPress = false
             return
         }
 
-        // The next blank primary press is consumed so closing a context menu does not also clear
-        // selection in the same gesture sequence.
+        // The next primary press is consumed so closing a context menu does not also trigger
+        // selection or inline-rename activation in the same gesture sequence.
         contextMenuState = null
-        consumeNextBlankPrimaryPress = true
+        consumeNextPrimaryPress = true
     }
 
     fun dismissSelectionRect() {
         selectionAreaState.dismissSelectionRect()
     }
 
-    fun consumePendingBlankPrimaryPress(): Boolean {
-        if (!consumeNextBlankPrimaryPress) return false
+    private fun consumePendingPrimaryPress(): Boolean {
+        if (!consumeNextPrimaryPress) return false
 
-        consumeNextBlankPrimaryPress = false
+        consumeNextPrimaryPress = false
         return true
     }
 
     fun hasContextMenu() = contextMenuState != null
+
+    /**
+     * Normalizes the "first click after a context menu" rule for entry surfaces.
+     *
+     * Popup dismissal and the underlying item gesture can arrive in the same sequence, so rows,
+     * icon cards, and rename labels all ask the interaction state whether this primary action
+     * should still be honored.
+     */
+    fun prepareEntryPrimaryInteraction() = when {
+        consumePendingPrimaryPress() -> false
+        contextMenuState != null -> {
+            dismissContextMenuConsumingNextPrimaryPress()
+            false
+        }
+        else -> true
+    }
 
     fun clearSelectionIfBlank(position: Offset, onBlankAreaPressed: () -> Unit) {
         if (contextMenuState != null) {
@@ -1356,17 +1374,10 @@ private fun Modifier.fileAreaBlankSelection(
     onSelectionChanged = onSelectionChanged,
     keyOfItem = interactionState::entryPathOf,
     prepareBlankGesture = {
-        when {
-            interactionState.consumePendingBlankPrimaryPress() -> false
-            interactionState.hasContextMenu() -> {
-                interactionState.dismissContextMenu()
-                false
-            }
-            else -> {
-                interactionState.dismissContextMenu()
-                true
-            }
-        }
+        if (interactionState.prepareEntryPrimaryInteraction()) {
+            interactionState.dismissContextMenu()
+            true
+        } else false
     },
     autoScrollBy = autoScrollBy
 )
