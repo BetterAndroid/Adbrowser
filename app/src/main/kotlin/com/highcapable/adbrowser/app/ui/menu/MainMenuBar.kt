@@ -43,6 +43,7 @@ fun FrameWindowScope.MainMenuBar(
 ) {
     val windowManager = LocalWindowManager.current
     val openPreferences = { windowManager.open(AppWindow.Preferences) }
+    val newFolderBaseName = strings.mainFileListNewFolderName
 
     val openShortcut = viewModel.menuShortcut(MenuShortcut.Action.Open).toComposeShortcut()
     val newFolderShortcut = viewModel.menuShortcut(MenuShortcut.Action.NewFolder).toComposeShortcut()
@@ -72,7 +73,7 @@ fun FrameWindowScope.MainMenuBar(
             Item(
                 text = strings.menuNewFolder,
                 enabled = viewModel.canShowBlankFileContextMenu,
-                onClick = viewModel::createNewFolder,
+                onClick = { viewModel.createNewFolder(newFolderBaseName) },
                 shortcut = newFolderShortcut
             )
             Separator()

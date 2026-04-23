@@ -73,7 +73,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object None : DialogState
         data object DeviceConnect : DialogState
         data object DevicePair : DialogState
-        data object NewFolder : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
         data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
@@ -176,6 +175,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         var selectedEntry by mutableStateOf<DeviceFileItem?>(null)
         val selectedEntryPaths = mutableStateListOf<String>()
         var selectionAnchorPath by mutableStateOf<String?>(null)
+        var pendingRevealEntryPath by mutableStateOf<String?>(null)
         var inlineRenamePath by mutableStateOf<String?>(null)
         var suppressNextDoubleOpen by mutableStateOf(false)
         val pathBreadcrumbSegments = mutableStateListOf<PathBreadcrumbSegment>()
@@ -539,28 +539,47 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         refreshEntriesAndClearSelection(device, requestedPath = currentPath)
     }
 
-    /** Opens the "new folder" dialog when a device is available. */
-    fun createNewFolder() {
+    /**
+     * Creates a folder immediately and enters inline rename on the newly created entry.
+     *
+     * The default name is generated on the client side using the current directory snapshot so the
+     * user gets Finder/Explorer-style `New Folder`, `New Folder (2)`, ... behavior without an
+     * extra round-trip just to probe names.
+     */
+    fun createNewFolder(baseName: String) {
+        val device = selectedDevice ?: return
+        val state = workspace(device) ?: return
         if (!ensureDeviceSelected()) return
+        if (!commitInlineRenameOnFocusLoss(device)) return
 
-        dialogState = DialogState.NewFolder
-    }
+        val requestedPath = state.currentPath
+        val folderName = buildAvailableNewFolderName(state, baseName)
+        val createdPath = if (requestedPath == "/")
+            "/$folderName"
+        else "${requestedPath.trimEnd('/')}/$folderName"
 
-    /** Creates a folder and refreshes the current directory if the backend operation succeeds. */
-    fun confirmCreateFolder(folderName: String): Boolean {
-        val device = selectedDevice?.toDomain() ?: return false
-        val name = folderName.trim()
-        if (name.isBlank()) return false
+        launchBusyAction {
+            val result = fileSystemService.createFolder(device.toDomain(), requestedPath, folderName)
+            if (!result.isOk) {
+                setErrorStatus(result.errorMessage)
+                return@launchBusyAction
+            }
 
-        val result = runBlocking { fileSystemService.createFolder(device, currentPath, name) }
-        if (!result.isOk) {
-            setErrorStatus(result.errorMessage)
-            return false
+            val refreshedState = ensureWorkspace(device)
+            val success = refreshEntriesInternal(
+                state = refreshedState,
+                device = device.toDomain(),
+                requestedPath = requestedPath
+            )
+            if (!success) return@launchBusyAction
+
+            refreshedState.currentEntries
+                .firstOrNull { buildEntryFullPath(it) == createdPath }
+                ?.let {
+                    beginInlineRename(device, it)
+                    refreshedState.pendingRevealEntryPath = createdPath
+                }
         }
-
-        selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
-
-        return true
     }
 
     /** Opens the rename dialog using the current single selection as the initial value. */
@@ -622,6 +641,21 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return state.inlineRenameInput.text.toString()
 
         return state.entryDisplayNameOverrides[entryPath] ?: entry.name
+    }
+
+    private fun buildAvailableNewFolderName(state: DeviceWorkspaceState, baseName: String): String {
+        val normalizedBaseName = baseName.trim()
+        if (normalizedBaseName.isBlank()) return baseName
+
+        val existingNames = state.currentEntries.mapTo(hashSetOf(), DeviceFileItem::name)
+        if (normalizedBaseName !in existingNames) return normalizedBaseName
+
+        var index = 2
+        while (true) {
+            val candidate = "$normalizedBaseName ($index)"
+            if (candidate !in existingNames) return candidate
+            index += 1
+        }
     }
 
     /** Cancels inline rename mode without touching the backend. */
@@ -1110,6 +1144,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun selectedEntryOf(device: AndroidDeviceItem) = workspace(device)?.selectedEntry
     fun selectedEntriesOf(device: AndroidDeviceItem) = workspace(device)?.let(::selectedEntriesOfState) ?: emptyEntries
     fun selectedEntryPathsOf(device: AndroidDeviceItem) = workspace(device)?.selectedEntryPaths?.toSet().orEmpty()
+    fun pendingRevealEntryPathOf(device: AndroidDeviceItem) = workspace(device)?.pendingRevealEntryPath
+    fun consumePendingRevealEntryPath(device: AndroidDeviceItem, path: String) {
+        workspace(device)?.takeIf { it.pendingRevealEntryPath == path }?.let {
+            it.pendingRevealEntryPath = null
+        }
+    }
 
     fun hasMultipleSelectedEntries(device: AndroidDeviceItem) = selectedEntriesOf(device).size > 1
     fun isEntrySelected(device: AndroidDeviceItem, entry: DeviceFileItem): Boolean {
@@ -1118,6 +1158,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     }
 
     fun entriesOf(device: AndroidDeviceItem) = workspace(device)?.currentEntries ?: emptyEntries
+    fun entryFullPathOf(entry: DeviceFileItem) = buildEntryFullPath(entry)
     fun directoryChangeVersionOf(device: AndroidDeviceItem) = workspace(device)?.directoryChangeVersion ?: 0
     fun listScrollIndexOf(device: AndroidDeviceItem) = workspace(device)?.listScrollIndex ?: 0
     fun listScrollOffsetOf(device: AndroidDeviceItem) = workspace(device)?.listScrollOffset ?: 0
@@ -2109,6 +2150,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         }
     }
 
+    private fun resolveRenameErrorKind(message: String?) = when {
+        "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
+        else -> DialogState.RenameErrorKind.Generic
+    }
+
     /**
      * File-list interactions should eventually fall back to the live item counter in the status
      * bar. Global device notifications and raw backend errors are useful as transient toasts, but
@@ -2152,11 +2198,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             ?.takeIf { it.isNotBlank() }
             ?.let { StatusMessage.Raw(it) }
             ?: StatusMessage.Res(StatusMessage.Key.CommonUnknownError)
-    }
-
-    private fun resolveRenameErrorKind(message: String?) = when {
-        "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
-        else -> DialogState.RenameErrorKind.Generic
     }
 
     private fun applyPendingSelectionStatus(

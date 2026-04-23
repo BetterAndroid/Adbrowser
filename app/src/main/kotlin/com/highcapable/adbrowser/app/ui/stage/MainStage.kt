@@ -106,7 +106,6 @@ import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
 import com.highcapable.adbrowser.app.ui.dialog.DevicePairDialog
 import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
-import com.highcapable.adbrowser.app.ui.dialog.SimpleInputDialog
 import com.highcapable.adbrowser.app.ui.foundation.isIndexFullyVisible
 import com.highcapable.adbrowser.app.ui.foundation.revealIndexBySingleStep
 import com.highcapable.adbrowser.app.ui.interaction.SelectionAreaState
@@ -329,6 +328,7 @@ private fun FileListArea(
     val entryPositionController = remember(device) { EntryPositionController() }
     val entries = viewModel.entriesOf(device)
     val selectedEntry = viewModel.selectedEntryOf(device)
+    val pendingRevealEntryPath = viewModel.pendingRevealEntryPathOf(device)
 
     LaunchedEffect(device, viewModel.selectedViewMode) {
         val selectedIndex = selectedEntryIndex(entries, selectedEntry)
@@ -336,6 +336,14 @@ private fun FileListArea(
         // possible instead of resetting to the top. The request is not force-scrolled so the
         // target remains still when it is already visible in the new layout.
         if (selectedIndex >= 0) entryPositionController.request(index = selectedIndex, forceScroll = false)
+    }
+    LaunchedEffect(device, pendingRevealEntryPath, entries) {
+        val targetPath = pendingRevealEntryPath ?: return@LaunchedEffect
+        val targetIndex = entries.indexOfFirst { viewModel.entryFullPathOf(it) == targetPath }
+        if (targetIndex < 0) return@LaunchedEffect
+
+        entryPositionController.request(index = targetIndex, forceScroll = true)
+        viewModel.consumePendingRevealEntryPath(device, targetPath)
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -435,6 +443,7 @@ private fun FileListView(
         if (previousInlineRenameActive && !inlineRenameActive) focusRequester.requestFocus()
         previousInlineRenameActive = inlineRenameActive
     }
+    val newFolderBaseName = strings.mainFileListNewFolderName
 
     Column(
         modifier = Modifier
@@ -448,6 +457,7 @@ private fun FileListView(
                     viewModel = viewModel,
                     device = device,
                     event = it,
+                    newFolderBaseName = newFolderBaseName,
                     onBeginInlineRename = interactionState::dismissContextMenu,
                     onNavigateSelection = { direction ->
                         val targetIndex = when (direction) {
@@ -674,6 +684,7 @@ private fun FileIconView(
         if (previousInlineRenameActive && !inlineRenameActive) focusRequester.requestFocus()
         previousInlineRenameActive = inlineRenameActive
     }
+    val newFolderBaseName = strings.mainFileListNewFolderName
 
     BoxWithConstraints(
         modifier = Modifier
@@ -695,6 +706,7 @@ private fun FileIconView(
                         viewModel = viewModel,
                         device = device,
                         event = it,
+                        newFolderBaseName = newFolderBaseName,
                         onBeginInlineRename = interactionState::dismissContextMenu,
                         onNavigateSelection = { direction ->
                             val targetIndex = viewModel.navigateSelection(
@@ -852,6 +864,7 @@ private fun FileBlankContextMenuPopup(
     onDismissByOutsidePress: () -> Unit
 ) {
     val blankState = state as? FileContextMenuState.Blank ?: return
+    val newFolderBaseName = strings.mainFileListNewFolderName
 
     PopupMenu(
         onDismissRequest = {
@@ -864,6 +877,7 @@ private fun FileBlankContextMenuPopup(
         blankFileContextMenu(
             viewModel = viewModel,
             device = device,
+            newFolderBaseName = newFolderBaseName,
             onDismissRequest = onDismissRequest
         )
     }
@@ -960,6 +974,7 @@ private fun MenuScope.entryFileContextMenu(
 private fun MenuScope.blankFileContextMenu(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
+    newFolderBaseName: String,
     onDismissRequest: () -> Unit
 ) {
     val canShowBlankFileContextMenu = viewModel.canShowBlankFileContextMenu(device)
@@ -985,7 +1000,7 @@ private fun MenuScope.blankFileContextMenu(
             enabled = hasSelectedDevice,
             iconKey = AllIconsKeys.Actions.NewFolder,
             keybinding = viewModel.menuShortcut(MenuShortcut.Action.NewFolder).toMenuKeybinding(),
-            onClick = { perform(viewModel::createNewFolder) }
+            onClick = { perform { viewModel.createNewFolder(newFolderBaseName) } }
         ) { Text(strings.menuNewFolder) }
         separator()
         if (viewModel.canPasteEntry) {
@@ -1034,17 +1049,6 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
             DevicePairDialog(
                 onCloseRequest = viewModel::dismissDialog,
                 ownerWindow = window
-            )
-        MainStageModel.DialogState.NewFolder ->
-            SimpleInputDialog(
-                title = strings.dialogNewFolderTitle,
-                prompt = strings.dialogNewFolderPrompt,
-                confirmText = strings.dialogNewFolderCreate,
-                cancelText = strings.dialogCommonCancel,
-                invalidInputText = strings.dialogInputInvalid,
-                onCloseRequest = viewModel::dismissDialog,
-                ownerWindow = window,
-                onConfirm = viewModel::confirmCreateFolder
             )
         is MainStageModel.DialogState.DeleteConfirm ->
             ConfirmDialog(
@@ -1413,6 +1417,7 @@ private fun handleFileAreaShortcut(
     viewModel: MainStageModel,
     device: AndroidDeviceItem,
     event: KeyEvent,
+    newFolderBaseName: String,
     onBeginInlineRename: () -> Unit = {},
     onNavigateSelection: (MainStageModel.NavigationDirection) -> Boolean = { false },
     onNavigateByInitialChar: (Char) -> Boolean = { false }
@@ -1440,7 +1445,7 @@ private fun handleFileAreaShortcut(
         }
         viewModel.menuShortcut(MenuShortcut.Action.NewFolder).matches(event) &&
             viewModel.canShowBlankFileContextMenu(device) -> {
-            viewModel.createNewFolder()
+            viewModel.createNewFolder(newFolderBaseName)
             true
         }
         viewModel.menuShortcut(MenuShortcut.Action.Paste).matches(event) &&
