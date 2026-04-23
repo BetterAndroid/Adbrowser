@@ -18,17 +18,27 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/4/12.
+ * This file is created by fankes on 2026/4/23.
  */
 package com.highcapable.adbrowser.core.common.utils.extension
 
-/**
- * Simple string formatter that replaces placeholders like {0}, {1}, etc. with the provided arguments.
- */
-fun String.formatWithArgs(vararg args: Any): String {
-    var result = this
-    args.forEachIndexed { index, value ->
-        result = result.replace("{$index}", value.toString())
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class FileTest {
+
+    @Test
+    fun normalizeFileNameInputReplacesSlashWithColon() {
+        assertEquals("foo:bar", "foo/bar".toNormalizeFileName())
     }
-    return result
+
+    @Test
+    fun normalizeFileNameInputLeavesSafeNameUntouched() {
+        assertEquals("Hello World.txt", "Hello World.txt".toNormalizeFileName())
+    }
+
+    @Test
+    fun normalizeFileNameInputReplacesEverySlash() {
+        assertEquals("a:b:c", "a/b/c".toNormalizeFileName())
+    }
 }

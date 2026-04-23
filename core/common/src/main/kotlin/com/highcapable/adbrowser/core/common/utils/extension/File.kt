@@ -44,3 +44,12 @@ fun Long.toFriendlyFileSize(): String {
     val formatted = "%.2f".format(value).trimEnd('0').trimEnd('.')
     return "$formatted ${FileSizeUnits[unitIndex]}"
 }
+
+/**
+ * Normalizes a user-entered file or folder name before it is sent to backend shell operations.
+ *
+ * Slash cannot exist inside a single path segment because backend path building uses `/` as the
+ * separator. Following Finder-style behavior, we transparently convert `/` into `:` instead of
+ * rejecting the input outright.
+ */
+fun String.toNormalizeFileName() = this.replace('/', ':')

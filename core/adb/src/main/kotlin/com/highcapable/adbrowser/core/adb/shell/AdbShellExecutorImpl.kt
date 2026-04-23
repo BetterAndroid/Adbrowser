@@ -27,7 +27,7 @@ import com.highcapable.adbrowser.core.adb.AdbEnvironment
 import com.highcapable.adbrowser.core.adb.di.AdbScope
 import com.highcapable.adbrowser.core.adb.model.AdbResponse
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
-import com.highcapable.adbrowser.core.common.utils.extension.escapeSpecialChars
+import com.highcapable.adbrowser.core.common.shell.ShellArguments
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
 import me.tatarka.inject.annotations.Inject
@@ -61,8 +61,12 @@ class AdbShellExecutorImpl(
         if (!environment.useSuperuser()) return executeShell(device, *arguments)
 
         return try {
-            val suCommand = """"${arguments.joinToString(" ") { it.toString().escapeSpecialChars() }}""""
-            val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, "su", "-c", suCommand)
+            val command = ShellArguments { add(*arguments) }
+            val suCommand = ShellArguments {
+                add("su", "-c")
+                addQuotes(command)
+            }
+            val suResponse = adbClient.executeCommand(device, SHELL_PREFIX, suCommand)
 
             if (shouldFallbackToNormalShell(suResponse)) {
                 logService.log(
@@ -83,7 +87,7 @@ class AdbShellExecutorImpl(
     }
 
     private suspend fun executeShell(device: AndroidDevice, vararg arguments: Any) =
-        adbClient.executeCommand(device, SHELL_PREFIX, *arguments)
+        adbClient.executeCommand(device, SHELL_PREFIX, ShellArguments { add(*arguments) })
 
     private fun shouldFallbackToNormalShell(response: AdbResponse): Boolean {
         if (response.isOk) return false

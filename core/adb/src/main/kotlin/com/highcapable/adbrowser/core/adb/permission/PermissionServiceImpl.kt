@@ -27,7 +27,7 @@ import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
 import com.highcapable.adbrowser.core.common.fs.FilePermission
-import com.highcapable.adbrowser.core.common.utils.extension.escapeQuotes
+import com.highcapable.adbrowser.core.common.shell.ShellArguments
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
 import me.tatarka.inject.annotations.Inject
@@ -51,7 +51,11 @@ class PermissionServiceImpl(
 
     override suspend fun getPermission(device: AndroidDevice, path: String) = runner.exec<FilePermission.Info> {
         logService.log(LogLevel.Trace, CATEGORY, "Reading permission for '$path'.")
-        val response = shellExecutor.execute(device, "ls", "-ld", "'${path.escapeQuotes()}'")
+        val command = ShellArguments {
+            add("ls", "-ld")
+            addQuotes(path)
+        }
+        val response = shellExecutor.execute(device, command)
 
         if (response.isOk) {
             val info = parsePermission(response.standardOutput)
@@ -66,7 +70,11 @@ class PermissionServiceImpl(
     }
 
     override suspend fun setPermission(device: AndroidDevice, path: String, mode: Int) = runner.exec {
-        val response = shellExecutor.execute(device, "chmod", mode, "'${path.escapeQuotes()}'")
+        val command = ShellArguments {
+            add("chmod", mode)
+            addQuotes(path)
+        }
+        val response = shellExecutor.execute(device, command)
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Updated permission for '$path' to $mode.")
 
         null to response

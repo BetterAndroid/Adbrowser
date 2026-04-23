@@ -34,6 +34,7 @@ import com.highcapable.adbrowser.core.adb.model.pairing.MdnsServiceType
 import com.highcapable.adbrowser.core.adb.model.pairing.PairingDevice
 import com.highcapable.adbrowser.core.adb.model.pairing.QrPairingSession
 import com.highcapable.adbrowser.core.common.network.NetworkEndpoint
+import com.highcapable.adbrowser.core.common.shell.ShellArguments
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.logging.LogLevel
 import com.highcapable.adbrowser.core.logging.LogService
@@ -67,9 +68,14 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
         const val CATEGORY = "ADB"
 
         const val ADB_VERSION_SIGNATURE = "Android Debug Bridge"
-        const val DEVICE_PROPS_COMMAND = "getprop ro.product.brand; " +
-            "getprop ro.build.version.release; " +
-            "getprop ro.build.version.sdk"
+
+        val devicePropsCommand = ShellArguments {
+            add("getprop", "ro.product.brand")
+            addRaw(";")
+            add("getprop", "ro.build.version.release")
+            addRaw(";")
+            add("getprop", "ro.build.version.sdk")
+        }
 
         const val MIN_DEVICE_OBSERVER_INTERVAL_MS = 500L
         const val MIN_MDNS_OBSERVER_INTERVAL_MS = 500L
@@ -573,7 +579,7 @@ class AdbClientImpl(private val environment: AdbEnvironment, private val logServ
     }
 
     private suspend fun fetchDeviceExtra(serial: String): AndroidDeviceExtra {
-        val response = runAdb("-s", serial, "shell", DEVICE_PROPS_COMMAND)
+        val response = runAdb("-s", serial, "shell", devicePropsCommand)
         if (!response.isOk) {
             logService.log(
                 LogLevel.Warning,
