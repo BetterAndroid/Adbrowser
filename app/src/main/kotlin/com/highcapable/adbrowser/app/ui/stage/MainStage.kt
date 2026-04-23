@@ -1102,10 +1102,6 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DeviceConnectionPending -> strings.statusDeviceConnectionPending
             MainStageModel.StatusMessage.Key.DeviceConnected -> strings.statusDeviceConnected
             MainStageModel.StatusMessage.Key.DeviceDisconnected -> strings.statusDeviceDisconnected
-            MainStageModel.StatusMessage.Key.SelectDeviceFirst -> strings.statusSelectDeviceFirst
-            MainStageModel.StatusMessage.Key.SelectEntryFirst -> strings.statusSelectEntryFirst
-            MainStageModel.StatusMessage.Key.EntryDeleted -> strings.statusEntryDeleted
-            MainStageModel.StatusMessage.Key.EntryDeletedMultiple -> strings.statusEntryDeletedMultiple
             MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied
             MainStageModel.StatusMessage.Key.CopiedMultiple -> strings.statusCopiedMultiple
             MainStageModel.StatusMessage.Key.Cut -> strings.statusCut

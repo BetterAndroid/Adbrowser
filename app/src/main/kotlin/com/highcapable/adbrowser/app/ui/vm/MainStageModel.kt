@@ -105,10 +105,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             DeviceConnectionPending,
             DeviceConnected,
             DeviceDisconnected,
-            SelectDeviceFirst,
-            SelectEntryFirst,
-            EntryDeleted,
-            EntryDeletedMultiple,
             Copied,
             CopiedMultiple,
             Cut,
@@ -555,7 +551,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun createNewFolder(baseName: String) {
         val device = selectedDevice ?: return
         val state = workspace(device) ?: return
-        if (!ensureDeviceSelected()) return
+        if (selectedDevice == null) return
         if (!commitInlineRenameOnFocusLoss(device)) return
 
         val requestedPath = state.currentPath
@@ -892,11 +888,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      * are device-local and the UI should not pretend otherwise.
      */
     fun pasteToCurrentPath() {
-        val device = selectedDevice
-        if (device == null) {
-            setStatus(StatusMessage.Key.SelectDeviceFirst)
-            return
-        }
+        val device = selectedDevice ?: return
 
         val clipboard = clipboardEntry
         if (clipboard == null) {
@@ -2192,13 +2184,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             StatusMessage.Key.DeviceConnected,
             StatusMessage.Key.DeviceDisconnected
         )
-    }
-
-    private fun ensureDeviceSelected(): Boolean {
-        if (selectedDevice != null) return true
-
-        setStatus(StatusMessage.Key.SelectDeviceFirst)
-        return false
     }
 
     private fun isHiddenEntryName(name: String) = name.isNotBlank() && name.startsWith('.')
