@@ -1062,6 +1062,15 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 ownerWindow = window,
                 onConfirm = viewModel::confirmDeleteSelectedEntry
             )
+        is MainStageModel.DialogState.DeleteError ->
+            ConfirmDialog(
+                title = strings.dialogDeleteErrorTitle,
+                message = DeleteErrorMessage(state),
+                confirmText = strings.dialogCommonOk,
+                onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
+                onConfirm = { true }
+            )
         is MainStageModel.DialogState.RenameError ->
             ConfirmDialog(
                 title = strings.dialogRenameErrorTitle,
@@ -1109,6 +1118,18 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
         template.formatWithArgs(*status.args.toTypedArray())
+    }
+}
+
+@Composable
+private fun DeleteErrorMessage(state: MainStageModel.DialogState.DeleteError): String {
+    val detail = state.rawMessage
+        ?.takeIf { it.isNotBlank() && it != MainStageModel.UNKNOWN_ERROR_TOKEN }
+        ?: strings.commonUnknownError
+
+    return when (state.kind) {
+        MainStageModel.DialogState.DeleteErrorKind.PermissionDenied -> strings.dialogDeleteErrorPermissionDenied
+        MainStageModel.DialogState.DeleteErrorKind.Generic -> strings.dialogDeleteErrorGeneric.formatWithArgs(detail)
     }
 }
 

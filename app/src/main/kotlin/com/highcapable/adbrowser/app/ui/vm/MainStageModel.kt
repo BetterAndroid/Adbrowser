@@ -74,8 +74,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object DeviceConnect : DialogState
         data object DevicePair : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
+        data class DeleteError(val kind: DeleteErrorKind, val rawMessage: String?) : DialogState
         data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
+
+        enum class DeleteErrorKind {
+            PermissionDenied,
+            Generic
+        }
 
         enum class RenameErrorKind {
             AlreadyExists,
@@ -753,8 +759,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /**
      * Deletes the current selection asynchronously.
      *
-     * Deletion is intentionally executed one entry at a time so partial failures can still
-     * identify which item failed in the status message.
+     * Deletion is intentionally executed one entry at a time so the first backend failure can be
+     * surfaced as a dedicated dialog instead of being flattened into a generic status-bar toast.
      */
     fun confirmDeleteSelectedEntry(): Boolean {
         val device = selectedDevice ?: return false
@@ -772,14 +778,17 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             items.forEach { item ->
                 val result = fileSystemService.delete(device.toDomain(), item.fullPath)
                 if (!result.isOk) {
-                    setErrorStatus(result.errorMessage?.let { "${item.name}: $it" } ?: item.name)
+                    dialogState = DialogState.DeleteError(
+                        kind = resolveDeleteErrorKind(result.errorMessage),
+                        rawMessage = result.errorMessage
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { "${item.name}: $it" }
+                            ?: item.name
+                    )
                     return@launchBusyAction
                 }
             }
 
-            if (items.size == 1)
-                setStatus(StatusMessage.Key.EntryDeleted, items.first().name)
-            else setStatus(StatusMessage.Key.EntryDeletedMultiple, items.size.toString())
             refreshEntriesAndClearSelection(device, requestedPath = currentPath)
         }
 
@@ -2153,6 +2162,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private fun resolveRenameErrorKind(message: String?) = when {
         "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
         else -> DialogState.RenameErrorKind.Generic
+    }
+
+    private fun resolveDeleteErrorKind(message: String?) = when {
+        "permission denied" in message.orEmpty().lowercase() -> DialogState.DeleteErrorKind.PermissionDenied
+        else -> DialogState.DeleteErrorKind.Generic
     }
 
     /**
