@@ -83,6 +83,7 @@ fun FileIconItem(
     onBeginInlineRename: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
     onCancelInlineRename: () -> Unit,
+    shouldRestoreFocusOnInlineRenameFailure: () -> Boolean = { true },
     onHitBoundsChanged: (List<Rect>) -> Unit = {},
     modifier: Modifier = Modifier,
     contentModifier: Modifier = Modifier,
@@ -243,7 +244,8 @@ fun FileIconItem(
                     onBeginInlineRename = onBeginInlineRename,
                     onOpen = currentOnDoubleClick,
                     onConfirmInlineRename = onConfirmInlineRename,
-                    onCancelInlineRename = onCancelInlineRename
+                    onCancelInlineRename = onCancelInlineRename,
+                    shouldRestoreFocusOnInlineRenameFailure = shouldRestoreFocusOnInlineRenameFailure
                 )
             }
         }

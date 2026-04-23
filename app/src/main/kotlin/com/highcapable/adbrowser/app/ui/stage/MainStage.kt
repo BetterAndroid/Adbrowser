@@ -570,6 +570,9 @@ private fun FileListView(
                         onCancelInlineRename = {
                             viewModel.cancelInlineRename(device)
                         },
+                        shouldRestoreFocusOnInlineRenameFailure = {
+                            viewModel.isEntryInlineRenaming(device, entry)
+                        },
                         modifier = Modifier.onGloballyPositioned { coordinates ->
                             // Visible entry bounds drive blank-area hit testing and marquee
                             // selection, so they must track the actual composed coordinates.
@@ -782,6 +785,9 @@ private fun FileIconView(
                         },
                         onCancelInlineRename = {
                             viewModel.cancelInlineRename(device)
+                        },
+                        shouldRestoreFocusOnInlineRenameFailure = {
+                            viewModel.isEntryInlineRenaming(device, entry)
                         },
                         modifier = Modifier.fillMaxWidth()
                             .padding(vertical = DefaultFileItemOuterPadding),
@@ -1052,6 +1058,15 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 ownerWindow = window,
                 onConfirm = viewModel::confirmDeleteSelectedEntry
             )
+        is MainStageModel.DialogState.RenameError ->
+            ConfirmDialog(
+                title = strings.dialogRenameErrorTitle,
+                message = RenameErrorMessage(state),
+                confirmText = strings.dialogCommonOk,
+                onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
+                onConfirm = { true }
+            )
         is MainStageModel.DialogState.Properties ->
             FilePropertiesDialog(
                 snapshot = state.snapshot,
@@ -1090,6 +1105,18 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
         template.formatWithArgs(*status.args.toTypedArray())
+    }
+}
+
+@Composable
+private fun RenameErrorMessage(state: MainStageModel.DialogState.RenameError): String {
+    val detail = state.rawMessage
+        ?.takeIf { it.isNotBlank() && it != MainStageModel.UNKNOWN_ERROR_TOKEN }
+        ?: strings.commonUnknownError
+
+    return when (state.kind) {
+        MainStageModel.DialogState.RenameErrorKind.AlreadyExists -> strings.dialogRenameErrorAlreadyExists
+        MainStageModel.DialogState.RenameErrorKind.Generic -> strings.dialogRenameErrorGeneric.formatWithArgs(detail)
     }
 }
 

@@ -87,6 +87,7 @@ fun FileListRow(
     onBeginInlineRename: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
     onCancelInlineRename: () -> Unit,
+    shouldRestoreFocusOnInlineRenameFailure: () -> Boolean = { true },
     modifier: Modifier = Modifier,
     overlay: @Composable BoxScope.() -> Unit = {}
 ) {
@@ -180,7 +181,8 @@ fun FileListRow(
                         onBeginInlineRename = onBeginInlineRename,
                         onOpen = currentOnDoubleClick,
                         onConfirmInlineRename = onConfirmInlineRename,
-                        onCancelInlineRename = onCancelInlineRename
+                        onCancelInlineRename = onCancelInlineRename,
+                        shouldRestoreFocusOnInlineRenameFailure = shouldRestoreFocusOnInlineRenameFailure
                     )
                     Spacer(Modifier.width(10.dp))
                     FileRowText(text = item.friendlySizeText, width = sizeWidth, color = foreground)

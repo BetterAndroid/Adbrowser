@@ -34,9 +34,9 @@ fun ConfirmDialog(
     title: String,
     message: String,
     confirmText: String,
-    cancelText: String,
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null,
+    cancelText: String? = null,
     onConfirm: () -> Boolean
 ) {
     DialogScaffold(

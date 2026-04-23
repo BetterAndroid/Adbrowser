@@ -68,8 +68,8 @@ import org.jetbrains.jewel.ui.component.TextField
  * Shared inline rename editor used by both list and icon file presentations.
  *
  * The editor commits on focus loss to match desktop file-manager expectations when the user clicks
- * elsewhere. Failed validation/backend writes immediately request focus back so the session does
- * not get stranded in a half-finished unfocused state.
+ * elsewhere. Callers can decide whether a rejected confirmation should keep the editor alive and
+ * restore focus, or close the editor first and surface the failure through a separate dialog.
  */
 @Composable
 fun InlineRenameField(
@@ -77,6 +77,7 @@ fun InlineRenameField(
     sessionKey: Any,
     onConfirm: (String) -> Boolean,
     onCancel: () -> Unit,
+    shouldRestoreFocusOnConfirmFailure: () -> Boolean = { true },
     modifier: Modifier = Modifier,
     fontSize: TextUnit = AdbrowserTheme.DefaultItemFontSize,
     minWidth: Dp = 0.dp,
@@ -104,9 +105,11 @@ fun InlineRenameField(
         if (completed) return
 
         val value = state.text.toString().trim()
-        if (onConfirm(value))
-            completed = true
-        else restoreFocus()
+        when {
+            onConfirm(value) -> completed = true
+            shouldRestoreFocusOnConfirmFailure() -> restoreFocus()
+            else -> completed = true
+        }
     }
 
     fun cancelRename() {

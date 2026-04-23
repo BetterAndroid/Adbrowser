@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.core.adb.fs
 import com.highcapable.adbrowser.core.adb.di.AdbScope
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
+import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.adb.model.OperationRunner
 import com.highcapable.adbrowser.core.adb.shell.AdbShellExecutor
 import com.highcapable.adbrowser.core.common.shell.ShellArguments
@@ -101,15 +102,24 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         TODO()
     }
 
-    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String) = runner.exec {
-        val command = ShellArguments {
-            add("mkdir", "-p")
-            addQuotes(buildChildPath(parentPath, folderName))
-        }
-        val response = shellExecutor.execute(device, command)
+    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<Unit> {
+        val normalizedFolderName = folderName.toNormalizeFileName()
+        checkEntryNameConflict(
+            parentPath = parentPath,
+            entryName = normalizedFolderName,
+            listResult = list(device, parentPath)
+        )?.let { return it }
 
-        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$folderName' under '$parentPath'.")
-        null to response
+        return runner.exec {
+            val command = ShellArguments {
+                add("mkdir", "-p")
+                addQuotes(buildChildPath(parentPath, normalizedFolderName))
+            }
+            val response = shellExecutor.execute(device, command)
+
+            if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$normalizedFolderName' under '$parentPath'.")
+            null to response
+        }
     }
 
     override suspend fun delete(device: AndroidDevice, path: String) = runner.exec {
@@ -123,17 +133,33 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         null to response
     }
 
-    override suspend fun rename(device: AndroidDevice, path: String, newName: String) = runner.exec {
-        val targetPath = buildTargetPath(path, newName)
+    override suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<Unit> {
+        val normalizedSourcePath = normalizeAbsolutePath(path)
+        val normalizedNewName = newName.toNormalizeFileName()
+        val targetPath = buildTargetPath(normalizedSourcePath, normalizedNewName)
 
-        val command = ShellArguments {
-            add("mv")
-            addQuotes(path, targetPath)
+        if (targetPath == normalizedSourcePath) {
+            logService.log(LogLevel.Information, CATEGORY, "Skipped rename for '$normalizedSourcePath' because the target name is unchanged.")
+            return OperationResult.ok()
         }
-        val response = shellExecutor.execute(device, command)
 
-        if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$path' to '$targetPath'.")
-        null to response
+        val parentPath = resolveParentPath(normalizedSourcePath)
+        checkEntryNameConflict(
+            parentPath = parentPath,
+            entryName = normalizedNewName,
+            listResult = list(device, parentPath)
+        )?.let { return it }
+
+        return runner.exec {
+            val command = ShellArguments {
+                add("mv")
+                addQuotes(normalizedSourcePath, targetPath)
+            }
+            val response = shellExecutor.execute(device, command)
+
+            if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$normalizedSourcePath' to '$targetPath'.")
+            null to response
+        }
     }
 
     override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
@@ -163,12 +189,24 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         return "${path.trimEnd('/')}/"
     }
 
+    private fun normalizeAbsolutePath(path: String): String {
+        if (path.isBlank() || path == "/") return "/"
+        val normalizedPath = path.trim().trimEnd('/')
+
+        return if (normalizedPath.startsWith('/')) normalizedPath else "/$normalizedPath"
+    }
+
+    private fun resolveParentPath(path: String): String {
+        val normalizedPath = normalizeAbsolutePath(path)
+        val index = normalizedPath.lastIndexOf('/')
+        if (index <= 0) return "/"
+
+        return normalizedPath.take(index)
+    }
+
     private fun buildTargetPath(sourcePath: String, newName: String): String {
         val normalizedName = newName.toNormalizeFileName()
-        val normalized = sourcePath.trimEnd('/')
-        val index = normalized.lastIndexOf('/')
-        if (index <= 0) return "/$normalizedName"
-        val parent = normalized.take(index)
+        val parent = resolveParentPath(sourcePath)
 
         return "$parent/$normalizedName"
     }
@@ -180,6 +218,29 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         if (normalizedParent == "/") return "/$normalizedChildName"
 
         return "$normalizedParent/$normalizedChildName"
+    }
+
+    /**
+     * Converts a current-directory listing result into a frontend-facing conflict result.
+     *
+     * The helper intentionally accepts the already executed [listResult] so callers can reuse the
+     * normal listing pipeline and forward any backend failure to the UI unchanged. When a sibling
+     * with the same name already exists, we stop the write operation before constructing shell
+     * commands such as `mkdir` or future `touch`.
+     */
+    private fun checkEntryNameConflict(
+        parentPath: String,
+        entryName: String,
+        listResult: OperationResult<List<DeviceFileEntry>>
+    ): OperationResult<Unit>? {
+        if (!listResult.isOk) return OperationResult.failure(listResult.errorMessage ?: "Failed to inspect '$parentPath'.")
+
+        if (listResult.data.orEmpty().none { it.name == entryName }) return null
+
+        val message = "An entry named '$entryName' already exists in '$parentPath'."
+        logService.log(LogLevel.Warning, CATEGORY, message)
+
+        return OperationResult.failure(message)
     }
 
     private fun parseLsOutput(parentPath: String, output: String): List<DeviceFileEntry> {

@@ -62,7 +62,8 @@ fun FileListNameSection(
     onBeginInlineRename: () -> Unit,
     onOpen: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
-    onCancelInlineRename: () -> Unit
+    onCancelInlineRename: () -> Unit,
+    shouldRestoreFocusOnInlineRenameFailure: () -> Boolean = { true }
 ) {
     val fontSize = AdbrowserTheme.DefaultItemFontSize
     val foreground = if (selected) Color.White else Color.Unspecified
@@ -111,6 +112,7 @@ fun FileListNameSection(
                     sessionKey = item.path to item.name,
                     onConfirm = onConfirmInlineRename,
                     onCancel = onCancelInlineRename,
+                    shouldRestoreFocusOnConfirmFailure = shouldRestoreFocusOnInlineRenameFailure,
                     modifier = Modifier.width(inlineRenameWidth),
                     contentPadding = PaddingValues(4.dp),
                     onBoundsInRootChanged = editorBoundsGuard::updateAvoidedBounds
@@ -133,7 +135,8 @@ fun FileIconNameSection(
     onBeginInlineRename: () -> Unit,
     onOpen: () -> Unit,
     onConfirmInlineRename: (String) -> Boolean,
-    onCancelInlineRename: () -> Unit
+    onCancelInlineRename: () -> Unit,
+    shouldRestoreFocusOnInlineRenameFailure: () -> Boolean = { true }
 ) {
     val fontSize = AdbrowserTheme.DefaultItemFontSize
     val foreground = if (selected) Color.White else Color.Unspecified
@@ -169,6 +172,7 @@ fun FileIconNameSection(
                     sessionKey = item.path to item.name,
                     onConfirm = onConfirmInlineRename,
                     onCancel = onCancelInlineRename,
+                    shouldRestoreFocusOnConfirmFailure = shouldRestoreFocusOnInlineRenameFailure,
                     modifier = Modifier.width(inlineRenameWidth),
                     onBoundsInRootChanged = editorBoundsGuard::updateAvoidedBounds,
                     centeredMultiline = true

@@ -75,7 +75,13 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object DevicePair : DialogState
         data object NewFolder : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
+        data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
+
+        enum class RenameErrorKind {
+            AlreadyExists,
+            Generic
+        }
     }
 
     /**
@@ -653,7 +659,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         val result = runBlocking { fileSystemService.rename(device.toDomain(), sourcePath, targetName) }
         if (!result.isOk) {
-            setErrorStatus(result.errorMessage)
+            clearInlineRename(state)
+            dialogState = DialogState.RenameError(
+                kind = resolveRenameErrorKind(result.errorMessage),
+                rawMessage = result.errorMessage.orUnknownErrorToken()
+            )
             return false
         }
 
@@ -2142,6 +2152,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             ?.takeIf { it.isNotBlank() }
             ?.let { StatusMessage.Raw(it) }
             ?: StatusMessage.Res(StatusMessage.Key.CommonUnknownError)
+    }
+
+    private fun resolveRenameErrorKind(message: String?) = when {
+        "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
+        else -> DialogState.RenameErrorKind.Generic
     }
 
     private fun applyPendingSelectionStatus(
