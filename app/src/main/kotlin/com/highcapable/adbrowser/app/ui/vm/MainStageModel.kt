@@ -112,9 +112,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             ClipboardEmpty,
             CrossDevicePasteNotSupported,
             Pasted,
-            PastedMultiple,
-            DialogPropertiesInvalidPermission,
-            DialogPropertiesPermissionUpdated
+            PastedMultiple
         }
     }
 
@@ -1400,31 +1398,16 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      * The extra read is intentional because backend normalization may change the returned symbolic
      * value, and the dialog should reflect the real final permission instead of a locally inferred one.
      */
-    fun applyPermission(
-        snapshot: FileEntrySnapshot,
-        modeText: String,
-        reportStatus: Boolean = true
-    ): OperationResult<FilePermission.Info> {
-        val mode = FilePermission.parseMode(modeText)
-        if (mode == null) {
-            if (reportStatus) setStatus(StatusMessage.Key.DialogPropertiesInvalidPermission)
-            return OperationResult.failure(INVALID_PERMISSION_TOKEN)
-        }
+    fun applyPermission(snapshot: FileEntrySnapshot, modeText: String): OperationResult<FilePermission.Info> {
+        val mode = FilePermission.parseMode(modeText) ?: return OperationResult.failure(INVALID_PERMISSION_TOKEN)
 
         val setResult = runBlocking { permissionService.setPermission(snapshot.device, snapshot.fullPath, mode) }
-        if (!setResult.isOk) {
-            if (reportStatus) setErrorStatus(setResult.errorMessage)
-            return OperationResult.failure(setResult.errorMessage.orUnknownErrorToken())
-        }
+        if (!setResult.isOk) return OperationResult.failure(setResult.errorMessage.orUnknownErrorToken())
 
         val getResult = runBlocking { permissionService.getPermission(snapshot.device, snapshot.fullPath) }
         val info = getResult.data
-        if (!getResult.isOk || info == null) {
-            if (reportStatus) setErrorStatus(getResult.errorMessage)
-            return OperationResult.failure(getResult.errorMessage.orUnknownErrorToken())
-        }
+        if (!getResult.isOk || info == null) return OperationResult.failure(getResult.errorMessage.orUnknownErrorToken())
 
-        if (reportStatus) setStatus(StatusMessage.Key.DialogPropertiesPermissionUpdated)
         updateEntryPermission(snapshot.fullPath, info.symbolicPermission)
 
         return OperationResult.success(info)

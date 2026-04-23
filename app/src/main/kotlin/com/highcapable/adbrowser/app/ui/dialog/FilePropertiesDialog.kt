@@ -69,6 +69,8 @@ fun FilePropertiesDialog(
     applyPermission: (String) -> OperationResult<FilePermission.Info>,
     ownerWindow: Window? = null
 ) {
+    val colors = AdbrowserTheme.colors
+
     val viewModel = remember(snapshot, loadPermission, applyPermission) {
         FilePropertiesDialogModel(
             snapshot = snapshot,
@@ -78,11 +80,13 @@ fun FilePropertiesDialog(
     }
 
     val invalidPermissionText = strings.dialogPropertiesInvalidPermission
+    val permissionAppliedText = strings.dialogPropertiesPermissionUpdated
     val unknownErrorText = strings.commonUnknownError
-    val resolveDialogErrorText: (String?) -> String = { raw ->
+    val resolveDialogLeadingText: (String?) -> String = { raw ->
         val value = raw.orEmpty()
         when {
             value.isBlank() -> unknownErrorText
+            value == FilePropertiesDialogModel.PERMISSION_APPLIED_TOKEN -> permissionAppliedText
             value == MainStageModel.INVALID_PERMISSION_TOKEN -> invalidPermissionText
             value == MainStageModel.UNKNOWN_ERROR_TOKEN -> unknownErrorText
             else -> value
@@ -186,12 +190,16 @@ fun FilePropertiesDialog(
                 viewModel = viewModel
             )
 
-            val errorText = viewModel.errorMessageRaw?.let(resolveDialogErrorText).orEmpty()
+            val leadingText = viewModel.leadingMessageRaw?.let(resolveDialogLeadingText).orEmpty()
+            val leadingTextColor = when (viewModel.leadingMessageCategory) {
+                FilePropertiesDialogModel.LeadingMessageCategory.Error -> JewelTheme.globalColors.text.error
+                FilePropertiesDialogModel.LeadingMessageCategory.Info -> colors.pathBreadcrumbForeground
+            }
             ButtonActionRow(
                 primaryText = strings.dialogPropertiesClose,
                 onPrimary = onCloseRequest,
-                leadingText = errorText,
-                leadingTextColor = JewelTheme.globalColors.text.error
+                leadingText = leadingText,
+                leadingTextColor = leadingTextColor
             )
         }
     }

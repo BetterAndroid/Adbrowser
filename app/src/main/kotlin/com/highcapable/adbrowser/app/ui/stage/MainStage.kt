@@ -1085,7 +1085,7 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 snapshot = state.snapshot,
                 onCloseRequest = viewModel::dismissDialog,
                 loadPermission = { viewModel.loadPermission(state.snapshot) },
-                applyPermission = { viewModel.applyPermission(state.snapshot, it, reportStatus = false) },
+                applyPermission = { viewModel.applyPermission(state.snapshot, it) },
                 ownerWindow = window
             )
     }
@@ -1110,8 +1110,6 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.CrossDevicePasteNotSupported -> strings.statusCrossDevicePasteNotSupported
             MainStageModel.StatusMessage.Key.Pasted -> strings.statusPasted
             MainStageModel.StatusMessage.Key.PastedMultiple -> strings.statusPastedMultiple
-            MainStageModel.StatusMessage.Key.DialogPropertiesInvalidPermission -> strings.dialogPropertiesInvalidPermission
-            MainStageModel.StatusMessage.Key.DialogPropertiesPermissionUpdated -> strings.dialogPropertiesPermissionUpdated
         }
         template.formatWithArgs(*status.args.toTypedArray())
     }

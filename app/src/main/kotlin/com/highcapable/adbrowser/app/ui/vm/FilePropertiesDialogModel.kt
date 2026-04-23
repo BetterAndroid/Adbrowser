@@ -30,12 +30,20 @@ import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class FilePropertiesDialogModel(
     private val snapshot: FileEntrySnapshot,
     private val loadPermissionAction: () -> OperationResult<FilePermission.Info>,
     private val applyPermissionAction: (String) -> OperationResult<FilePermission.Info>
 ) : ViewModel() {
+
+    companion object {
+
+        const val PERMISSION_APPLIED_TOKEN = "__permission_applied__"
+    }
 
     /**
      * UI-facing permission scopes used by the dialog checkbox matrix.
@@ -47,6 +55,8 @@ class FilePropertiesDialogModel(
      */
     enum class PermissionAccess { Read, Write, Execute }
 
+    enum class LeadingMessageCategory { Error, Info }
+
     // Keep the editable permission state in one place. Everything else in the dialog is derived
     // from this value so text input and checkbox toggles behave consistently.
     private var currentMode by mutableStateOf(
@@ -55,12 +65,16 @@ class FilePropertiesDialogModel(
 
     private var initialized = false
     private var isSyncingModeField = false
+    private var successMessageClearJob: Job? = null
 
     val modeState = TextFieldState("")
     var symbolicPermission by mutableStateOf(snapshot.symbolicPermission)
         private set
 
-    var errorMessageRaw by mutableStateOf<String?>(null)
+    var leadingMessageRaw by mutableStateOf<String?>(null)
+        private set
+
+    var leadingMessageCategory by mutableStateOf(LeadingMessageCategory.Error)
         private set
 
     /**
@@ -78,14 +92,14 @@ class FilePropertiesDialogModel(
 
         if (result.isOk && info != null) {
             syncFromMode(info.numericPermission)
-            errorMessageRaw = null
+            clearLeadingMessage()
         } else {
             if (modeState.text.isBlank()) modeState.edit { replace(0, length, "") }
 
             runCatching { FilePermission.toNumeric(snapshot.symbolicPermission) }
                 .getOrNull()
                 ?.let { syncFromMode(it) }
-            errorMessageRaw = result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN
+            showErrorMessage(result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN)
         }
     }
 
@@ -94,9 +108,9 @@ class FilePropertiesDialogModel(
         // Ignore the callback triggered by our own programmatic field updates.
         if (isSyncingModeField) return
 
+        clearLeadingMessage()
         val mode = FilePermission.parseMode(text) ?: return
         syncFromMode(mode)
-        errorMessageRaw = null
     }
 
     /** Persists the currently edited permission mode through the backend action. */
@@ -104,10 +118,15 @@ class FilePropertiesDialogModel(
         val result = applyPermissionAction(modeState.text.toString().trim())
         val info = result.data
 
-        if (result.isOk && info != null) {
-            syncFromMode(info.numericPermission)
-            errorMessageRaw = null
-        } else errorMessageRaw = result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN
+        when {
+            result.isOk && info != null -> {
+                syncFromMode(info.numericPermission)
+                showSuccessMessage()
+            }
+            result.errorMessage == MainStageModel.INVALID_PERMISSION_TOKEN ->
+                if (leadingMessageRaw == null) showErrorMessage(MainStageModel.INVALID_PERMISSION_TOKEN)
+            else -> showErrorMessage(result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN)
+        }
     }
 
     /** Returns the current checkbox state for one permission bit in the dialog matrix. */
@@ -130,7 +149,7 @@ class FilePropertiesDialogModel(
             enabled = checked
         )
         syncFromMode(mode)
-        errorMessageRaw = null
+        clearLeadingMessage()
     }
 
     /** Pushes a new mode into every derived dialog representation. */
@@ -152,6 +171,29 @@ class FilePropertiesDialogModel(
             replace(0, length, mode.toString())
         }
         isSyncingModeField = false
+    }
+
+    private fun showSuccessMessage() {
+        successMessageClearJob?.cancel()
+        leadingMessageCategory = LeadingMessageCategory.Info
+        leadingMessageRaw = PERMISSION_APPLIED_TOKEN
+        successMessageClearJob = modelScope.launch {
+            delay(2_000L)
+            if (leadingMessageCategory == LeadingMessageCategory.Info &&
+                leadingMessageRaw == PERMISSION_APPLIED_TOKEN
+            ) clearLeadingMessage()
+        }
+    }
+
+    private fun showErrorMessage(message: String) {
+        successMessageClearJob?.cancel()
+        leadingMessageCategory = LeadingMessageCategory.Error
+        leadingMessageRaw = message
+    }
+
+    private fun clearLeadingMessage() {
+        successMessageClearJob?.cancel()
+        leadingMessageRaw = null
     }
 
     private fun PermissionScope.toCoreScope() = when (this) {
