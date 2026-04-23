@@ -60,6 +60,7 @@ import com.highcapable.adbrowser.app.ui.interaction.onPressRelease
 import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.interaction.onSelectionPrimaryPress
 import com.highcapable.adbrowser.app.ui.interaction.rememberPointerBoundsGuard
+import com.highcapable.adbrowser.app.ui.interaction.rememberRenameActivationEnabled
 import com.highcapable.adbrowser.app.ui.interaction.trackPointerContainer
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
@@ -106,15 +107,17 @@ fun FileListRow(
     )
     val foreground = if (selected) Color.White else Color.Unspecified
     val rowVerticalPadding = if (isInlineRenaming) 4.dp else 8.dp
-    val shouldAvoidLabelBounds = canTapLabelToRename && !isInlineRenaming
-    val shouldHandleSecondaryPress: (Offset) -> Boolean =
-        if (isInlineRenaming) editorBoundsGuard::shouldHandle else { _ -> true }
-    val shouldHandlePrimaryPress: (Offset) -> Boolean =
-        if (shouldAvoidLabelBounds) { position ->
-            labelBoundsGuard.shouldHandle(position) && shouldHandlePrimaryInteraction()
-        } else { _ ->
-            shouldHandlePrimaryInteraction()
-        }
+    val renameActivationEnabled = rememberRenameActivationEnabled(
+        key = item,
+        canTapLabelToRename = canTapLabelToRename,
+        isInlineRenaming = isInlineRenaming
+    )
+    val shouldHandleSecondaryPress: (Offset) -> Boolean = if (isInlineRenaming) editorBoundsGuard::shouldHandle else { _ -> true }
+    val shouldHandlePrimaryPress: (Offset) -> Boolean = if (renameActivationEnabled) { position ->
+        labelBoundsGuard.shouldHandle(position) && shouldHandlePrimaryInteraction()
+    } else { _ ->
+        shouldHandlePrimaryInteraction()
+    }
 
     Box(
         modifier = modifier
@@ -168,7 +171,7 @@ fun FileListRow(
                         displayName = displayName,
                         selected = selected,
                         isInlineRenaming = isInlineRenaming,
-                        canTapLabelToRename = canTapLabelToRename,
+                        canTapLabelToRename = renameActivationEnabled,
                         inlineRenameInput = inlineRenameInput,
                         nameWidth = nameWidth,
                         labelBoundsGuard = labelBoundsGuard,

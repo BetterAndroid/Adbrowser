@@ -62,6 +62,7 @@ import com.highcapable.adbrowser.app.ui.interaction.onSecondaryPress
 import com.highcapable.adbrowser.app.ui.interaction.onSelectionPrimaryPress
 import com.highcapable.adbrowser.app.ui.interaction.rememberOrderedBoundsTracker
 import com.highcapable.adbrowser.app.ui.interaction.rememberPointerBoundsGuard
+import com.highcapable.adbrowser.app.ui.interaction.rememberRenameActivationEnabled
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
@@ -129,6 +130,11 @@ fun FileIconItem(
         selected -> background
         else -> Color.Transparent
     }
+    val renameActivationEnabled = rememberRenameActivationEnabled(
+        key = item,
+        canTapLabelToRename = canTapLabelToRename,
+        isInlineRenaming = isInlineRenaming
+    )
 
     DisposableEffect(item) {
         onDispose {
@@ -212,7 +218,7 @@ fun FileIconItem(
                         containerCoordinates = { containerCoordinates },
                         editorBoundsGuard = editorBoundsGuard,
                         shouldHandlePrimaryInput = {
-                            !(canTapLabelToRename && !isInlineRenaming) && shouldHandlePrimaryInteraction()
+                            !renameActivationEnabled && shouldHandlePrimaryInteraction()
                         },
                         onPressedChange = { pressed = it },
                         onPrimaryClick = onPrimaryClick,
@@ -230,7 +236,7 @@ fun FileIconItem(
                     displayName = displayName,
                     selected = selected,
                     isInlineRenaming = isInlineRenaming,
-                    canTapLabelToRename = canTapLabelToRename,
+                    canTapLabelToRename = renameActivationEnabled,
                     inlineRenameInput = inlineRenameInput,
                     editorBoundsGuard = editorBoundsGuard,
                     shouldHandlePrimaryInteraction = shouldHandlePrimaryInteraction,
