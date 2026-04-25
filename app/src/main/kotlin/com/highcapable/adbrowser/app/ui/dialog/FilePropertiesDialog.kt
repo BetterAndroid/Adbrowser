@@ -20,29 +20,43 @@
  *
  * This file is created by fankes on 2026/4/5.
  */
+@file:Suppress("AssignedValueIsNeverRead")
+
 package com.highcapable.adbrowser.app.ui.dialog
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cafe.adriel.lyricist.strings
-import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
+import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.component.ContentIcon
+import com.highcapable.adbrowser.app.ui.component.PanelSurface
+import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialogIcon.Warning
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
-import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionAccess
@@ -51,15 +65,13 @@ import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
+import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CheckboxRow
-import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
 import org.jetbrains.jewel.ui.component.TextField
 import java.awt.Window
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun FilePropertiesDialog(
@@ -71,6 +83,7 @@ fun FilePropertiesDialog(
 ) {
     val colors = AdbrowserTheme.colors
 
+    var closeConfirmMessageRaw by remember { mutableStateOf<String?>(null) }
     val viewModel = remember(snapshot, loadPermission, applyPermission) {
         FilePropertiesDialogModel(
             snapshot = snapshot,
@@ -80,13 +93,11 @@ fun FilePropertiesDialog(
     }
 
     val invalidPermissionText = strings.dialogPropertiesInvalidPermission
-    val permissionAppliedText = strings.dialogPropertiesPermissionUpdated
     val unknownErrorText = strings.commonUnknownError
-    val resolveDialogLeadingText: (String?) -> String = { raw ->
+    val resolveDialogStatusText: (String?) -> String = { raw ->
         val value = raw.orEmpty()
         when {
             value.isBlank() -> unknownErrorText
-            value == FilePropertiesDialogModel.PERMISSION_APPLIED_TOKEN -> permissionAppliedText
             value == MainStageModel.INVALID_PERMISSION_TOKEN -> invalidPermissionText
             value == MainStageModel.UNKNOWN_ERROR_TOKEN -> unknownErrorText
             else -> value
@@ -105,101 +116,169 @@ fun FilePropertiesDialog(
 
     DialogScaffold(
         title = strings.dialogPropertiesTitle,
-        onCloseRequest = onCloseRequest,
+        onCloseRequest = {
+            when (val result = viewModel.close()) {
+                FilePropertiesDialogModel.CloseResult.Close -> onCloseRequest()
+                is FilePropertiesDialogModel.CloseResult.ConfirmDiscard ->
+                    closeConfirmMessageRaw = resolveDialogStatusText(result.messageRaw)
+            }
+        },
         ownerWindow = ownerWindow,
-        width = 620.dp
+        verticalSpacing = 8.dp,
+        contentPadding = PaddingValues(12.dp),
+        width = 300.dp
     ) {
-        ProvidePrimaryAction(window) {
-            PropertyRow(
-                strings.dialogPropertiesFieldName,
-                snapshot.name,
-                selectableValue = true
-            )
-            PropertyRow(
-                strings.dialogPropertiesFieldPath,
-                snapshot.fullPath,
-                selectableValue = true
-            )
-            PropertyRow(
-                strings.dialogPropertiesFieldType,
-                when {
-                    snapshot.isSymlink -> strings.dialogPropertiesTypeSymlink
-                    snapshot.isDirectory -> strings.dialogPropertiesTypeDirectory
-                    else -> strings.dialogPropertiesTypeFile
-                }
-            )
-            PropertyRow(
-                strings.dialogPropertiesFieldSize,
-                snapshot.friendlySizeText
-            )
-            PropertyRow(
-                strings.dialogPropertiesFieldModified,
-                DateFormatter.format(snapshot.modifiedAt.atZone(ZoneId.systemDefault()))
-            )
-
+        PanelSurface(
+            modifier = Modifier.fillMaxWidth(),
+            padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = strings.dialogPropertiesFieldPermission,
-                    modifier = Modifier.width(140.dp),
-                    fontWeight = FontWeight.SemiBold
+                ContentIcon(
+                    key = when {
+                        snapshot.isDirectory && snapshot.isSymlink -> AppIcons.LinkedFolder
+                        snapshot.isDirectory -> AppIcons.Folder
+                        snapshot.isSymlink -> AppIcons.LinkedFile
+                        else -> AppIcons.File
+                    },
+                    tint = colors.primaryAccent,
+                    modifier = Modifier.size(32.dp)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = viewModel.symbolicPermission,
-                        modifier = Modifier
-                            .padding(top = 6.dp)
-                            .width(80.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    TextField(
-                        state = viewModel.modeState,
-                        modifier = Modifier
-                            .width(80.dp)
-                            .height(AdbrowserTheme.DefaultTextFieldHeight),
-                        placeholder = { Text("---") }
-                    )
-                    OutlinedButton(
-                        onClick = viewModel::applyPermission,
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(AdbrowserTheme.DefaultTextFieldHeight)
-                    ) {
-                        Text(strings.dialogPropertiesApply)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    val state = remember(snapshot.name) { TextFieldState(snapshot.name) }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextField(
+                            state = state,
+                            readOnly = true,
+                            undecorated = true,
+                            textStyle = JewelTheme.defaultTextStyle.copy(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = snapshot.friendlySizeText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontSize = 12.sp
+                        )
                     }
+                    Text(
+                        text = strings.dialogPropertiesFieldModified.formatWithArgs(snapshot.friendlyModifiedAtText),
+                        color = colors.pathBreadcrumbForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 12.sp
+                    )
                 }
             }
-
-            PermissionBitsRow(
-                title = strings.dialogPropertiesOwner,
-                scope = PermissionScope.Owner,
-                viewModel = viewModel
-            )
-            PermissionBitsRow(
-                title = strings.dialogPropertiesGroup,
-                scope = PermissionScope.Group,
-                viewModel = viewModel
-            )
-            PermissionBitsRow(
-                title = strings.dialogPropertiesOther,
-                scope = PermissionScope.Other,
-                viewModel = viewModel
-            )
-
-            val leadingText = viewModel.leadingMessageRaw?.let(resolveDialogLeadingText).orEmpty()
-            val leadingTextColor = when (viewModel.leadingMessageCategory) {
-                FilePropertiesDialogModel.LeadingMessageCategory.Error -> JewelTheme.globalColors.text.error
-                FilePropertiesDialogModel.LeadingMessageCategory.Info -> colors.pathBreadcrumbForeground
+        }
+        PanelSurface(
+            modifier = Modifier.fillMaxWidth(),
+            padding = PaddingValues(16.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PropertyRow(
+                    strings.dialogPropertiesFieldPath,
+                    snapshot.fullPath,
+                    selectableValue = true
+                )
+                PropertyRow(
+                    strings.dialogPropertiesFieldType,
+                    when {
+                        snapshot.isSymlink -> strings.dialogPropertiesTypeSymlink
+                        snapshot.isDirectory -> strings.dialogPropertiesTypeDirectory
+                        else -> strings.dialogPropertiesTypeFile
+                    }
+                )
             }
-            ButtonActionRow(
-                primaryText = strings.dialogPropertiesClose,
-                onPrimary = onCloseRequest,
-                leadingText = leadingText,
-                leadingTextColor = leadingTextColor
+        }
+        PanelSurface(
+            modifier = Modifier.fillMaxWidth(),
+            padding = PaddingValues(16.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.width(ItemHorizontalWidth),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = strings.dialogPropertiesFieldPermission,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (viewModel.hasPermissionChanges)
+                            Text(
+                                text = "*",
+                                fontWeight = FontWeight.SemiBold,
+                                color = JewelTheme.globalColors.text.error
+                            )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = viewModel.symbolicPermission,
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .width(80.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        TextField(
+                            state = viewModel.modeState,
+                            inputTransformation = InputTransformation.maxLength(PermissionModeMaxLength),
+                            modifier = Modifier
+                                .width(80.dp)
+                                .height(AdbrowserTheme.DefaultTextFieldHeight)
+                        )
+                    }
+                }
+                PermissionBitsRow(
+                    title = strings.dialogPropertiesOwner,
+                    scope = PermissionScope.Owner,
+                    viewModel = viewModel
+                )
+                PermissionBitsRow(
+                    title = strings.dialogPropertiesGroup,
+                    scope = PermissionScope.Group,
+                    viewModel = viewModel
+                )
+                PermissionBitsRow(
+                    title = strings.dialogPropertiesOther,
+                    scope = PermissionScope.Other,
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        closeConfirmMessageRaw?.let { message ->
+            ConfirmDialog(
+                icon = Warning,
+                title = strings.dialogPropertiesConfirmDialogTitle,
+                message = message,
+                confirmText = strings.dialogCommonOk,
+                cancelText = strings.dialogCommonCancel,
+                onCloseRequest = { closeConfirmMessageRaw = null },
+                ownerWindow = window,
+                onConfirm = {
+                    onCloseRequest()
+                    true
+                }
             )
         }
     }
@@ -218,7 +297,7 @@ private fun PropertyRow(
     ) {
         Text(
             text = label,
-            modifier = Modifier.width(140.dp),
+            modifier = Modifier.width(ItemHorizontalWidth),
             fontWeight = FontWeight.SemiBold
         )
         if (selectableValue) {
@@ -250,7 +329,7 @@ private fun PermissionBitsRow(
     ) {
         Text(
             text = title,
-            modifier = Modifier.width(140.dp),
+            modifier = Modifier.width(ItemHorizontalWidth),
             fontWeight = FontWeight.SemiBold
         )
         Row(
@@ -273,4 +352,5 @@ private fun PermissionBitsRow(
     }
 }
 
-private val DateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+private val ItemHorizontalWidth = 65.dp
+private const val PermissionModeMaxLength = 3

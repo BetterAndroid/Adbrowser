@@ -158,7 +158,7 @@ fun DevicePairDialog(
             }
             Spacer(Modifier.height(12.dp))
             ButtonActionRow(
-                primaryText = strings.dialogPropertiesClose,
+                primaryText = strings.dialogCommonClose,
                 onPrimary = { viewModel.cancelAndClose(onCloseRequest) },
                 primaryEnabled = viewModel.canClose,
                 leadingText = leadingText,
