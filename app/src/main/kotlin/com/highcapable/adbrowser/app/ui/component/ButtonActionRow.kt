@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.interaction.LocalPrimaryActionController
 import org.jetbrains.jewel.foundation.theme.JewelTheme
+import org.jetbrains.jewel.ui.component.CheckboxRow
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.component.Text
@@ -48,13 +49,21 @@ fun ButtonActionRow(
     primaryText: String,
     onPrimary: () -> Unit,
     modifier: Modifier = Modifier,
+    tertiaryText: String? = null,
+    onTertiary: (() -> Unit)? = null,
     secondaryText: String? = null,
     onSecondary: (() -> Unit)? = null,
+    checkboxText: String? = null,
+    checkboxChecked: Boolean = false,
+    onCheckboxCheckedChange: ((Boolean) -> Unit)? = null,
     leadingText: String = "",
     leadingTextColor: Color = JewelTheme.contentColor,
     primaryEnabled: Boolean = true,
+    tertiaryEnabled: Boolean = true,
     secondaryEnabled: Boolean = true,
+    checkboxEnabled: Boolean = true,
     primaryButtonWidth: Dp = 80.dp,
+    tertiaryButtonWidth: Dp = 80.dp,
     secondaryButtonWidth: Dp = 80.dp
 ) {
     val primaryActionController = LocalPrimaryActionController.current
@@ -72,15 +81,40 @@ fun ButtonActionRow(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.Bottom
     ) {
-        Text(
-            text = leadingText,
-            color = leadingTextColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Row(
             modifier = Modifier
-                .padding(end = 10.dp)
                 .weight(1f)
-        )
+                .padding(end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (checkboxText != null && onCheckboxCheckedChange != null) {
+                CheckboxRow(
+                    text = checkboxText,
+                    checked = checkboxChecked,
+                    onCheckedChange = onCheckboxCheckedChange,
+                    enabled = checkboxEnabled
+                )
+                if (leadingText.isNotEmpty()) Spacer(Modifier.width(12.dp))
+            }
+            if (leadingText.isNotEmpty())
+                Text(
+                    text = leadingText,
+                    color = leadingTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+        }
+        if (tertiaryText != null && onTertiary != null) {
+            OutlinedButton(
+                enabled = tertiaryEnabled,
+                onClick = onTertiary,
+                modifier = Modifier.width(tertiaryButtonWidth)
+            ) {
+                Text(tertiaryText)
+            }
+            Spacer(Modifier.width(12.dp))
+        }
         if (secondaryText != null && onSecondary != null) {
             OutlinedButton(
                 enabled = secondaryEnabled,
