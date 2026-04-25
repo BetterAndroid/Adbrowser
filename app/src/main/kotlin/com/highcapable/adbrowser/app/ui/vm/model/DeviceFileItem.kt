@@ -35,7 +35,7 @@ data class DeviceFileItem(
     val modifiedAt: Instant,
     val permission: String,
     val isDirectory: Boolean,
-    val isSymbolicLink: Boolean = false
+    val isSymlink: Boolean = false
 ) {
 
     /**
@@ -63,7 +63,7 @@ data class DeviceFileItem(
             modifiedAt = entry.modifiedAt,
             permission = entry.permission,
             isDirectory = entry.isDirectory,
-            isSymbolicLink = entry.isSymlink
+            isSymlink = entry.isSymlink
         )
     }
 }

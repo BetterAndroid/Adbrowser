@@ -1540,7 +1540,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             name = entry.name,
             fullPath = buildEntryFullPath(entry),
             isDirectory = entry.isDirectory,
-            isSymlink = entry.isSymbolicLink,
+            isSymlink = entry.isSymlink,
             sizeBytes = entry.sizeBytes,
             modifiedAt = entry.modifiedAt,
             symbolicPermission = entry.permission

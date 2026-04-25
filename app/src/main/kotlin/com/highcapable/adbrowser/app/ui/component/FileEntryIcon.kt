@@ -43,9 +43,9 @@ fun FileEntryIcon(
 
     ContentIcon(
         key = when {
-            item.isDirectory && item.isSymbolicLink -> AppIcons.LinkedFolder
+            item.isDirectory && item.isSymlink -> AppIcons.LinkedFolder
             item.isDirectory -> AppIcons.Folder
-            item.isSymbolicLink -> AppIcons.LinkedFile
+            item.isSymlink -> AppIcons.LinkedFile
             else -> AppIcons.File
         },
         selected = selected,
