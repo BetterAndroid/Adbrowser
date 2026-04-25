@@ -1064,15 +1064,25 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 ownerWindow = window,
                 onConfirm = viewModel::confirmDeleteSelectedEntry
             )
-        is MainStageModel.DialogState.DeleteError ->
+        is MainStageModel.DialogState.FileOperationFailure ->
             ConfirmDialog(
-                icon = ConfirmDialogIcon.Question,
-                title = strings.dialogDeleteErrorTitle,
-                message = DeleteErrorMessage(state),
-                confirmText = strings.dialogCommonOk,
-                onCloseRequest = viewModel::dismissDialog,
+                icon = ConfirmDialogIcon.Warning,
+                title = strings.dialogFileOperationFailureTitle,
+                message = FileOperationFailureMessage(state),
+                confirmText = strings.dialogCommonRetry,
+                cancelText = strings.dialogCommonSkip,
+                tertiaryText = strings.dialogCommonCancel,
+                checkboxText = strings.dialogFileOperationFailureApplyToSubsequent,
+                checkboxChecked = state.applyToSubsequent,
+                onCheckboxCheckedChange = viewModel::setFileOperationFailureApplyToSubsequent,
+                onCloseRequest = viewModel::cancelFileOperationFailure,
+                onCancel = viewModel::skipFileOperationFailure,
+                onTertiary = viewModel::cancelFileOperationFailure,
                 ownerWindow = window,
-                onConfirm = { true }
+                onConfirm = {
+                    viewModel.retryFileOperationFailure()
+                    false
+                }
             )
         is MainStageModel.DialogState.RenameError ->
             ConfirmDialog(
@@ -1121,14 +1131,16 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
 }
 
 @Composable
-private fun DeleteErrorMessage(state: MainStageModel.DialogState.DeleteError): String {
+private fun FileOperationFailureMessage(state: MainStageModel.DialogState.FileOperationFailure): String {
     val detail = state.rawMessage
         ?.takeIf { it.isNotBlank() && it != MainStageModel.UNKNOWN_ERROR_TOKEN }
         ?: strings.commonUnknownError
 
-    return when (state.kind) {
-        MainStageModel.DialogState.DeleteErrorKind.PermissionDenied -> strings.dialogDeleteErrorPermissionDenied
-        MainStageModel.DialogState.DeleteErrorKind.Generic -> strings.dialogDeleteErrorGeneric.formatWithArgs(detail)
+    // TODO: Use more specific messages for different failure types, e.g. permission denied, target already exists, etc.
+    return when (state.type) {
+        MainStageModel.FileOperationType.Delete -> strings.dialogFileOperationFailureDelete.formatWithArgs(state.itemName, detail)
+        MainStageModel.FileOperationType.Copy -> strings.dialogFileOperationFailureCopy.formatWithArgs(state.itemName, detail)
+        MainStageModel.FileOperationType.Cut -> strings.dialogFileOperationFailureCut.formatWithArgs(state.itemName, detail)
     }
 }
 

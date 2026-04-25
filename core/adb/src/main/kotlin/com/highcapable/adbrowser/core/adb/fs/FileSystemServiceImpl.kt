@@ -102,23 +102,28 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         TODO()
     }
 
-    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<Unit> {
+    override suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<DeviceFileEntry> {
         val normalizedFolderName = folderName.toNormalizeFileName()
-        checkEntryNameConflict(
+        val targetPath = buildChildPath(parentPath, normalizedFolderName)
+        checkEntryNameConflict<DeviceFileEntry>(
             parentPath = parentPath,
             entryName = normalizedFolderName,
             listResult = list(device, parentPath)
         )?.let { return it }
 
-        return runner.exec {
+        return runner.exec<DeviceFileEntry> {
             val command = ShellArguments {
                 add("mkdir", "-p")
-                addQuotes(buildChildPath(parentPath, normalizedFolderName))
+                addQuotes(targetPath)
             }
             val response = shellExecutor.execute(device, command)
 
-            if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Created folder '$normalizedFolderName' under '$parentPath'.")
-            null to response
+            if (response.isOk) logService.log(
+                LogLevel.Information,
+                CATEGORY,
+                "Created folder '$normalizedFolderName' under '$parentPath'."
+            )
+            inspectEntry(device, targetPath) to response
         }
     }
 
@@ -133,24 +138,28 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         null to response
     }
 
-    override suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<Unit> {
+    override suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<DeviceFileEntry> {
         val normalizedSourcePath = normalizeAbsolutePath(path)
         val normalizedNewName = newName.toNormalizeFileName()
         val targetPath = buildTargetPath(normalizedSourcePath, normalizedNewName)
 
         if (targetPath == normalizedSourcePath) {
-            logService.log(LogLevel.Information, CATEGORY, "Skipped rename for '$normalizedSourcePath' because the target name is unchanged.")
-            return OperationResult.ok()
+            logService.log(
+                LogLevel.Information,
+                CATEGORY,
+                "Skipped rename for '$normalizedSourcePath' because the target name is unchanged."
+            )
+            return OperationResult.success(inspectEntry(device, normalizedSourcePath))
         }
 
         val parentPath = resolveParentPath(normalizedSourcePath)
-        checkEntryNameConflict(
+        checkEntryNameConflict<DeviceFileEntry>(
             parentPath = parentPath,
             entryName = normalizedNewName,
             listResult = list(device, parentPath)
         )?.let { return it }
 
-        return runner.exec {
+        return runner.exec<DeviceFileEntry> {
             val command = ShellArguments {
                 add("mv")
                 addQuotes(normalizedSourcePath, targetPath)
@@ -158,11 +167,11 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
             val response = shellExecutor.execute(device, command)
 
             if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Renamed '$normalizedSourcePath' to '$targetPath'.")
-            null to response
+            inspectEntry(device, targetPath) to response
         }
     }
 
-    override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
+    override suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec<DeviceFileEntry> {
         val command = ShellArguments {
             add("cp", "-a")
             addQuotes(sourcePath, targetPath)
@@ -170,10 +179,10 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         val response = shellExecutor.execute(device, command)
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Copied '$sourcePath' to '$targetPath'.")
-        null to response
+        inspectEntry(device, targetPath) to response
     }
 
-    override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec {
+    override suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String) = runner.exec<DeviceFileEntry> {
         val command = ShellArguments {
             add("mv")
             addQuotes(sourcePath, targetPath)
@@ -181,7 +190,7 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         val response = shellExecutor.execute(device, command)
 
         if (response.isOk) logService.log(LogLevel.Information, CATEGORY, "Moved '$sourcePath' to '$targetPath'.")
-        null to response
+        inspectEntry(device, targetPath) to response
     }
 
     private fun normalizeDirectoryListPath(path: String): String {
@@ -228,11 +237,11 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
      * with the same name already exists, we stop the write operation before constructing shell
      * commands such as `mkdir` or future `touch`.
      */
-    private fun checkEntryNameConflict(
+    private fun <T> checkEntryNameConflict(
         parentPath: String,
         entryName: String,
         listResult: OperationResult<List<DeviceFileEntry>>
-    ): OperationResult<Unit>? {
+    ): OperationResult<T>? {
         if (!listResult.isOk) return OperationResult.failure(listResult.errorMessage ?: "Failed to inspect '$parentPath'.")
 
         if (listResult.data.orEmpty().none { it.name == entryName }) return null
@@ -282,6 +291,35 @@ class FileSystemServiceImpl(private val shellExecutor: AdbShellExecutor, private
         }
 
         return result
+    }
+
+    /**
+     * Reads one concrete target entry right after a write operation so the caller can update the
+     * UI incrementally without forcing a full directory reload.
+     *
+     * We intentionally treat lookup failure as a soft backend miss and return `null` instead of
+     * failing the whole write. The copy/move already succeeded at that point, so callers can still
+     * fall back to a later refresh if metadata probing is unavailable on the current device shell.
+     */
+    private suspend fun inspectEntry(device: AndroidDevice, targetPath: String): DeviceFileEntry? {
+        val normalizedTargetPath = normalizeAbsolutePath(targetPath)
+        val parentPath = resolveParentPath(normalizedTargetPath)
+        val command = ShellArguments {
+            add("ls", "-lad")
+            addQuotes(normalizedTargetPath)
+        }
+        val response = runCatching { shellExecutor.execute(device, command) }.getOrNull() ?: return null
+        if (!response.isOk) return null
+
+        val entries = parseLsOutput(parentPath, response.standardOutput)
+            .map {
+                if ('/' in it.name) it.copy(name = it.name.substringAfterLast('/'))
+                else it
+            }
+            .toMutableList()
+
+        resolveSymlinkDirectoryFlags(device, entries)
+        return entries.firstOrNull()
     }
 
     private fun parseModifiedAt(tokens: List<String>, nameStartIndex: Int): Instant {

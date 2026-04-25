@@ -58,6 +58,34 @@ class FileSystemServiceImplTest {
     }
 
     @Test
+    fun createFolderReturnsCreatedEntryWhenInspectSucceeds() = runBlocking {
+        val shellExecutor = FakeAdbShellExecutor(
+            listResponse = successResponse(""),
+            inspectResponse = successResponse(
+                """
+                drwxr-xr-x 2 root root 0 2026-04-23 12:00 /sdcard/new-folder
+                """.trimIndent()
+            )
+        )
+        val service = FileSystemServiceImpl(shellExecutor, FakeLogService())
+
+        val result = service.createFolder(device = testDevice, parentPath = "/sdcard", folderName = "new-folder")
+
+        assertTrue(result.isOk, result.errorMessage ?: "Create folder should succeed when shell command succeeds.")
+        assertEquals("new-folder", result.data?.name)
+        assertEquals("/sdcard", result.data?.path)
+        assertTrue(result.data?.isDirectory == true)
+        assertEquals(
+            listOf(
+                "ls -la '/sdcard/'",
+                "mkdir -p '/sdcard/new-folder'",
+                "ls -lad '/sdcard/new-folder'"
+            ),
+            shellExecutor.commands
+        )
+    }
+
+    @Test
     fun renameReturnsFailureWhenSiblingWithSameNameAlreadyExists() = runBlocking {
         val shellExecutor = FakeAdbShellExecutor(
             listResponse = successResponse(
@@ -78,13 +106,20 @@ class FileSystemServiceImplTest {
 
     @Test
     fun renameSkipsShellExecutionWhenTargetNameIsUnchanged() = runBlocking {
-        val shellExecutor = FakeAdbShellExecutor()
+        val shellExecutor = FakeAdbShellExecutor(
+            inspectResponse = successResponse(
+                """
+                -rw-r--r-- 1 root root 0 2026-04-23 12:00 /sdcard/current.txt
+                """.trimIndent()
+            )
+        )
         val service = FileSystemServiceImpl(shellExecutor, FakeLogService())
 
         val result = service.rename(device = testDevice, path = "/sdcard/current.txt", newName = "current.txt")
 
         assertTrue(result.isOk)
-        assertTrue(shellExecutor.commands.isEmpty())
+        assertEquals("current.txt", result.data?.name)
+        assertEquals(listOf("ls -lad '/sdcard/current.txt'"), shellExecutor.commands)
     }
 
     @Test
@@ -94,6 +129,11 @@ class FileSystemServiceImplTest {
                 """
                 -rw-r--r-- 1 root root 0 2026-04-23 12:00 current.txt
                 """.trimIndent()
+            ),
+            inspectResponse = successResponse(
+                """
+                -rw-r--r-- 1 root root 0 2026-04-23 12:00 /sdcard/renamed.txt
+                """.trimIndent()
             )
         )
         val service = FileSystemServiceImpl(shellExecutor, FakeLogService())
@@ -101,10 +141,62 @@ class FileSystemServiceImplTest {
         val result = service.rename(device = testDevice, path = "/sdcard/current.txt", newName = "renamed.txt")
 
         assertTrue(result.isOk, result.errorMessage ?: "Rename should succeed when no sibling conflict exists.")
+        assertEquals("renamed.txt", result.data?.name)
         assertEquals(
             listOf(
                 "ls -la '/sdcard/'",
-                "mv '/sdcard/current.txt' '/sdcard/renamed.txt'"
+                "mv '/sdcard/current.txt' '/sdcard/renamed.txt'",
+                "ls -lad '/sdcard/renamed.txt'"
+            ),
+            shellExecutor.commands
+        )
+    }
+
+    @Test
+    fun copyReturnsTargetEntryWhenInspectSucceeds() = runBlocking {
+        val shellExecutor = FakeAdbShellExecutor(
+            inspectResponse = successResponse(
+                """
+                -rw-r--r-- 1 root root 128 2026-04-23 12:01 /sdcard/copied.txt
+                """.trimIndent()
+            )
+        )
+        val service = FileSystemServiceImpl(shellExecutor, FakeLogService())
+
+        val result = service.copy(device = testDevice, sourcePath = "/sdcard/source.txt", targetPath = "/sdcard/copied.txt")
+
+        assertTrue(result.isOk, result.errorMessage ?: "Copy should succeed when shell command succeeds.")
+        assertEquals("copied.txt", result.data?.name)
+        assertEquals("/sdcard", result.data?.path)
+        assertEquals(128, result.data?.size)
+        assertEquals(
+            listOf(
+                "cp -a '/sdcard/source.txt' '/sdcard/copied.txt'",
+                "ls -lad '/sdcard/copied.txt'"
+            ),
+            shellExecutor.commands
+        )
+    }
+
+    @Test
+    fun moveStillSucceedsWhenTargetInspectFails() = runBlocking {
+        val shellExecutor = FakeAdbShellExecutor(
+            inspectResponse = AdbResponse(
+                exitCode = 1,
+                standardOutput = "",
+                standardError = "No such file or directory"
+            )
+        )
+        val service = FileSystemServiceImpl(shellExecutor, FakeLogService())
+
+        val result = service.move(device = testDevice, sourcePath = "/sdcard/source.txt", targetPath = "/sdcard/moved.txt")
+
+        assertTrue(result.isOk, result.errorMessage ?: "Move should still succeed when metadata inspection fails.")
+        assertEquals(null, result.data)
+        assertEquals(
+            listOf(
+                "mv '/sdcard/source.txt' '/sdcard/moved.txt'",
+                "ls -lad '/sdcard/moved.txt'"
             ),
             shellExecutor.commands
         )
@@ -112,6 +204,7 @@ class FileSystemServiceImplTest {
 
     private class FakeAdbShellExecutor(
         private val listResponse: AdbResponse = successResponse(),
+        private val inspectResponse: AdbResponse = successResponse(),
         private val writeResponse: AdbResponse = successResponse()
     ) : AdbShellExecutor {
 
@@ -120,7 +213,11 @@ class FileSystemServiceImplTest {
         override suspend fun execute(device: AndroidDevice, vararg arguments: Any): AdbResponse {
             val command = arguments.joinToString(" ") { it.toString() }
             commands += command
-            return if (command.startsWith("ls -la ")) listResponse else writeResponse
+            return when {
+                command.startsWith("ls -lad ") -> inspectResponse
+                command.startsWith("ls -la ") -> listResponse
+                else -> writeResponse
+            }
         }
     }
 

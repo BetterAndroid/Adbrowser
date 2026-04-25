@@ -44,7 +44,7 @@ interface FileSystemService {
     /**
      * Creates a folder on device.
      */
-    suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<Unit>
+    suspend fun createFolder(device: AndroidDevice, parentPath: String, folderName: String): OperationResult<DeviceFileEntry>
 
     /**
      * Deletes a file or directory.
@@ -54,15 +54,15 @@ interface FileSystemService {
     /**
      * Renames a file or directory.
      */
-    suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<Unit>
+    suspend fun rename(device: AndroidDevice, path: String, newName: String): OperationResult<DeviceFileEntry>
 
     /**
      * Copies a file or directory to target path.
      */
-    suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<Unit>
+    suspend fun copy(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<DeviceFileEntry>
 
     /**
      * Moves a file or directory to target path.
      */
-    suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<Unit>
+    suspend fun move(device: AndroidDevice, sourcePath: String, targetPath: String): OperationResult<DeviceFileEntry>
 }

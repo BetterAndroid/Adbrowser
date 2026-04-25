@@ -46,6 +46,7 @@ import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -74,21 +75,43 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data object DeviceConnect : DialogState
         data object DevicePair : DialogState
         data class DeleteConfirm(val entryCount: Int, val primaryEntryName: String?) : DialogState
-        data class DeleteError(val kind: DeleteErrorKind, val rawMessage: String?) : DialogState
+        data class FileOperationFailure(
+            val type: FileOperationType,
+            val itemName: String,
+            val rawMessage: String?,
+            val applyToSubsequent: Boolean = false
+        ) : DialogState
         data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
         data object CrossDevicePasteNotSupported : DialogState
-
-        enum class DeleteErrorKind {
-            PermissionDenied,
-            Generic
-        }
 
         enum class RenameErrorKind {
             AlreadyExists,
             Generic
         }
     }
+
+    enum class FileOperationType {
+        Delete,
+        Copy,
+        Cut
+    }
+
+    private enum class FileOperationFailureAction {
+        Retry,
+        Skip,
+        Cancel
+    }
+
+    private data class FileOperationFailureDecision(
+        val action: FileOperationFailureAction,
+        val applyToSubsequent: Boolean
+    )
+
+    private data class PendingFileOperationQueue(
+        val pendingDecision: CompletableDeferred<FileOperationFailureDecision>? = null,
+        val autoSkipFailures: Boolean = false
+    )
 
     /**
      * Status bar payloads are split between structured resource keys and raw backend messages.
@@ -194,6 +217,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private var pendingDeviceSelectionObserverJob: Job? = null
 
     private var clipboardEntry: ClipboardEntrySnapshot? = null
+    private var pendingFileOperationQueue: PendingFileOperationQueue? = null
     private var initialized = false
     private var busyCount = 0
     private val fallbackPathInput = TextFieldState("/")
@@ -547,31 +571,37 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
         val requestedPath = state.currentPath
         val folderName = buildAvailableNewFolderName(state, baseName)
-        val createdPath = if (requestedPath == "/")
-            "/$folderName"
-        else "${requestedPath.trimEnd('/')}/$folderName"
+        val createdPath = buildChildPath(requestedPath, folderName)
+        val domainDevice = device.toDomain()
 
         launchBusyAction {
-            val result = fileSystemService.createFolder(device.toDomain(), requestedPath, folderName)
+            val result = fileSystemService.createFolder(domainDevice, requestedPath, folderName)
             if (!result.isOk) {
                 setErrorStatus(result.errorMessage)
                 return@launchBusyAction
             }
 
             val refreshedState = ensureWorkspace(device)
-            val success = refreshEntriesInternal(
-                state = refreshedState,
-                device = device.toDomain(),
-                requestedPath = requestedPath
-            )
-            if (!success) return@launchBusyAction
-
-            refreshedState.currentEntries
-                .firstOrNull { buildEntryFullPath(it) == createdPath }
-                ?.let {
-                    beginInlineRename(device, it)
-                    refreshedState.pendingRevealEntryPath = createdPath
-                }
+            val createdEntry = result.data
+            when {
+                createdEntry != null ->
+                    appendEntryToVisibleDirectory(
+                        state = refreshedState,
+                        directoryPath = requestedPath,
+                        entry = createdEntry
+                    )
+                !refreshEntriesInternal(
+                    state = refreshedState,
+                    device = domainDevice,
+                    requestedPath = requestedPath
+                ) -> return@launchBusyAction
+                else -> refreshedState.currentEntries
+                    .firstOrNull { buildEntryFullPath(it) == createdPath }
+                    ?.let {
+                        beginInlineRename(device, it)
+                        refreshedState.pendingRevealEntryPath = createdPath
+                    }
+            }
         }
     }
 
@@ -662,8 +692,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /**
      * Commits the current inline rename request.
      *
-     * Success clears the editor immediately and then refreshes the current directory, restoring the
-     * renamed entry as the primary selection so keyboard navigation can continue seamlessly.
+     * Success now updates the visible directory incrementally from backend-returned metadata
+     * instead of forcing a whole-directory refresh for a single renamed entry.
      */
     fun confirmInlineRename(
         device: AndroidDeviceItem,
@@ -694,27 +724,29 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             return false
         }
 
-        state.entryDisplayNameOverrides[sourcePath] = targetName
         clearInlineRename(state)
 
-        val renamedPath = if (state.currentPath == "/")
-            "/$targetName"
-        else "${state.currentPath.trimEnd('/')}/$targetName"
+        val renamedPath = buildChildPath(state.currentPath, targetName)
+        val renamedEntry = result.data
 
-        if (restoreRenamedSelection) {
-            refreshEntriesAsync(device = device, requestedPath = state.currentPath) { success ->
-                if (!success) return@refreshEntriesAsync
+        if (renamedEntry != null) replaceEntryInVisibleDirectory(
+            state = state,
+            directoryPath = state.currentPath,
+            sourcePath = sourcePath,
+            entry = renamedEntry,
+            selectedPath = renamedPath.takeIf { restoreRenamedSelection }
+        ) else refreshEntriesAsync(device = device, requestedPath = state.currentPath) { success ->
+            if (!success) return@refreshEntriesAsync
 
-                workspace(device)?.let { refreshed ->
-                    setSelection(
-                        state = refreshed,
-                        selectedPaths = setOf(renamedPath),
-                        primaryPath = renamedPath,
-                        anchorPath = renamedPath
-                    )
-                }
+            workspace(device)?.let { refreshed ->
+                if (restoreRenamedSelection) setSelection(
+                    state = refreshed,
+                    selectedPaths = setOf(renamedPath),
+                    primaryPath = renamedPath,
+                    anchorPath = renamedPath
+                ) else setSelection(refreshed, emptySet())
             }
-        } else refreshEntriesAsync(device = device, requestedPath = state.currentPath)
+        }
 
         return true
     }
@@ -734,6 +766,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Opens the delete confirmation dialog for the current selection. */
     fun deleteSelectedEntry() {
+        if (pendingFileOperationQueue != null) return
+
         val entries = selectedEntries
         if (entries.isEmpty()) return
 
@@ -751,8 +785,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun confirmDeleteSelectedEntry(): Boolean {
         val device = selectedDevice ?: return false
+        val state = workspace(device) ?: return false
+
         val entries = selectedEntries
-        if (entries.isEmpty()) return false
+        if (entries.isEmpty() || pendingFileOperationQueue != null) return false
 
         val items = entries.map {
             ClipboardItemSnapshot(
@@ -760,23 +796,29 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 fullPath = buildEntryFullPath(it)
             )
         }
+        val directoryPath = state.currentPath
+        val domainDevice = device.toDomain()
 
         launchBusyAction {
-            items.forEach { item ->
-                val result = fileSystemService.delete(device.toDomain(), item.fullPath)
-                if (!result.isOk) {
-                    dialogState = DialogState.DeleteError(
-                        kind = resolveDeleteErrorKind(result.errorMessage),
-                        rawMessage = result.errorMessage
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { "${item.name}: $it" }
-                            ?: item.name
-                    )
-                    return@launchBusyAction
-                }
-            }
+            clearSelectedEntries(device)
+            pendingFileOperationQueue = PendingFileOperationQueue()
 
-            refreshEntriesAndClearSelection(device, requestedPath = currentPath)
+            for (item in items) {
+                val shouldContinue = executeQueuedFileOperation(
+                    type = FileOperationType.Delete,
+                    item = item,
+                    execute = { fileSystemService.delete(domainDevice, item.fullPath) },
+                    onSuccess = {
+                        removeEntryFromVisibleDirectory(
+                            state = state,
+                            directoryPath = directoryPath,
+                            deletedPath = item.fullPath
+                        )
+                    }
+                )
+                if (!shouldContinue) break
+            }
+            pendingFileOperationQueue = null
         }
 
         return true
@@ -830,8 +872,27 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         dialogState = DialogState.None
     }
 
+    fun setFileOperationFailureApplyToSubsequent(checked: Boolean) {
+        val state = dialogState as? DialogState.FileOperationFailure ?: return
+        dialogState = state.copy(applyToSubsequent = checked)
+    }
+
+    fun retryFileOperationFailure() {
+        resolveFileOperationFailure(FileOperationFailureAction.Retry)
+    }
+
+    fun skipFileOperationFailure() {
+        resolveFileOperationFailure(FileOperationFailureAction.Skip)
+    }
+
+    fun cancelFileOperationFailure() {
+        resolveFileOperationFailure(FileOperationFailureAction.Cancel)
+    }
+
     /** Copies the current selection into the in-memory clipboard snapshot. */
     fun copySelectedEntry() {
+        if (pendingFileOperationQueue != null) return
+
         val device = selectedDevice
         val entries = selectedEntries
         if (device == null || entries.isEmpty()) return
@@ -850,6 +911,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Cuts the current selection into the in-memory clipboard snapshot. */
     fun cutSelectedEntry() {
+        if (pendingFileOperationQueue != null) return
+
         val device = selectedDevice
         val entries = selectedEntries
         if (device == null || entries.isEmpty()) return
@@ -874,35 +937,224 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun pasteToCurrentPath() {
         val device = selectedDevice ?: return
+        val state = workspace(device) ?: return
         val clipboard = clipboardEntry ?: return
+        if (pendingFileOperationQueue != null) return
 
         if (clipboard.device != device) {
             dialogState = DialogState.CrossDevicePasteNotSupported
             return
         }
 
+        val directoryPath = state.currentPath
+        val domainDevice = device.toDomain()
+        val operationType = if (clipboard.isCut) FileOperationType.Cut else FileOperationType.Copy
+
         launchBusyAction {
-            clipboard.items.forEach { item ->
-                val targetPath = if (currentPath == "/")
-                    "/${item.name}"
-                else "${currentPath.trimEnd('/')}/${item.name}"
+            clearSelectedEntries(device)
+            pendingFileOperationQueue = PendingFileOperationQueue()
 
-                val result = if (clipboard.isCut) {
-                    fileSystemService.move(device.toDomain(), item.fullPath, targetPath)
-                } else {
-                    fileSystemService.copy(device.toDomain(), item.fullPath, targetPath)
-                }
+            var completedAllItems = true
 
-                if (!result.isOk) {
-                    setErrorStatus(result.errorMessage?.let { "${item.name}: $it" } ?: item.name)
-                    return@launchBusyAction
+            for (item in clipboard.items) {
+                val targetPath = buildChildPath(directoryPath, item.name)
+                val shouldContinue = executeQueuedFileOperation(
+                    type = operationType,
+                    item = item,
+                    execute = {
+                        if (clipboard.isCut) fileSystemService.move(domainDevice, item.fullPath, targetPath)
+                        else fileSystemService.copy(domainDevice, item.fullPath, targetPath)
+                    },
+                    onSuccess = { pastedEntry ->
+                        if (clipboard.isCut) removeCutClipboardItem(item.fullPath)
+                        if (pastedEntry != null) appendEntryToVisibleDirectory(
+                            state = state,
+                            directoryPath = directoryPath,
+                            entry = pastedEntry
+                        ) else refreshVisibleDirectoryAfterQueuedWrite(
+                            state = state,
+                            device = domainDevice,
+                            directoryPath = directoryPath
+                        )
+                    }
+                )
+                if (!shouldContinue) {
+                    completedAllItems = false
+                    break
                 }
             }
 
-            if (clipboard.isCut) clipboardEntry = null
-
-            selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
+            if (clipboard.isCut && completedAllItems) clipboardEntry = null
+            pendingFileOperationQueue = null
         }
+    }
+
+    private suspend fun <T> executeQueuedFileOperation(
+        type: FileOperationType,
+        item: ClipboardItemSnapshot,
+        execute: suspend () -> OperationResult<T>,
+        onSuccess: suspend (T?) -> Unit
+    ): Boolean {
+        while (true) {
+            val result = execute()
+            if (result.isOk) {
+                onSuccess(result.data)
+                return true
+            }
+
+            return when (awaitFileOperationFailureDecision(type, item, result.errorMessage)) {
+                FileOperationFailureAction.Retry -> continue
+                FileOperationFailureAction.Skip -> true
+                FileOperationFailureAction.Cancel -> false
+            }
+        }
+    }
+
+    private suspend fun awaitFileOperationFailureDecision(
+        type: FileOperationType,
+        item: ClipboardItemSnapshot,
+        errorMessage: String?
+    ): FileOperationFailureAction {
+        val queue = pendingFileOperationQueue ?: return FileOperationFailureAction.Cancel
+        if (queue.autoSkipFailures) return FileOperationFailureAction.Skip
+
+        val deferred = CompletableDeferred<FileOperationFailureDecision>()
+        pendingFileOperationQueue = queue.copy(pendingDecision = deferred)
+        dialogState = DialogState.FileOperationFailure(
+            type = type,
+            itemName = item.name,
+            rawMessage = errorMessage.orUnknownErrorToken()
+        )
+
+        val decision = deferred.await()
+        pendingFileOperationQueue = pendingFileOperationQueue?.copy(
+            pendingDecision = null,
+            autoSkipFailures = pendingFileOperationQueue?.autoSkipFailures == true ||
+                (decision.action == FileOperationFailureAction.Skip && decision.applyToSubsequent)
+        )
+
+        return decision.action
+    }
+
+    private fun resolveFileOperationFailure(action: FileOperationFailureAction) {
+        val deferred = pendingFileOperationQueue?.pendingDecision ?: run {
+            dialogState = DialogState.None
+            return
+        }
+        val applyToSubsequent = when (action) {
+            FileOperationFailureAction.Retry -> false
+            FileOperationFailureAction.Skip -> (dialogState as? DialogState.FileOperationFailure)?.applyToSubsequent == true
+            FileOperationFailureAction.Cancel -> false
+        }
+
+        dialogState = DialogState.None
+        if (!deferred.isCompleted) deferred.complete(
+            FileOperationFailureDecision(
+                action = action,
+                applyToSubsequent = applyToSubsequent
+            )
+        )
+    }
+
+    private fun removeCutClipboardItem(fullPath: String) {
+        val clipboard = clipboardEntry ?: return
+        if (!clipboard.isCut) return
+
+        val remainingItems = clipboard.items.filterNot { it.fullPath == fullPath }
+        clipboardEntry = clipboard.copy(items = remainingItems).takeIf { it.items.isNotEmpty() }
+    }
+
+    private fun removeEntryFromVisibleDirectory(
+        state: DeviceWorkspaceState,
+        directoryPath: String,
+        deletedPath: String
+    ) {
+        if (state.currentPath != directoryPath) return
+
+        state.currentEntries.removeAll { buildEntryFullPath(it) == deletedPath }
+        clearVisibleEntryArtifacts(state, deletedPath)
+        finalizeVisibleDirectoryMutation(state)
+    }
+
+    /**
+     * Inserts one freshly pasted entry into the current directory snapshot without reloading the
+     * whole folder. Backend copy/move now returns the target metadata, so we only fall back to a
+     * directory refresh when that metadata lookup was unavailable.
+     */
+    private fun appendEntryToVisibleDirectory(
+        state: DeviceWorkspaceState,
+        directoryPath: String,
+        entry: DeviceFileEntry
+    ) {
+        if (state.currentPath != directoryPath) return
+
+        upsertVisibleEntry(state, entry)
+        finalizeVisibleDirectoryMutation(state)
+    }
+
+    private fun replaceEntryInVisibleDirectory(
+        state: DeviceWorkspaceState,
+        directoryPath: String,
+        sourcePath: String,
+        entry: DeviceFileEntry,
+        selectedPath: String? = null
+    ) {
+        if (state.currentPath != directoryPath) return
+
+        clearVisibleEntryArtifacts(state, sourcePath)
+        state.currentEntries.removeAll { buildEntryFullPath(it) == sourcePath }
+        upsertVisibleEntry(state, entry)
+        finalizeVisibleDirectoryMutation(state, selectedPath)
+    }
+
+    private suspend fun refreshVisibleDirectoryAfterQueuedWrite(
+        state: DeviceWorkspaceState,
+        device: AndroidDevice,
+        directoryPath: String
+    ) {
+        if (state.currentPath != directoryPath) return
+
+        refreshEntriesInternal(
+            state = state,
+            device = device,
+            requestedPath = directoryPath
+        )
+        setSelection(state, emptySet())
+    }
+
+    private fun upsertVisibleEntry(state: DeviceWorkspaceState, entry: DeviceFileEntry) {
+        val normalizedPath = normalizePath(buildEntryFullPath(entry))
+        val existingIndex = state.currentEntries.indexOfFirst { normalizePath(buildEntryFullPath(it)) == normalizedPath }
+        val newItem = DeviceFileItem.from(entry)
+
+        if (existingIndex >= 0) state.currentEntries[existingIndex] = newItem
+        else state.currentEntries += newItem
+
+        if (entry.isDirectory) {
+            val snapshot = snapshotOf(state.device.toDomain(), entry)
+            state.directorySnapshots[snapshot.fullPath] = snapshot
+        }
+    }
+
+    private fun clearVisibleEntryArtifacts(state: DeviceWorkspaceState, fullPath: String) {
+        val entryPrefix = "${fullPath.trimEnd('/')}/"
+        state.directorySnapshots.keys.removeAll { path -> path == fullPath || path.startsWith(entryPrefix) }
+        state.entryDisplayNameOverrides.keys.removeAll { path -> path == fullPath || path.startsWith(entryPrefix) }
+        if (state.pendingRevealEntryPath == fullPath || state.pendingRevealEntryPath?.startsWith(entryPrefix) == true)
+            state.pendingRevealEntryPath = null
+    }
+
+    private fun finalizeVisibleDirectoryMutation(state: DeviceWorkspaceState, selectedPath: String? = null) {
+        applySort(state)
+        state.fileListHint = if (state.currentEntries.isEmpty()) FileListHint.EmptyFolder else FileListHint.None
+        if (selectedPath != null) setSelection(
+            state = state,
+            selectedPaths = setOf(selectedPath),
+            primaryPath = selectedPath,
+            anchorPath = selectedPath
+        ) else setSelection(state, emptySet())
+
+        clearStatusForFileSummaryIfNeeded(state)
     }
 
     /** Selects all visible entries in the active workspace. */
@@ -2085,6 +2337,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         "/${entry.name}"
     else "${entry.path.trimEnd('/')}/${entry.name}"
 
+    private fun buildChildPath(parentPath: String, childName: String) = if (parentPath == "/")
+        "/$childName"
+    else "${parentPath.trimEnd('/')}/$childName"
+
     private fun normalizePath(path: String): String {
         if (path.isBlank()) return "/"
 
@@ -2117,11 +2373,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private fun resolveRenameErrorKind(message: String?) = when {
         "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
         else -> DialogState.RenameErrorKind.Generic
-    }
-
-    private fun resolveDeleteErrorKind(message: String?) = when {
-        "permission denied" in message.orEmpty().lowercase() -> DialogState.DeleteErrorKind.PermissionDenied
-        else -> DialogState.DeleteErrorKind.Generic
     }
 
     /**
