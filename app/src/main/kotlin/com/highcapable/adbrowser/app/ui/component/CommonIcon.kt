@@ -51,3 +51,21 @@ fun ContentIcon(
         tint = if (selected) Color.White else tint.orNull() ?: contentColor
     )
 }
+
+@Composable
+fun NormalIcon(
+    key: IconKey,
+    enabled: Boolean = true,
+    contentDescription: String = "Normal icon",
+    modifier: Modifier = Modifier,
+    iconClass: Class<*> = key.iconClass,
+    tint: Color = Color.Unspecified
+) {
+    Icon(
+        key = key,
+        contentDescription = contentDescription,
+        modifier = modifier.componentState(enabled),
+        iconClass = iconClass,
+        tint = tint
+    )
+}

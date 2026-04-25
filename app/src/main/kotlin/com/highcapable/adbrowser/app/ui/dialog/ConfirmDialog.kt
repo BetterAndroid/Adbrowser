@@ -22,8 +22,17 @@
  */
 package com.highcapable.adbrowser.app.ui.dialog
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
+import com.highcapable.adbrowser.app.ui.component.NormalIcon
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import org.jetbrains.jewel.ui.component.Text
@@ -37,6 +46,7 @@ fun ConfirmDialog(
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null,
     cancelText: String? = null,
+    icon: ConfirmDialogIcon = ConfirmDialogIcon.Information,
     onConfirm: () -> Boolean
 ) {
     DialogScaffold(
@@ -45,8 +55,21 @@ fun ConfirmDialog(
         ownerWindow = ownerWindow
     ) {
         ProvidePrimaryAction(window) {
-            Text(message)
-
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NormalIcon(
+                    key = when (icon) {
+                        ConfirmDialogIcon.Information -> AppIcons.DialogInformation
+                        ConfirmDialogIcon.Warning -> AppIcons.DialogWarning
+                        ConfirmDialogIcon.Question -> AppIcons.DialogQuestion
+                    },
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.size(12.dp))
+                Text(message)
+            }
             ButtonActionRow(
                 primaryText = confirmText,
                 onPrimary = {
@@ -57,4 +80,10 @@ fun ConfirmDialog(
             )
         }
     }
+}
+
+enum class ConfirmDialogIcon { 
+    Information,
+    Warning,
+    Question
 }

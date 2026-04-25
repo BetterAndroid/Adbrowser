@@ -52,4 +52,7 @@ object AppIcons : AppAssets("icons") {
     val Ellipsis = createSvg("Ellipsis")
     val File = createSvg("File")
     val Home = createSvg("Home")
+    val DialogInformation = createSvg("DialogInformation")
+    val DialogWarning = createSvg("DialogWarning")
+    val DialogQuestion = createSvg("DialogQuestion")
 }

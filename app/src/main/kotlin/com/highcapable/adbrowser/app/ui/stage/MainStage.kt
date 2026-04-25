@@ -103,6 +103,7 @@ import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
+import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialogIcon
 import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
 import com.highcapable.adbrowser.app.ui.dialog.DevicePairDialog
 import com.highcapable.adbrowser.app.ui.dialog.FilePropertiesDialog
@@ -1052,6 +1053,7 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
             )
         is MainStageModel.DialogState.DeleteConfirm ->
             ConfirmDialog(
+                icon = ConfirmDialogIcon.Question,
                 title = strings.dialogDeleteTitle,
                 message = if (state.entryCount > 1)
                     strings.dialogDeleteConfirmMultiple.formatWithArgs(state.entryCount)
@@ -1064,6 +1066,7 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
             )
         is MainStageModel.DialogState.DeleteError ->
             ConfirmDialog(
+                icon = ConfirmDialogIcon.Question,
                 title = strings.dialogDeleteErrorTitle,
                 message = DeleteErrorMessage(state),
                 confirmText = strings.dialogCommonOk,
@@ -1073,6 +1076,7 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
             )
         is MainStageModel.DialogState.RenameError ->
             ConfirmDialog(
+                icon = ConfirmDialogIcon.Warning,
                 title = strings.dialogRenameErrorTitle,
                 message = RenameErrorMessage(state),
                 confirmText = strings.dialogCommonOk,
