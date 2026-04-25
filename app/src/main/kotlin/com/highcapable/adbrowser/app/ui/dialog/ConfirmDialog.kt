@@ -46,7 +46,16 @@ fun ConfirmDialog(
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null,
     cancelText: String? = null,
+    tertiaryText: String? = null,
     icon: ConfirmDialogIcon = ConfirmDialogIcon.Information,
+    confirmEnabled: Boolean = true,
+    cancelEnabled: Boolean = true,
+    tertiaryEnabled: Boolean = true,
+    checkboxText: String? = null,
+    checkboxChecked: Boolean = false,
+    checkboxEnabled: Boolean = true,
+    onCheckboxCheckedChange: ((Boolean) -> Unit)? = null,
+    onTertiary: (() -> Unit)? = null,
     onConfirm: () -> Boolean
 ) {
     DialogScaffold(
@@ -75,8 +84,17 @@ fun ConfirmDialog(
                 onPrimary = {
                     if (onConfirm()) onCloseRequest()
                 },
+                primaryEnabled = confirmEnabled,
                 secondaryText = cancelText,
-                onSecondary = onCloseRequest
+                onSecondary = onCloseRequest,
+                secondaryEnabled = cancelEnabled,
+                tertiaryText = tertiaryText,
+                onTertiary = onTertiary,
+                tertiaryEnabled = tertiaryEnabled,
+                checkboxText = checkboxText,
+                checkboxChecked = checkboxChecked,
+                checkboxEnabled = checkboxEnabled,
+                onCheckboxCheckedChange = onCheckboxCheckedChange
             )
         }
     }
