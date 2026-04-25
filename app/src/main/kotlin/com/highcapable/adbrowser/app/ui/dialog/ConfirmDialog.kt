@@ -55,6 +55,7 @@ fun ConfirmDialog(
     checkboxChecked: Boolean = false,
     checkboxEnabled: Boolean = true,
     onCheckboxCheckedChange: ((Boolean) -> Unit)? = null,
+    onCancel: (() -> Unit)? = null,
     onTertiary: (() -> Unit)? = null,
     onConfirm: () -> Boolean
 ) {
@@ -86,7 +87,7 @@ fun ConfirmDialog(
                 },
                 primaryEnabled = confirmEnabled,
                 secondaryText = cancelText,
-                onSecondary = onCloseRequest,
+                onSecondary = onCancel ?: onCloseRequest,
                 secondaryEnabled = cancelEnabled,
                 tertiaryText = tertiaryText,
                 onTertiary = onTertiary,
@@ -100,7 +101,7 @@ fun ConfirmDialog(
     }
 }
 
-enum class ConfirmDialogIcon { 
+enum class ConfirmDialogIcon {
     Information,
     Warning,
     Question
