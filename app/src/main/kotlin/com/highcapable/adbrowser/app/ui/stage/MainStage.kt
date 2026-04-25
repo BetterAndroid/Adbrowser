@@ -1092,6 +1092,15 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 applyPermission = { viewModel.applyPermission(state.snapshot, it) },
                 ownerWindow = window
             )
+        is MainStageModel.DialogState.CrossDevicePasteNotSupported ->
+            ConfirmDialog(
+                title = strings.dialogCommonTitle,
+                message = strings.dialogCrossDevicePasteNotSupported,
+                confirmText = strings.dialogCommonOk,
+                onCloseRequest = viewModel::dismissDialog,
+                ownerWindow = window,
+                onConfirm = { true }
+            )
     }
 }
 
@@ -1106,14 +1115,6 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
             MainStageModel.StatusMessage.Key.DeviceConnectionPending -> strings.statusDeviceConnectionPending
             MainStageModel.StatusMessage.Key.DeviceConnected -> strings.statusDeviceConnected
             MainStageModel.StatusMessage.Key.DeviceDisconnected -> strings.statusDeviceDisconnected
-            MainStageModel.StatusMessage.Key.Copied -> strings.statusCopied
-            MainStageModel.StatusMessage.Key.CopiedMultiple -> strings.statusCopiedMultiple
-            MainStageModel.StatusMessage.Key.Cut -> strings.statusCut
-            MainStageModel.StatusMessage.Key.CutMultiple -> strings.statusCutMultiple
-            MainStageModel.StatusMessage.Key.ClipboardEmpty -> strings.statusClipboardEmpty
-            MainStageModel.StatusMessage.Key.CrossDevicePasteNotSupported -> strings.statusCrossDevicePasteNotSupported
-            MainStageModel.StatusMessage.Key.Pasted -> strings.statusPasted
-            MainStageModel.StatusMessage.Key.PastedMultiple -> strings.statusPastedMultiple
         }
         template.formatWithArgs(*status.args.toTypedArray())
     }

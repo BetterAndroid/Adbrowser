@@ -77,6 +77,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         data class DeleteError(val kind: DeleteErrorKind, val rawMessage: String?) : DialogState
         data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
         data class Properties(val snapshot: FileEntrySnapshot) : DialogState
+        data object CrossDevicePasteNotSupported : DialogState
 
         enum class DeleteErrorKind {
             PermissionDenied,
@@ -104,15 +105,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             DevicesUpdated,
             DeviceConnectionPending,
             DeviceConnected,
-            DeviceDisconnected,
-            Copied,
-            CopiedMultiple,
-            Cut,
-            CutMultiple,
-            ClipboardEmpty,
-            CrossDevicePasteNotSupported,
-            Pasted,
-            PastedMultiple
+            DeviceDisconnected
         }
     }
 
@@ -853,9 +846,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             },
             isCut = false
         )
-        if (entries.size == 1)
-            setStatus(StatusMessage.Key.Copied, entries.first().name)
-        else setStatus(StatusMessage.Key.CopiedMultiple, entries.size.toString())
     }
 
     /** Cuts the current selection into the in-memory clipboard snapshot. */
@@ -874,9 +864,6 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             },
             isCut = true
         )
-        if (entries.size == 1)
-            setStatus(StatusMessage.Key.Cut, entries.first().name)
-        else setStatus(StatusMessage.Key.CutMultiple, entries.size.toString())
     }
 
     /**
@@ -887,15 +874,10 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      */
     fun pasteToCurrentPath() {
         val device = selectedDevice ?: return
-
-        val clipboard = clipboardEntry
-        if (clipboard == null) {
-            setStatus(StatusMessage.Key.ClipboardEmpty)
-            return
-        }
+        val clipboard = clipboardEntry ?: return
 
         if (clipboard.device != device) {
-            setStatus(StatusMessage.Key.CrossDevicePasteNotSupported)
+            dialogState = DialogState.CrossDevicePasteNotSupported
             return
         }
 
@@ -918,9 +900,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             }
 
             if (clipboard.isCut) clipboardEntry = null
-            if (clipboard.items.size == 1)
-                setStatus(StatusMessage.Key.Pasted, clipboard.items.first().name)
-            else setStatus(StatusMessage.Key.PastedMultiple, clipboard.items.size.toString())
+
             selectedDevice?.let { refreshEntriesAndClearSelection(it, requestedPath = currentPath) }
         }
     }

@@ -96,6 +96,7 @@ data class Strings(
     val menuRoot: String,
     val menuHome: String,
     val menuComingSoon: String,
+    val dialogCommonTitle: String,
     val dialogCommonCancel: String,
     val dialogCommonOk: String,
     val dialogCommonYes: String,
@@ -128,6 +129,7 @@ data class Strings(
     val dialogRenameErrorTitle: String,
     val dialogRenameErrorAlreadyExists: String,
     val dialogRenameErrorGeneric: String,
+    val dialogCrossDevicePasteNotSupported: String,
     val dialogPropertiesTitle: String,
     val dialogPropertiesFieldPath: String,
     val dialogPropertiesFieldType: String,
@@ -204,13 +206,5 @@ data class Strings(
     val statusDeviceConnectionPending: String,
     val statusDeviceConnected: String,
     val statusDeviceDisconnected: String,
-    val statusPreferencesSaved: String,
-    val statusCopied: String,
-    val statusCopiedMultiple: String,
-    val statusCut: String,
-    val statusCutMultiple: String,
-    val statusPasted: String,
-    val statusPastedMultiple: String,
-    val statusClipboardEmpty: String,
-    val statusCrossDevicePasteNotSupported: String
+    val statusPreferencesSaved: String
 )
