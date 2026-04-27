@@ -584,12 +584,19 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             val refreshedState = ensureWorkspace(device)
             val createdEntry = result.data
             when {
-                createdEntry != null ->
+                createdEntry != null -> {
                     appendEntryToVisibleDirectory(
                         state = refreshedState,
                         directoryPath = requestedPath,
                         entry = createdEntry
                     )
+                    refreshedState.currentEntries
+                        .firstOrNull { buildEntryFullPath(it) == createdPath }
+                        ?.let {
+                            beginInlineRename(device, it)
+                            refreshedState.pendingRevealEntryPath = createdPath
+                        }
+                }
                 !refreshEntriesInternal(
                     state = refreshedState,
                     device = domainDevice,
