@@ -125,7 +125,7 @@ fun FilePropertiesDialog(
             }
         },
         ownerWindow = ownerWindow,
-        verticalSpacing = 8.dp,
+        verticalSpacing = 10.dp,
         contentPadding = PaddingValues(12.dp),
         // Make the dialog slightly wider on non-macOS platforms to
         // accommodate the permission mode input field, which is hidden on macOS.
@@ -186,7 +186,7 @@ fun FilePropertiesDialog(
         }
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
-            padding = PaddingValues(16.dp)
+            padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -208,7 +208,7 @@ fun FilePropertiesDialog(
         }
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
-            padding = PaddingValues(16.dp)
+            padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
