@@ -65,6 +65,7 @@ import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
+import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -126,7 +127,9 @@ fun FilePropertiesDialog(
         ownerWindow = ownerWindow,
         verticalSpacing = 8.dp,
         contentPadding = PaddingValues(12.dp),
-        width = 300.dp
+        // Make the dialog slightly wider on non-macOS platforms to
+        // accommodate the permission mode input field, which is hidden on macOS.
+        width = if (OsType.isMacOS) 300.dp else 320.dp
     ) {
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
