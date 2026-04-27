@@ -9,27 +9,18 @@ group = gropify.project.groupName
 version = gropify.project.app.version
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 kotlin {
-    jvmToolchain(17)
     sourceSets.all {
         languageSettings {
-            languageVersion = "2.0"
             languageSettings.optIn("kotlinx.coroutines.FlowPreview")
             languageSettings.optIn("androidx.compose.ui.ExperimentalComposeUiApi")
             languageSettings.optIn("androidx.compose.ui.text.ExperimentalTextApi")
             languageSettings.optIn("org.jetbrains.jewel.foundation.ExperimentalJewelApi")
         }
-    }
-    compilerOptions {
-        freeCompilerArgs = listOf(
-            "-Xno-param-assertions",
-            "-Xno-call-assertions",
-            "-Xno-receiver-assertions"
-        )
     }
 }
 

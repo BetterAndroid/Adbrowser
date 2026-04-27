@@ -9,20 +9,8 @@ group = gropify.project.core.common.groupName
 version = gropify.project.core.common.version
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-kotlin {
-    jvmToolchain(17)
-    sourceSets.all { languageSettings { languageVersion = "2.0" } }
-    compilerOptions {
-        freeCompilerArgs = listOf(
-            "-Xno-param-assertions",
-            "-Xno-call-assertions",
-            "-Xno-receiver-assertions"
-        )
-    }
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 gitProperties {
