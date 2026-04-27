@@ -1072,9 +1072,11 @@ private fun FrameWindowScope.RenderDialogs(viewModel: MainStageModel) {
                 confirmText = strings.dialogCommonRetry,
                 cancelText = strings.dialogCommonSkip,
                 tertiaryText = strings.dialogCommonCancel,
-                checkboxText = strings.dialogFileOperationFailureApplyToSubsequent,
+                checkboxText = strings.dialogFileOperationFailureApplyToSubsequent
+                    .takeIf { state.canApplyToSubsequent },
                 checkboxChecked = state.applyToSubsequent,
-                onCheckboxCheckedChange = viewModel::setFileOperationFailureApplyToSubsequent,
+                onCheckboxCheckedChange = viewModel::setFileOperationFailureApplyToSubsequent
+                    .takeIf { state.canApplyToSubsequent },
                 onCloseRequest = viewModel::cancelFileOperationFailure,
                 onCancel = viewModel::skipFileOperationFailure,
                 onTertiary = viewModel::cancelFileOperationFailure,

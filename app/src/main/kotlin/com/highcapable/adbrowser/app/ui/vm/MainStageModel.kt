@@ -79,6 +79,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             val type: FileOperationType,
             val itemName: String,
             val rawMessage: String?,
+            val canApplyToSubsequent: Boolean,
             val applyToSubsequent: Boolean = false
         ) : DialogState
         data class RenameError(val kind: RenameErrorKind, val rawMessage: String?) : DialogState
@@ -809,11 +810,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         launchBusyAction {
             clearSelectedEntries(device)
             pendingFileOperationQueue = PendingFileOperationQueue()
-
-            for (item in items) {
+            for ((index, item) in items.withIndex()) {
                 val shouldContinue = executeQueuedFileOperation(
                     type = FileOperationType.Delete,
                     item = item,
+                    canApplyToSubsequent = index < items.lastIndex,
                     execute = { fileSystemService.delete(domainDevice, item.fullPath) },
                     onSuccess = {
                         removeEntryFromVisibleDirectory(
@@ -881,6 +882,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     fun setFileOperationFailureApplyToSubsequent(checked: Boolean) {
         val state = dialogState as? DialogState.FileOperationFailure ?: return
+        if (!state.canApplyToSubsequent) return
+
         dialogState = state.copy(applyToSubsequent = checked)
     }
 
@@ -963,11 +966,12 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
             var completedAllItems = true
 
-            for (item in clipboard.items) {
+            for ((index, item) in clipboard.items.withIndex()) {
                 val targetPath = buildChildPath(directoryPath, item.name)
                 val shouldContinue = executeQueuedFileOperation(
                     type = operationType,
                     item = item,
+                    canApplyToSubsequent = index < clipboard.items.lastIndex,
                     execute = {
                         if (clipboard.isCut) fileSystemService.move(domainDevice, item.fullPath, targetPath)
                         else fileSystemService.copy(domainDevice, item.fullPath, targetPath)
@@ -999,6 +1003,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private suspend fun <T> executeQueuedFileOperation(
         type: FileOperationType,
         item: ClipboardItemSnapshot,
+        canApplyToSubsequent: Boolean,
         execute: suspend () -> OperationResult<T>,
         onSuccess: suspend (T?) -> Unit
     ): Boolean {
@@ -1009,7 +1014,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 return true
             }
 
-            return when (awaitFileOperationFailureDecision(type, item, result.errorMessage)) {
+            return when (awaitFileOperationFailureDecision(type, item, result.errorMessage, canApplyToSubsequent)) {
                 FileOperationFailureAction.Retry -> continue
                 FileOperationFailureAction.Skip -> true
                 FileOperationFailureAction.Cancel -> false
@@ -1020,7 +1025,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private suspend fun awaitFileOperationFailureDecision(
         type: FileOperationType,
         item: ClipboardItemSnapshot,
-        errorMessage: String?
+        errorMessage: String?,
+        canApplyToSubsequent: Boolean
     ): FileOperationFailureAction {
         val queue = pendingFileOperationQueue ?: return FileOperationFailureAction.Cancel
         if (queue.autoSkipFailures) return FileOperationFailureAction.Skip
@@ -1030,7 +1036,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         dialogState = DialogState.FileOperationFailure(
             type = type,
             itemName = item.name,
-            rawMessage = errorMessage.orUnknownErrorToken()
+            rawMessage = errorMessage.orUnknownErrorToken(),
+            canApplyToSubsequent = canApplyToSubsequent
         )
 
         val decision = deferred.await()
