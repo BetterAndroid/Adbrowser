@@ -58,12 +58,14 @@ import kotlinx.coroutines.launch
  */
 class SelectionAreaState<T> {
 
-    var selectionRect by mutableStateOf<Rect?>(null)
     private val visibleItemBounds = mutableStateMapOf<T, VisibleItemBounds>()
+
+    var selectionRect by mutableStateOf<Rect?>(null)
     var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
     var cumulativeScrollY by mutableStateOf(0f)
 
     val nestedScrollConnection = object : NestedScrollConnection {
+
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
             // Pointer positions remain in viewport-local coordinates while content moves. Tracking
             // cumulative scroll lets the active gesture re-run hit testing during auto-scroll even
@@ -90,6 +92,7 @@ class SelectionAreaState<T> {
 
     fun isBlankArea(position: Offset): Boolean {
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
+
         return visibleItemBounds.values.none { bounds ->
             bounds.regionsAt(cumulativeScrollY).any { it.contains(rootPosition) }
         }
@@ -119,35 +122,20 @@ class SelectionAreaState<T> {
 
     fun viewportItems(): Set<T> {
         val viewport = viewportRectInRoot() ?: return emptySet()
-        return visibleItemBounds
-            .filterValues { bounds ->
-                bounds.regionsAt(cumulativeScrollY).any { it.intersects(viewport) }
-            }
-            .keys
+
+        return visibleItemBounds.filterValues { bounds ->
+            bounds.regionsAt(cumulativeScrollY).any { it.intersects(viewport) }
+        }.keys
     }
 
     /** Builds the current viewport rectangle in root coordinates for hit testing. */
     private fun viewportRectInRoot(): Rect? {
         val coords = contentCoordinates ?: return null
+
         return normalizedRect(
             coords.localToRoot(Offset.Zero),
             coords.localToRoot(Offset(coords.size.width.toFloat(), coords.size.height.toFloat()))
         )
-    }
-}
-
-private const val MinDragSelectionOverlapPx = 2f
-
-private data class VisibleItemBounds(
-    val regions: List<Rect>,
-    val scrollY: Float
-) {
-    fun regionsAt(currentScrollY: Float): List<Rect> {
-        val scrollDelta = currentScrollY - scrollY
-        if (scrollDelta == 0f) return regions
-        return regions.map { region ->
-            region.translate(Offset(x = 0f, y = -scrollDelta))
-        }
     }
 }
 
@@ -311,3 +299,20 @@ fun <T, K> Modifier.blankAreaDragSelection(
         }
     }
 }
+
+private data class VisibleItemBounds(
+    val regions: List<Rect>,
+    val scrollY: Float
+) {
+
+    fun regionsAt(currentScrollY: Float): List<Rect> {
+        val scrollDelta = currentScrollY - scrollY
+        if (scrollDelta == 0f) return regions
+
+        return regions.map { region ->
+            region.translate(Offset(x = 0f, y = -scrollDelta))
+        }
+    }
+}
+
+private const val MinDragSelectionOverlapPx = 2f

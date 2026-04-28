@@ -39,6 +39,7 @@ fun Rect.intersects(other: Rect) =
 fun Rect.intersectsWithMinOverlap(other: Rect, minOverlap: Float): Boolean {
     val overlapWidth = minOf(right, other.right) - maxOf(left, other.left)
     val overlapHeight = minOf(bottom, other.bottom) - maxOf(top, other.top)
+
     return overlapWidth >= minOverlap && overlapHeight >= minOverlap
 }
 
