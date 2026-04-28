@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -40,6 +41,7 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import com.highcapable.adbrowser.app.ui.geometry.intersects
+import com.highcapable.adbrowser.app.ui.geometry.intersectsWithMinOverlap
 import com.highcapable.adbrowser.app.ui.geometry.normalizedRect
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -56,16 +58,18 @@ import kotlinx.coroutines.launch
  */
 class SelectionAreaState<T> {
 
+    private val visibleItemBounds = mutableStateMapOf<T, VisibleItemBounds>()
+
     var selectionRect by mutableStateOf<Rect?>(null)
-    val visibleItemBounds = mutableStateMapOf<T, List<Rect>>()
     var contentCoordinates by mutableStateOf<LayoutCoordinates?>(null)
     var cumulativeScrollY by mutableStateOf(0f)
 
     val nestedScrollConnection = object : NestedScrollConnection {
+
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-            // Pointer positions remain in local coordinates while the content is moving.
-            // Tracking cumulative scroll lets the active drag rectangle stay visually anchored
-            // to the original press position during auto-scroll.
+            // Pointer positions remain in viewport-local coordinates while content moves. Tracking
+            // cumulative scroll lets the active gesture re-run hit testing during auto-scroll even
+            // when the pointer itself is stationary.
             cumulativeScrollY -= consumed.y
             return Offset.Zero
         }
@@ -75,9 +79,23 @@ class SelectionAreaState<T> {
         selectionRect = null
     }
 
+    fun updateVisibleItemBounds(item: T, bounds: List<Rect>) {
+        visibleItemBounds[item] = VisibleItemBounds(
+            regions = bounds,
+            scrollY = cumulativeScrollY
+        )
+    }
+
+    fun removeVisibleItemBounds(item: T) {
+        visibleItemBounds.remove(item)
+    }
+
     fun isBlankArea(position: Offset): Boolean {
         val rootPosition = contentCoordinates?.localToRoot(position) ?: position
-        return visibleItemBounds.values.none { regions -> regions.any { it.contains(rootPosition) } }
+
+        return visibleItemBounds.values.none { bounds ->
+            bounds.regionsAt(cumulativeScrollY).any { it.contains(rootPosition) }
+        }
     }
 
     /**
@@ -95,21 +113,25 @@ class SelectionAreaState<T> {
         val viewport = viewportRectInRoot() ?: return emptySet()
 
         return visibleItemBounds
-            .filterValues { regions ->
-                regions.any { it.intersects(viewport) } && regions.any { it.intersects(rootRect) }
+            .filterValues { bounds ->
+                val regions = bounds.regionsAt(cumulativeScrollY)
+                regions.any { it.intersects(viewport) } &&
+                    regions.any { it.intersectsWithMinOverlap(rootRect, MinDragSelectionOverlapPx) }
             }.keys
     }
 
     fun viewportItems(): Set<T> {
         val viewport = viewportRectInRoot() ?: return emptySet()
-        return visibleItemBounds
-            .filterValues { regions -> regions.any { it.intersects(viewport) } }
-            .keys
+
+        return visibleItemBounds.filterValues { bounds ->
+            bounds.regionsAt(cumulativeScrollY).any { it.intersects(viewport) }
+        }.keys
     }
 
     /** Builds the current viewport rectangle in root coordinates for hit testing. */
     private fun viewportRectInRoot(): Rect? {
         val coords = contentCoordinates ?: return null
+
         return normalizedRect(
             coords.localToRoot(Offset.Zero),
             coords.localToRoot(Offset(coords.size.width.toFloat(), coords.size.height.toFloat()))
@@ -190,7 +212,13 @@ fun <T, K> Modifier.blankAreaDragSelection(
                         else -> 0f
                     }
 
-                    if (scrollAmount != 0f) autoScrollBy(scrollAmount)
+                    if (scrollAmount != 0f) {
+                        autoScrollBy(scrollAmount)
+                        // Lazy item bounds are reported in root coordinates and update on the
+                        // next layout pass. Hit testing in the same tick can combine a scrolled
+                        // marquee rect with stale item bounds, causing transient false selections.
+                        withFrameNanos {}
+                    }
                 }
 
                 // Re-run hit testing when scrolling changes, even if the pointer itself did not
@@ -271,3 +299,20 @@ fun <T, K> Modifier.blankAreaDragSelection(
         }
     }
 }
+
+private data class VisibleItemBounds(
+    val regions: List<Rect>,
+    val scrollY: Float
+) {
+
+    fun regionsAt(currentScrollY: Float): List<Rect> {
+        val scrollDelta = currentScrollY - scrollY
+        if (scrollDelta == 0f) return regions
+
+        return regions.map { region ->
+            region.translate(Offset(x = 0f, y = -scrollDelta))
+        }
+    }
+}
+
+private const val MinDragSelectionOverlapPx = 2f

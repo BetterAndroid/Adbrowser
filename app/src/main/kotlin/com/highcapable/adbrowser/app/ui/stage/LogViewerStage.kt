@@ -206,8 +206,8 @@ private fun LogContentPane(
             onEntryBoundsChanged = { entry, bounds ->
                 // Bound tracking feeds blank-area hit testing and drag selection. Removing disposed
                 // rows eagerly avoids stale hit regions when the lazy list is reusing slots.
-                if (bounds == null) interactionState.selectionAreaState.visibleItemBounds.remove(entry.id)
-                else interactionState.selectionAreaState.visibleItemBounds[entry.id] = bounds
+                if (bounds == null) interactionState.selectionAreaState.removeVisibleItemBounds(entry.id)
+                else interactionState.selectionAreaState.updateVisibleItemBounds(entry.id, bounds)
             },
             modifier = Modifier.fillMaxSize(),
             contentAreaModifier = Modifier

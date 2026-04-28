@@ -542,7 +542,7 @@ private fun FileListView(
             ) {
                 items(viewModel.entriesOf(device)) { entry ->
                     DisposableEffect(entry) {
-                        onDispose { interactionState.selectionAreaState.visibleItemBounds.remove(entry) }
+                        onDispose { interactionState.selectionAreaState.removeVisibleItemBounds(entry) }
                     }
                     FileListRow(
                         horizontalScrollState = horizontalScrollState,
@@ -588,7 +588,7 @@ private fun FileListView(
                             // Visible entry bounds drive blank-area hit testing and marquee
                             // selection, so they must track the actual composed coordinates.
                             val bounds = coordinates.boundsInRoot()
-                            interactionState.selectionAreaState.visibleItemBounds[entry] = listOf(bounds)
+                            interactionState.selectionAreaState.updateVisibleItemBounds(entry, listOf(bounds))
                         },
                         overlay = {
                             FileEntryContextMenuPopup(
@@ -765,7 +765,7 @@ private fun FileIconView(
             ) {
                 items(entries) { entry ->
                     DisposableEffect(entry) {
-                        onDispose { interactionState.selectionAreaState.visibleItemBounds.remove(entry) }
+                        onDispose { interactionState.selectionAreaState.removeVisibleItemBounds(entry) }
                     }
                     FileIconItem(
                         item = entry,
@@ -807,7 +807,7 @@ private fun FileIconView(
                         onHitBoundsChanged = { bounds ->
                             // Icon hit targets are split across icon/text regions, so one entry can
                             // contribute multiple rectangles to blank-area and drag-selection logic.
-                            interactionState.selectionAreaState.visibleItemBounds[entry] = bounds
+                            interactionState.selectionAreaState.updateVisibleItemBounds(entry, bounds)
                         },
                         overlay = {
                             FileEntryContextMenuPopup(
