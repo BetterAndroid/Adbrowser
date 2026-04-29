@@ -31,6 +31,8 @@ import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.app.cl.AppState
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.locale.ProvidedLocales
+import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import com.highcapable.adbrowser.app.ui.utils.LookAndFeel
 import com.highcapable.adbrowser.app.ui.utils.SystemAppearance
 import com.highcapable.adbrowser.app.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.app.ui.window.manager.LocalWindowManager
@@ -40,10 +42,13 @@ import com.highcapable.adbrowser.app.ui.window.manager.windowRegistries
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.domain.AppServices
 import kotlinx.coroutines.runBlocking
+import org.jetbrains.jewel.foundation.theme.JewelTheme
+import org.jetbrains.jewel.ui.theme.menuStyle
 import java.awt.Desktop
 
 fun main() {
     SystemAppearance.initialize()
+    LookAndFeel.initialize(SystemAppearance.isDarkMode)
 
     // Initialize all backend services before the UI event loop starts.
     // initialize() only does disk IO (load settings) and object construction,
@@ -61,13 +66,16 @@ private fun runApp(services: AppServices) = application {
         LocalAppState provides appState,
         LocalWindowManager provides windowManager
     ) {
-        SyncSystemAppearance(appState)
-        RegisterMacOSAppMenu(windowManager)
+        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
+            SyncSystemAppearance(appState)
+            SyncLookAndFeel(appState)
+            RegisterMacOSAppMenu(windowManager)
 
-        ProvidedLocales(
-            settingsLanguageTag = appState.languageTag
-        ) {
-            RenderWindows()
+            ProvidedLocales(
+                settingsLanguageTag = appState.languageTag
+            ) {
+                RenderWindows()
+            }
         }
     }
 }
@@ -76,6 +84,19 @@ private fun runApp(services: AppServices) = application {
 private fun SyncSystemAppearance(appState: AppState) {
     LaunchedEffect(appState) {
         SystemAppearance.startListening(appState)
+    }
+}
+
+@Composable
+private fun SyncLookAndFeel(appState: AppState) {
+    val uiStyle = LookAndFeel.UiStyle(
+        colors = AdbrowserTheme.colors,
+        contentColor = JewelTheme.contentColor,
+        menuStyle = JewelTheme.menuStyle
+    )
+
+    LaunchedEffect(appState.isDarkTheme) {
+        LookAndFeel.sync(appState.isDarkTheme, uiStyle)
     }
 }
 

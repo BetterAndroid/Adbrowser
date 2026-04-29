@@ -45,8 +45,9 @@ dependencies {
     }
     implementation(libs.jewel.int.ui.standalone)
     implementation(libs.intellij.platform.icons)
-    implementation(libs.zxing.core)
+    implementation(libs.flatlaf)
 
+    implementation(libs.zxing.core)
     implementation(libs.betterandroid.compose.extension.desktop)
 
     testImplementation(libs.junit)

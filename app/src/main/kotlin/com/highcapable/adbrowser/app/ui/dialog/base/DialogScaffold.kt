@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
-import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import java.awt.Window
 
@@ -61,7 +60,7 @@ fun DialogScaffold(
         resizable = false,
         state = rememberDialogState(width = width, height = height)
     ) {
-        val appState = LocalAppState.current
+        val colors = AdbrowserTheme.colors
 
         LaunchedEffect(window, ownerWindow) {
             if (ownerWindow == null) return@LaunchedEffect
@@ -72,20 +71,16 @@ fun DialogScaffold(
             window.setLocationRelativeTo(ownerWindow)
         }
 
-        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
-            val colors = AdbrowserTheme.colors
-
-            Column(
-                modifier = Modifier
-                    .background(colors.mainBackground)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(contentPadding),
-                verticalArrangement = Arrangement.spacedBy(verticalSpacing),
-                horizontalAlignment = horizontalAlignment
-            ) {
-                content()
-            }
+        Column(
+            modifier = Modifier
+                .background(colors.mainBackground)
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+            horizontalAlignment = horizontalAlignment
+        ) {
+            content()
         }
     }
 }

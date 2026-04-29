@@ -33,7 +33,6 @@ import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.stage.InitialSetupStage
-import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.InitialSetupStageModel
 
 @Composable
@@ -59,12 +58,10 @@ fun InitialSetupWindow(onCloseRequest: () -> Unit) {
             onDispose { viewModel.dispose() }
         }
 
-        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
-            InitialSetupStage(
-                viewModel = viewModel,
-                onContinue = onCloseRequest,
-                onCancel = exitApp
-            )
-        }
+        InitialSetupStage(
+            viewModel = viewModel,
+            onContinue = onCloseRequest,
+            onCancel = exitApp
+        )
     }
 }

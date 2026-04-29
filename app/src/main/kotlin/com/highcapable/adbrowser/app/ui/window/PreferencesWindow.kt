@@ -32,7 +32,6 @@ import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.stage.PreferencesStage
-import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
 
 @Composable
@@ -57,11 +56,9 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
         alwaysOnTop = appHasActiveWindow,
         state = rememberWindowState(width = 400.dp, height = 550.dp)
     ) {
-        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
-            PreferencesStage(
-                viewModel = viewModel,
-                onCloseRequest = onCloseRequest
-            )
-        }
+        PreferencesStage(
+            viewModel = viewModel,
+            onCloseRequest = onCloseRequest
+        )
     }
 }

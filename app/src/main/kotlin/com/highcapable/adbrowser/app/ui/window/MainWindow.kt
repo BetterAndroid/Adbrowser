@@ -45,7 +45,6 @@ import com.highcapable.adbrowser.app.ui.input.WindowBounds
 import com.highcapable.adbrowser.app.ui.input.currentBounds
 import com.highcapable.adbrowser.app.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.app.ui.stage.MainStage
-import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.Dispatchers
@@ -138,16 +137,14 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             onDispose { viewModel.dispose() }
         }
 
-        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
-            MainMenuBar(
-                viewModel = viewModel,
-                onCloseRequest = onCloseRequest
-            )
-            MainStage(
-                viewModel = viewModel,
-                onCloseRequest = onCloseRequest
-            )
-        }
+        MainMenuBar(
+            viewModel = viewModel,
+            onCloseRequest = onCloseRequest
+        )
+        MainStage(
+            viewModel = viewModel,
+            onCloseRequest = onCloseRequest
+        )
     }
 }
 

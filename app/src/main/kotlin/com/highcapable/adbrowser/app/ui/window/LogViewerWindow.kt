@@ -38,7 +38,6 @@ import com.highcapable.adbrowser.app.ui.input.WindowFocusListener
 import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.menu.LogViewerMenuBar
 import com.highcapable.adbrowser.app.ui.stage.LogViewerStage
-import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
 import java.awt.Dimension
 
@@ -74,17 +73,15 @@ fun LogViewerWindow(onCloseRequest: () -> Unit) {
             onDispose { viewModel.dispose() }
         }
 
-        AdbrowserTheme(darkTheme = appState.isDarkTheme) {
-            LogViewerMenuBar(
-                viewModel = viewModel,
-                onCloseRequest = onCloseRequest
-            )
-            LogViewerStage(
-                viewModel = viewModel,
-                hasWindowFocus = hasWindowFocus,
-                onCloseRequest = onCloseRequest
-            )
-        }
+        LogViewerMenuBar(
+            viewModel = viewModel,
+            onCloseRequest = onCloseRequest
+        )
+        LogViewerStage(
+            viewModel = viewModel,
+            hasWindowFocus = hasWindowFocus,
+            onCloseRequest = onCloseRequest
+        )
     }
 }
 
