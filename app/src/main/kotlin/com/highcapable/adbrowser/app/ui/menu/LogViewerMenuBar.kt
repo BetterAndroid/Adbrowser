@@ -29,6 +29,7 @@ import androidx.compose.ui.window.MenuBar
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.input.KeyShortcut
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
+import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.logging.LogLevel
 
 @Composable
@@ -36,10 +37,16 @@ fun FrameWindowScope.LogViewerMenuBar(
     viewModel: LogViewerStageModel,
     onCloseRequest: () -> Unit
 ) {
+    val fileMnemonic = if (!OsType.isMacOS) 'F' else null
+    val viewMnemonic = if (!OsType.isMacOS) 'V' else null
+
     val exportDialogTitle = strings.logsExportDialogTitle
 
     MenuBar {
-        Menu(strings.menuFile) {
+        Menu(
+            text = strings.menuFile,
+            mnemonic = fileMnemonic
+        ) {
             Item(
                 text = strings.logsMenuExport,
                 mnemonic = 'E',
@@ -53,7 +60,10 @@ fun FrameWindowScope.LogViewerMenuBar(
                 onClick = viewModel::clearEntries
             )
         }
-        Menu(strings.menuView) {
+        Menu(
+            text = strings.menuView,
+            mnemonic = viewMnemonic
+        ) {
             Menu(
                 text = strings.logsMenuLevel,
                 mnemonic = 'L'

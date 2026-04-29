@@ -55,8 +55,18 @@ fun FrameWindowScope.MainMenuBar(
     val propertiesShortcut = viewModel.menuShortcut(MenuShortcut.Action.Properties).toComposeShortcut()
     val refreshShortcut = viewModel.menuShortcut(MenuShortcut.Action.Refresh).toComposeShortcut()
 
+    val fileMnemonic = if (!OsType.isMacOS) 'F' else null
+    val editMnemonic = if (!OsType.isMacOS) 'E' else null
+    val viewMnemonic = if (!OsType.isMacOS) 'V' else null
+    val deviceMnemonic = if (!OsType.isMacOS) 'D' else null
+    val goMnemonic = if (!OsType.isMacOS) 'G' else null
+    val helpMnemonic = if (!OsType.isMacOS) 'H' else null
+
     MenuBar {
-        Menu(strings.menuFile) {
+        Menu(
+            text = strings.menuFile,
+            mnemonic = fileMnemonic
+        ) {
             Item(
                 text = strings.menuOpen,
                 enabled = viewModel.hasSingleSelectedEntry,
@@ -110,7 +120,10 @@ fun FrameWindowScope.MainMenuBar(
                 )
             }
         }
-        Menu(strings.menuEdit) {
+        Menu(
+            text = strings.menuEdit,
+            mnemonic = editMnemonic
+        ) {
             Item(
                 text = strings.menuCut,
                 enabled = viewModel.hasSelectedEntry,
@@ -143,7 +156,10 @@ fun FrameWindowScope.MainMenuBar(
                 shortcut = KeyShortcut(Key.A, shift = true)
             )
         }
-        Menu(strings.menuView) {
+        Menu(
+            text = strings.menuView,
+            mnemonic = viewMnemonic
+        ) {
             Item(
                 text = strings.menuRefresh,
                 enabled = viewModel.canRefresh,
@@ -195,7 +211,10 @@ fun FrameWindowScope.MainMenuBar(
                 shortcut = KeyShortcut(Key.L)
             )
         } 
-        Menu(strings.menuDevice) {
+        Menu(
+            text = strings.menuDevice,
+            mnemonic = deviceMnemonic
+        ) {
             Item(
                 text = strings.menuPairNewDevice,
                 onClick = viewModel::pairNewDevice
@@ -210,7 +229,10 @@ fun FrameWindowScope.MainMenuBar(
                 onClick = viewModel::refreshDevices
             )
         }
-        Menu(strings.menuGo) {
+        Menu(
+            text = strings.menuGo,
+            mnemonic = goMnemonic
+        ) {
             Item(
                 text = strings.menuForward,
                 enabled = viewModel.canNavigateForward,
@@ -242,7 +264,10 @@ fun FrameWindowScope.MainMenuBar(
                 shortcut = KeyShortcut(Key.H, shift = true)
             )
         }
-        Menu(strings.menuHelp) {
+        Menu(
+            text = strings.menuHelp,
+            mnemonic = helpMnemonic
+        ) {
             Item(
                 text = strings.menuComingSoon,
                 enabled = false,
