@@ -8,11 +8,6 @@ plugins {
 group = gropify.project.groupName
 version = gropify.project.app.version
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 kotlin {
     sourceSets.all {
         languageSettings {

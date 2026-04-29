@@ -8,11 +8,6 @@ plugins {
 group = gropify.project.core.common.groupName
 version = gropify.project.core.common.version
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 gitProperties {
     gitPropertiesName = "git-info.properties"
     gitPropertiesResourceDir = rootProject.rootDir.resolve(".gradle")

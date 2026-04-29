@@ -11,6 +11,13 @@ plugins {
 }
 
 allprojects {
+    runCatching {
+        configure<JavaPluginExtension> {
+            sourceCompatibility = JavaVersion.VERSION_21
+            targetCompatibility = JavaVersion.VERSION_21
+        }
+    }
+
     tasks.withType<KotlinJvmCompile>().configureEach {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_21

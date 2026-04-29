@@ -7,11 +7,6 @@ plugins {
 group = gropify.project.core.domain.groupName
 version = gropify.project.core.domain.version
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 dependencies {
     api(projects.core.common)
     api(projects.core.adb)

@@ -6,11 +6,6 @@ plugins {
 group = gropify.project.core.logging.groupName
 version = gropify.project.core.logging.version
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 dependencies {
     implementation(projects.core.common)
 
