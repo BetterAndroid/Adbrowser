@@ -29,7 +29,7 @@ object OsType {
 
     private val osString get() = System.getProperty("os.name")
 
-    val isWindows get() = osString.contains("win", ignoreCase = true)
-    val isMacOS get() = osString.contains("mac", ignoreCase = true)
-    val isLinux get() = osString.contains("linux", ignoreCase = true)
+    val isWindows by lazy { osString.contains("win", ignoreCase = true) }
+    val isMacOS by lazy { osString.contains("mac", ignoreCase = true) }
+    val isLinux by lazy { osString.contains("linux", ignoreCase = true) }
 }
