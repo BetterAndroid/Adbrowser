@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +54,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.vm.model.LogEntryItem
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 
 @Composable
 fun LogListPane(
@@ -118,7 +118,7 @@ fun LogListPane(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.width(contentWidth),
-                        contentPadding = PaddingValues(2.dp),
+                        contentPadding = ComponentPadding(2.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         items(

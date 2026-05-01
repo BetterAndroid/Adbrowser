@@ -26,7 +26,6 @@ package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -45,6 +44,7 @@ import com.highcapable.adbrowser.app.ui.interaction.onRenameActivationInput
 import com.highcapable.adbrowser.app.ui.interaction.trackBoundsInRoot
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
@@ -114,7 +114,7 @@ fun FileListNameSection(
                     onCancel = onCancelInlineRename,
                     shouldRestoreFocusOnConfirmFailure = shouldRestoreFocusOnInlineRenameFailure,
                     modifier = Modifier.width(inlineRenameWidth),
-                    contentPadding = PaddingValues(4.dp),
+                    contentPadding = ComponentPadding(4.dp),
                     onBoundsInRootChanged = editorBoundsGuard::updateAvoidedBounds
                 )
         }

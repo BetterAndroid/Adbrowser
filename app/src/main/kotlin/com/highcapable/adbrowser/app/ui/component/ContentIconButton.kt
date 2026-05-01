@@ -22,12 +22,12 @@
  */
 package com.highcapable.adbrowser.app.ui.component
 
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import org.jetbrains.jewel.ui.component.DefaultButton
 import org.jetbrains.jewel.ui.component.OutlinedButton
 import org.jetbrains.jewel.ui.icon.IconKey
@@ -45,7 +45,7 @@ fun ContentIconButton(
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            style = AdbrowserTheme.outlineButtonStyle(PaddingValues.Zero),
+            style = AdbrowserTheme.outlineButtonStyle(ComponentPadding.None),
             modifier = modifier.size(DefaultContentSize)
         ) {
             ContentIcon(
@@ -59,7 +59,7 @@ fun ContentIconButton(
         DefaultButton(
             onClick = onClick,
             enabled = enabled,
-            style = AdbrowserTheme.defaultButtonStyle(PaddingValues.Zero),
+            style = AdbrowserTheme.defaultButtonStyle(ComponentPadding.None),
             modifier = modifier.size(DefaultContentSize)
         ) {
             ContentIcon(

@@ -25,7 +25,6 @@ package com.highcapable.adbrowser.app.ui.component
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -54,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
@@ -76,7 +76,7 @@ fun DevicePanePanel(
 
     PanelSurface(
         modifier = modifier,
-        padding = PaddingValues(14.dp)
+        padding = ComponentPadding(14.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -136,7 +136,7 @@ fun DevicePanePanel(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(2.dp),
+                    contentPadding = ComponentPadding(2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(devices) { device ->

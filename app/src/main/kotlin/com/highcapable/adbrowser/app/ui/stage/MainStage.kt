@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -122,6 +121,7 @@ import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.SelectAllMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.MenuScope
@@ -277,7 +277,7 @@ private fun FilePane(
     workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
-    PanelSurface(modifier = modifier, padding = PaddingValues(16.dp)) {
+    PanelSurface(modifier = modifier, padding = ComponentPadding(16.dp)) {
         Column(modifier = Modifier.fillMaxSize()) {
             NavigationBar(viewModel = viewModel, device = workspace.device)
             Spacer(Modifier.height(12.dp))
@@ -548,7 +548,7 @@ private fun FileListView(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(2.dp),
+                contentPadding = ComponentPadding(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(viewModel.entriesOf(device)) { entry ->

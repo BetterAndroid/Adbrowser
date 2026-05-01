@@ -26,7 +26,6 @@ package com.highcapable.adbrowser.app.ui.dialog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -134,7 +133,7 @@ fun FilePropertiesDialog(
     ) {
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
-            padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            padding = ComponentPadding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.Center,
@@ -187,7 +186,7 @@ fun FilePropertiesDialog(
         }
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
-            padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            padding = ComponentPadding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -209,7 +208,7 @@ fun FilePropertiesDialog(
         }
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
-            padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+            padding = ComponentPadding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp)

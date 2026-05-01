@@ -26,7 +26,6 @@ import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -61,6 +60,7 @@ import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.Orientation
 import org.jetbrains.jewel.ui.component.CheckboxRow
@@ -475,6 +475,6 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
 
 private val TabLabelFontSize = 20.sp
 private val TabLabelFontWeight = FontWeight.Normal
-private val PanelPadding = PaddingValues(14.dp)
+private val PanelPadding = ComponentPadding(14.dp)
 
 private val ContentPaddingSpace = 12.dp

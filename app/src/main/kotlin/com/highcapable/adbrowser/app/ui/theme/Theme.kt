@@ -23,7 +23,6 @@
 package com.highcapable.adbrowser.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.intui.standalone.styling.Default
 import org.jetbrains.jewel.intui.standalone.styling.Editor
@@ -67,7 +67,7 @@ object AdbrowserTheme {
     val colors @Composable get() = LocalColors.current
 
     @Composable
-    fun defaultButtonStyle(padding: PaddingValues = DefaultButtonPadding) = ButtonStyle(
+    fun defaultButtonStyle(padding: ComponentPadding = DefaultButtonPadding) = ButtonStyle(
         colors = JewelTheme.defaultButtonStyle.colors,
         metrics = ButtonMetrics(
             cornerSize = JewelTheme.defaultButtonStyle.metrics.cornerSize,
@@ -80,7 +80,7 @@ object AdbrowserTheme {
     )
 
     @Composable
-    fun outlineButtonStyle(padding: PaddingValues = DefaultButtonPadding) = ButtonStyle(
+    fun outlineButtonStyle(padding: ComponentPadding = DefaultButtonPadding) = ButtonStyle(
         colors = JewelTheme.outlinedButtonStyle.colors,
         metrics = ButtonMetrics(
             cornerSize = JewelTheme.outlinedButtonStyle.metrics.cornerSize,
@@ -135,13 +135,13 @@ object AdbrowserTheme {
         colors = JewelTheme.textAreaStyle.colors,
         metrics = TextAreaMetrics(
             borderWidth = JewelTheme.textAreaStyle.metrics.borderWidth,
-            contentPadding = PaddingValues.Zero,
+            contentPadding = ComponentPadding.None,
             cornerSize = JewelTheme.textAreaStyle.metrics.cornerSize,
             minSize = DpSize.Zero
         )
     )
 
-    val DefaultButtonPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp)
+    val DefaultButtonPadding = ComponentPadding(horizontal = 10.dp, vertical = 5.dp)
     val DefaultTextFieldHeight = 30.dp
 
     val DefaultItemFontSize = 14.sp

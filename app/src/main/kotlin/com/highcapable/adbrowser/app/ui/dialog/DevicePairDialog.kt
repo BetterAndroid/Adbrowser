@@ -37,7 +37,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -280,7 +279,7 @@ private fun ColumnScope.QrPairTab(viewModel: DevicePairDialogModel) {
                 }
         ) {
             PanelSurface(
-                padding = PaddingValues(14.dp)
+                padding = ComponentPadding(14.dp)
             ) {
                 if (viewModel.qrSession != null)
                     QrCodePanel(
@@ -355,7 +354,7 @@ private fun ColumnScope.ManualPairTab(viewModel: DevicePairDialogModel) {
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
-                    contentPadding = PaddingValues(2.dp)
+                    contentPadding = ComponentPadding(2.dp)
                 ) {
                     items(viewModel.pairingDevices, key = { it.serviceName + it.address }) { device ->
                         PairingDeviceRow(

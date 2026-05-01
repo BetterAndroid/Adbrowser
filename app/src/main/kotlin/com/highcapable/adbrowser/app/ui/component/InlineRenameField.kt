@@ -26,7 +26,6 @@ package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,6 +58,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import kotlinx.coroutines.launch
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.TextArea
@@ -82,7 +82,7 @@ fun InlineRenameField(
     fontSize: TextUnit = AdbrowserTheme.DefaultItemFontSize,
     minWidth: Dp = 0.dp,
     maxWidth: Dp = Dp.Unspecified,
-    contentPadding: PaddingValues = PaddingValues.Zero,
+    contentPadding: ComponentPadding = ComponentPadding.None,
     onBoundsInRootChanged: (Rect) -> Unit = {},
     centeredMultiline: Boolean = false
 ) {
