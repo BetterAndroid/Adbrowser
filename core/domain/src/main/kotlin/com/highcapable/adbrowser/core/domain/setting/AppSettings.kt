@@ -48,11 +48,11 @@ data class AppSettings(
     var lastDeviceSerial: String = "",
     var deviceHomePaths: MutableMap<String, String> = mutableMapOf(),
     var deviceLastPaths: MutableMap<String, String> = mutableMapOf(),
-    var devicePaneWidth: Double = 300.0,
-    var fileColumnWidthName: Double = 260.0,
-    var fileColumnWidthSize: Double = 140.0,
-    var fileColumnWidthModified: Double = 240.0,
-    var fileColumnWidthPermission: Double = 150.0,
+    var devicePaneWidth: Double = DEFAULT_DEVICE_PANE_WIDTH,
+    var fileColumnWidthName: Double = DEFAULT_FILE_COLUMN_WIDTH_NAME,
+    var fileColumnWidthSize: Double = DEFAULT_FILE_COLUMN_WIDTH_SIZE,
+    var fileColumnWidthModified: Double = DEFAULT_FILE_COLUMN_WIDTH_MODIFIED,
+    var fileColumnWidthPermission: Double = DEFAULT_FILE_COLUMN_WIDTH_PERMISSION,
     var mainWindowWidth: Double = DEFAULT_MAIN_WINDOW_WIDTH,
     var mainWindowHeight: Double = DEFAULT_MAIN_WINDOW_HEIGHT,
     var mainWindowPosX: Double? = null,
@@ -63,5 +63,11 @@ data class AppSettings(
 
         const val DEFAULT_MAIN_WINDOW_WIDTH = 1220.0
         const val DEFAULT_MAIN_WINDOW_HEIGHT = 820.0
+
+        const val DEFAULT_DEVICE_PANE_WIDTH = 300.0
+        const val DEFAULT_FILE_COLUMN_WIDTH_NAME = 260.0
+        const val DEFAULT_FILE_COLUMN_WIDTH_SIZE = 140.0
+        const val DEFAULT_FILE_COLUMN_WIDTH_MODIFIED = 240.0
+        const val DEFAULT_FILE_COLUMN_WIDTH_PERMISSION = 150.0
     }
 }

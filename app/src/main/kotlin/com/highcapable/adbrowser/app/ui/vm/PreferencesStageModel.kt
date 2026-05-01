@@ -49,12 +49,6 @@ import java.nio.file.Path
 class PreferencesStageModel(private val appState: AppState) : ViewModel() {
 
     private companion object {
-
-        const val DEFAULT_DEVICE_PANE_WIDTH = 300.0
-        const val DEFAULT_FILE_COLUMN_WIDTH_NAME = 260.0
-        const val DEFAULT_FILE_COLUMN_WIDTH_SIZE = 140.0
-        const val DEFAULT_FILE_COLUMN_WIDTH_MODIFIED = 240.0
-        const val DEFAULT_FILE_COLUMN_WIDTH_PERMISSION = 150.0
         const val ADB_VALIDATE_TIMEOUT_MS = 5000L
     }
 
@@ -130,7 +124,7 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         val success = runPersistAction(
             successStatus = Status.SidebarSpacingReset
         ) {
-            settingsService.current.devicePaneWidth = DEFAULT_DEVICE_PANE_WIDTH
+            settingsService.current.devicePaneWidth = AppSettings.DEFAULT_DEVICE_PANE_WIDTH
             settingsService.save()
         }
         if (success) appState.sync()
@@ -141,10 +135,10 @@ class PreferencesStageModel(private val appState: AppState) : ViewModel() {
         val success = runPersistAction(
             successStatus = Status.FileColumnWidthsReset
         ) {
-            settingsService.current.fileColumnWidthName = DEFAULT_FILE_COLUMN_WIDTH_NAME
-            settingsService.current.fileColumnWidthSize = DEFAULT_FILE_COLUMN_WIDTH_SIZE
-            settingsService.current.fileColumnWidthModified = DEFAULT_FILE_COLUMN_WIDTH_MODIFIED
-            settingsService.current.fileColumnWidthPermission = DEFAULT_FILE_COLUMN_WIDTH_PERMISSION
+            settingsService.current.fileColumnWidthName = AppSettings.DEFAULT_FILE_COLUMN_WIDTH_NAME
+            settingsService.current.fileColumnWidthSize = AppSettings.DEFAULT_FILE_COLUMN_WIDTH_SIZE
+            settingsService.current.fileColumnWidthModified = AppSettings.DEFAULT_FILE_COLUMN_WIDTH_MODIFIED
+            settingsService.current.fileColumnWidthPermission = AppSettings.DEFAULT_FILE_COLUMN_WIDTH_PERMISSION
             settingsService.save()
         }
         if (success) appState.sync()
