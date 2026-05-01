@@ -25,7 +25,6 @@ package com.highcapable.adbrowser.app.ui.dialog.base
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -34,12 +33,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.rememberDialogState
+import com.highcapable.adbrowser.app.ui.component.WindowButtonsSpacing
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import com.highcapable.adbrowser.app.ui.utils.LookAndFeel
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import java.awt.Window
 
 @Composable
@@ -50,8 +54,10 @@ fun DialogScaffold(
     width: Dp = 460.dp,
     height: Dp = Dp.Unspecified,
     verticalSpacing: Dp = 12.dp,
-    contentPadding: PaddingValues = PaddingValues(20.dp),
+    contentPadding: ComponentPadding = ComponentPadding(20.dp),
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    titleBarBackgroundColor: Color = Color.Transparent,
+    buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
     DialogWindow(
@@ -62,6 +68,9 @@ fun DialogScaffold(
     ) {
         val colors = AdbrowserTheme.colors
 
+        LaunchedEffect(Unit) {
+            LookAndFeel.applyMacOSImmersiveTitleBarStyle(window)
+        }
         LaunchedEffect(window, ownerWindow) {
             if (ownerWindow == null) return@LaunchedEffect
 
@@ -75,12 +84,31 @@ fun DialogScaffold(
             modifier = Modifier
                 .background(colors.mainBackground)
                 .fillMaxWidth()
-                .wrapContentHeight()
-                .padding(contentPadding),
+                .wrapContentHeight(),
             verticalArrangement = Arrangement.spacedBy(verticalSpacing),
             horizontalAlignment = horizontalAlignment
         ) {
-            content()
+            // If the window title bar is available,
+            // we need to remove the top padding to avoid extra space between the title bar and the content.
+            val compatiblePadding = contentPadding.copy(
+                top = if (WindowTitleBar.isAvailable) 0.dp else contentPadding.top
+            )
+
+            WindowTitleBar(
+                title = title,
+                backgroundColor = titleBarBackgroundColor,
+                buttonsSpacing = buttonsSpacing
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(compatiblePadding),
+                verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+                horizontalAlignment = horizontalAlignment
+            ) {
+                content()
+            }
         }
     }
 }

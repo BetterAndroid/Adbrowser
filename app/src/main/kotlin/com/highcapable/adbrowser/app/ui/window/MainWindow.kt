@@ -35,17 +35,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.component.WindowButtonsSpacing
 import com.highcapable.adbrowser.app.ui.input.ComponentAdapter
 import com.highcapable.adbrowser.app.ui.input.WindowBounds
 import com.highcapable.adbrowser.app.ui.input.currentBounds
 import com.highcapable.adbrowser.app.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.app.ui.stage.MainStage
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
+import com.highcapable.adbrowser.app.ui.window.base.WindowScaffold
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.debounce
@@ -58,6 +59,7 @@ import java.awt.Dimension
 @Composable
 fun MainWindow(onCloseRequest: () -> Unit) {
     val appState = LocalAppState.current
+
     val settingsService = appState.appServices.settingsService
     val settings = settingsService.current
     val initialPosition = remember(settings.mainWindowPosX, settings.mainWindowPosY) {
@@ -69,13 +71,13 @@ fun MainWindow(onCloseRequest: () -> Unit) {
         position = initialPosition
     )
 
-    Window(
+    WindowScaffold(
         onCloseRequest = onCloseRequest,
         title = strings.mainTitle,
-        state = windowState
-    ) {
+        state = windowState,
+        buttonsSpacing = WindowButtonsSpacing.Medium
+    ) { decorationsVisible ->
         val viewModel = remember { MainStageModel(appState) }
-        var handledFileListRefreshVersion by remember { mutableStateOf(appState.fileListRefreshVersion) }
         var liveWindowBounds by remember { mutableStateOf<WindowBounds?>(null) }
 
         LaunchedEffect(Unit) {
@@ -109,11 +111,6 @@ fun MainWindow(onCloseRequest: () -> Unit) {
             // immediately re-center the existing window instead of only affecting the next launch.
             windowState.position = current.savedMainWindowPosition()
         }
-        LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
-            val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
-            if (refreshFileList) handledFileListRefreshVersion = appState.fileListRefreshVersion
-            viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
-        }
         LaunchedEffect(Unit) {
             snapshotFlow { liveWindowBounds }
                 .filterNotNull()
@@ -143,7 +140,8 @@ fun MainWindow(onCloseRequest: () -> Unit) {
         )
         MainStage(
             viewModel = viewModel,
-            onCloseRequest = onCloseRequest
+            onCloseRequest = onCloseRequest,
+            decorationsVisible = decorationsVisible
         )
     }
 }

@@ -27,6 +27,7 @@ import com.formdev.flatlaf.FlatDarkLaf
 import com.formdev.flatlaf.FlatLaf
 import com.formdev.flatlaf.FlatLightLaf
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserColorScheme
+import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.betterandroid.compose.extension.ui.toPlatformColor
 import org.jetbrains.jewel.ui.component.styling.MenuStyle
 import java.awt.Window
@@ -77,6 +78,20 @@ object LookAndFeel {
     }
 
     /**
+     * Enables the macOS full-window-content experiment for the main window only.
+     *
+     * macOS does not let FlatLaf replace the native title bar, so the only realistic path is to make
+     * the title bar transparent and let app content visually extend underneath it.
+     */
+    fun applyMacOSImmersiveTitleBarStyle(window: RootPaneContainer) {
+        if (!OsType.isMacOS) return
+
+        window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+        window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+        window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+    }
+
+    /**
      * Re-installs FlatLaf and refreshes existing menus when the system theme changes.
      *
      * `FlatLaf.updateUI()` alone is not enough here because popup menus may already exist and can
@@ -86,13 +101,13 @@ object LookAndFeel {
         val install = {
             runCatching {
                 System.setProperty("flatlaf.updateUIOnLafChange", "true")
-                System.setProperty("flatlaf.useWindowDecorations", "true")
                 System.setProperty("flatlaf.menuBarEmbedded", "false")
+                if (!OsType.isMacOS) System.setProperty("flatlaf.useWindowDecorations", "true")
 
-                if (uiStyle != null) applyUiStyle(uiStyle)
+                if (uiStyle != null && !OsType.isMacOS) applyUiStyle(uiStyle)
 
                 if (isDarkMode) FlatDarkLaf.setup() else FlatLightLaf.setup()
-                if (updateExistingWindows) {
+                if (updateExistingWindows && !OsType.isMacOS) {
                     FlatLaf.updateUI()
                     syncMenuPopupDefaults()
 

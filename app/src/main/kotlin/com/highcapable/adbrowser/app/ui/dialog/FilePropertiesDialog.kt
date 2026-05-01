@@ -67,6 +67,7 @@ import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.component.CheckboxRow
@@ -126,7 +127,7 @@ fun FilePropertiesDialog(
         },
         ownerWindow = ownerWindow,
         verticalSpacing = 10.dp,
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = ComponentPadding(12.dp),
         // Make the dialog slightly wider on non-macOS platforms to
         // accommodate the permission mode input field, which is hidden on macOS.
         width = if (OsType.isMacOS) 300.dp else 320.dp

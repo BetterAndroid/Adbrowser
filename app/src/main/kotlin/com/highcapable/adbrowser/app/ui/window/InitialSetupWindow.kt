@@ -27,13 +27,13 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.stage.InitialSetupStage
 import com.highcapable.adbrowser.app.ui.vm.InitialSetupStageModel
+import com.highcapable.adbrowser.app.ui.window.base.WindowScaffold
 
 @Composable
 fun InitialSetupWindow(onCloseRequest: () -> Unit) {
@@ -41,9 +41,9 @@ fun InitialSetupWindow(onCloseRequest: () -> Unit) {
     val viewModel = remember { InitialSetupStageModel(appState) }
     val exitApp = appState.application::exitApplication
 
-    Window(
+    WindowScaffold(
         onCloseRequest = {
-            if (viewModel.isBusy) return@Window
+            if (viewModel.isBusy) return@WindowScaffold
             exitApp()
         },
         title = strings.setupTitle,

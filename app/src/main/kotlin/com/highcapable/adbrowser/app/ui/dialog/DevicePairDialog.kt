@@ -92,6 +92,7 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.DevicePairDialogModel
 import com.highcapable.adbrowser.core.adb.model.pairing.PairingDevice
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
+import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.jetbrains.jewel.foundation.modifier.onHover
 import org.jetbrains.jewel.foundation.theme.JewelTheme
@@ -145,7 +146,7 @@ fun DevicePairDialog(
             if (viewModel.canClose) viewModel.cancelAndClose(onCloseRequest)
         },
         ownerWindow = ownerWindow,
-        contentPadding = PaddingValues(12.dp),
+        contentPadding = ComponentPadding(12.dp),
         width = 580.dp,
         height = 520.dp
     ) {
@@ -537,8 +538,8 @@ private fun PairingCodeDialog(
                                 .height(AdbrowserTheme.DefaultTextFieldHeight)
                                 .focusRequester(focusRequesters[index])
                                 .onPreviewKeyEvent { event ->
-                                    when {
-                                        event.type == KeyEventType.KeyDown && event.key == Key.Backspace -> {
+                                    when (event.type) {
+                                        KeyEventType.KeyDown if event.key == Key.Backspace -> {
                                             if (state.text.isNotEmpty()) return@onPreviewKeyEvent false
                                             if (index == 0) return@onPreviewKeyEvent false
 
@@ -547,8 +548,7 @@ private fun PairingCodeDialog(
                                             focusRequesters[index - 1].requestFocus()
                                             true
                                         }
-                                        event.type == KeyEventType.KeyDown &&
-                                            (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
+                                        KeyEventType.KeyDown if (event.key == Key.Enter || event.key == Key.NumPadEnter) &&
                                             canConfirm -> {
                                             viewModel.confirmManualPair(code())
                                             true

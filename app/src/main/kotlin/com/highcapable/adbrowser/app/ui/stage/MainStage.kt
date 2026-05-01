@@ -27,7 +27,6 @@ package com.highcapable.adbrowser.app.ui.stage
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +90,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
 import androidx.compose.ui.zIndex
 import cafe.adriel.lyricist.strings
+import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.component.DevicePanePanel
 import com.highcapable.adbrowser.app.ui.component.FileIconItem
@@ -102,6 +102,7 @@ import com.highcapable.adbrowser.app.ui.component.FixedWidthHorizontalSplitLayou
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialogIcon
 import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
@@ -133,10 +134,21 @@ import org.jetbrains.jewel.ui.icons.AllIconsKeys
 fun FrameWindowScope.MainStage(
     viewModel: MainStageModel,
     onCloseRequest: () -> Unit,
+    decorationsVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val appState = LocalAppState.current
+    var handledFileListRefreshVersion by remember { mutableStateOf(appState.fileListRefreshVersion) }
+
+    LaunchedEffect(appState.settingsSyncVersion, appState.fileListRefreshVersion) {
+        val refreshFileList = appState.fileListRefreshVersion != handledFileListRefreshVersion
+        if (refreshFileList) handledFileListRefreshVersion = appState.fileListRefreshVersion
+        viewModel.onExternalSettingsChanged(refreshFileList = refreshFileList)
+    }
+
     RenderContent(
         viewModel = viewModel,
+        decorationsVisible = decorationsVisible,
         modifier = modifier
     )
     RenderDialogs(viewModel = viewModel)
@@ -145,20 +157,19 @@ fun FrameWindowScope.MainStage(
 @Composable
 private fun RenderContent(
     viewModel: MainStageModel,
+    decorationsVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val colors = AdbrowserTheme.colors
+    val needApplyTopPadding = !(WindowTitleBar.isAvailable && decorationsVisible)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colors.mainBackground)
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
         FixedWidthHorizontalSplitLayout(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(top = if (needApplyTopPadding) ContentPaddingSpace else 0.dp)
+                .padding(horizontal = ContentPaddingSpace)
+                .padding(bottom = ContentPaddingSpace),
             firstPaneWidth = viewModel.devicePaneWidthDp.dp,
             onFirstPaneWidthChange = { viewModel.setDevicePaneWidth(it.value) },
             onFirstPaneWidthChangeFinished = viewModel::persistDevicePaneWidth,
@@ -1601,6 +1612,8 @@ private class EntryPositionController {
             currentRequest = null
     }
 }
+
+private val ContentPaddingSpace = 14.dp
 
 private val FirstPaneMinWidth = 240.dp
 private val SecondPaneMinWidth = 560.dp

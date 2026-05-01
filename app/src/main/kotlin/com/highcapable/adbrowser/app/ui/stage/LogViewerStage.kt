@@ -25,7 +25,6 @@
 package com.highcapable.adbrowser.app.ui.stage
 
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
@@ -70,11 +69,11 @@ import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.component.LogListHint
 import com.highcapable.adbrowser.app.ui.component.LogListPane
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.foundation.revealIndexBySingleStep
 import com.highcapable.adbrowser.app.ui.interaction.SelectionAreaState
 import com.highcapable.adbrowser.app.ui.interaction.blankAreaDragSelection
 import com.highcapable.adbrowser.app.ui.interaction.onBlankPrimaryPress
-import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.utils.SystemClipboard
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,10 +89,9 @@ fun FrameWindowScope.LogViewerStage(
     viewModel: LogViewerStageModel,
     hasWindowFocus: Boolean,
     onCloseRequest: () -> Unit,
+    decorationsVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val colors = AdbrowserTheme.colors
-
     val listState = rememberLazyListState()
     val horizontalScrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
@@ -104,13 +102,16 @@ fun FrameWindowScope.LogViewerStage(
         focusRequester.requestFocus()
     }
 
+    val needApplyTopPadding = !(WindowTitleBar.isAvailable && decorationsVisible)
+
     // Keep focus on the log area itself so keyboard navigation and shortcuts still work after
     // clicking rows, blank space, or opening and dismissing a non-focusable context menu.
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.mainBackground)
-            .padding(16.dp)
+            .padding(top = if (needApplyTopPadding) ContentPaddingSpace else 0.dp)
+            .padding(horizontal = ContentPaddingSpace)
+            .padding(bottom = ContentPaddingSpace)
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent {
@@ -392,3 +393,5 @@ private fun handleLogAreaShortcut(
         else -> false
     }
 }
+
+private val ContentPaddingSpace = 14.dp

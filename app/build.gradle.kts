@@ -40,9 +40,14 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.swing)
 
+    implementation(libs.kavaref.core)
+    implementation(libs.kavaref.extension)
+
     implementation(compose.desktop.currentOs) {
         exclude(group = "org.jetbrains.compose.material")
     }
+
+    compileOnly(libs.jbr.api)
     implementation(libs.jewel.int.ui.standalone)
     implementation(libs.intellij.platform.icons)
     implementation(libs.flatlaf)

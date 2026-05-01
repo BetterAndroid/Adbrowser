@@ -26,13 +26,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.stage.PreferencesStage
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
+import com.highcapable.adbrowser.app.ui.window.base.WindowScaffold
 
 @Composable
 fun PreferencesWindow(onCloseRequest: () -> Unit) {
@@ -44,11 +44,11 @@ fun PreferencesWindow(onCloseRequest: () -> Unit) {
         onDispose { viewModel.dispose() }
     }
 
-    Window(
+    WindowScaffold(
         onCloseRequest = {
             // Saving is asynchronous and the footer is the only place where validation/persistence
             // failures are shown, so the window must not close while a save is still in flight.
-            if (viewModel.isSaving) return@Window
+            if (viewModel.isSaving) return@WindowScaffold
             onCloseRequest()
         },
         title = strings.menuPreferences,

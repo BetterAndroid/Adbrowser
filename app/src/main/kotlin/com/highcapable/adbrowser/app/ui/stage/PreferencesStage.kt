@@ -23,7 +23,6 @@
 package com.highcapable.adbrowser.app.ui.stage
 
 import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,8 +89,10 @@ fun FrameWindowScope.PreferencesStage(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(colors.mainBackground)
-                .padding(12.dp)
+                // Leaves a little space to look harmonious.
+                .padding(top = 4.dp)
+                .padding(horizontal = ContentPaddingSpace)
+                .padding(bottom = ContentPaddingSpace)
         ) {
             Column(
                 modifier = Modifier
@@ -475,3 +476,5 @@ private fun preferencesStatusMessage(status: PreferencesStageModel.Status): Stri
 private val TabLabelFontSize = 20.sp
 private val TabLabelFontWeight = FontWeight.Normal
 private val PanelPadding = PaddingValues(14.dp)
+
+private val ContentPaddingSpace = 12.dp

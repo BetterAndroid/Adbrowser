@@ -30,15 +30,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.rememberWindowState
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
+import com.highcapable.adbrowser.app.ui.component.WindowButtonsSpacing
 import com.highcapable.adbrowser.app.ui.input.WindowFocusListener
 import com.highcapable.adbrowser.app.ui.input.rememberAppHasActiveWindow
 import com.highcapable.adbrowser.app.ui.menu.LogViewerMenuBar
 import com.highcapable.adbrowser.app.ui.stage.LogViewerStage
 import com.highcapable.adbrowser.app.ui.vm.LogViewerStageModel
+import com.highcapable.adbrowser.app.ui.window.base.WindowScaffold
 import java.awt.Dimension
 
 @Composable
@@ -48,13 +49,14 @@ fun LogViewerWindow(onCloseRequest: () -> Unit) {
     val appHasActiveWindow = rememberAppHasActiveWindow()
     var hasWindowFocus by remember { mutableStateOf(true) }
 
-    Window(
+    WindowScaffold(
         onCloseRequest = onCloseRequest,
         title = strings.menuAppLogs,
         resizable = true,
         alwaysOnTop = appHasActiveWindow,
-        state = rememberWindowState(width = 940.dp, height = 620.dp)
-    ) {
+        state = rememberWindowState(width = 940.dp, height = 620.dp),
+        buttonsSpacing = WindowButtonsSpacing.Medium
+    ) { decorationsVisible ->
         LaunchedEffect(Unit) {
             window.minimumSize = MinWindowSize
         }
@@ -80,7 +82,8 @@ fun LogViewerWindow(onCloseRequest: () -> Unit) {
         LogViewerStage(
             viewModel = viewModel,
             hasWindowFocus = hasWindowFocus,
-            onCloseRequest = onCloseRequest
+            onCloseRequest = onCloseRequest,
+            decorationsVisible = decorationsVisible
         )
     }
 }

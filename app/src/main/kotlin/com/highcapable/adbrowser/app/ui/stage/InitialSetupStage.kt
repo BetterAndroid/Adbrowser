@@ -22,7 +22,6 @@
  */
 package com.highcapable.adbrowser.app.ui.stage
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -67,8 +66,7 @@ fun FrameWindowScope.InitialSetupStage(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(colors.mainBackground)
-            .padding(28.dp)
+            .padding(ContentPaddingSpace)
     ) {
         Text(
             text = strings.setupHeaderTitle,
@@ -150,3 +148,5 @@ private fun StatusMessage(status: InitialSetupStageModel.Status) = when (status)
         "${strings.preferencesStatusFailedPrefix}$reason"
     }
 }
+
+private val ContentPaddingSpace = 20.dp
