@@ -167,11 +167,10 @@ abstract class InjectMacOSBundleLocalizationsTask : DefaultTask() {
 
         sourceRoot.listFiles()?.forEach { child ->
             val target = targetResourcesDir.resolve(child.name)
-            if (child.isDirectory) {
+
+            if (child.isDirectory)
                 child.copyRecursively(target, overwrite = true)
-            } else {
-                child.copyTo(target, overwrite = true)
-            }
+            else child.copyTo(target, overwrite = true)
         }
     }
 }
