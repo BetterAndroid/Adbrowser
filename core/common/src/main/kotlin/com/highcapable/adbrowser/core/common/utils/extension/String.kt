@@ -32,3 +32,8 @@ fun String.formatWithArgs(vararg args: Any): String {
     }
     return result
 }
+
+/**
+ * Normalizes a string by converting it to lowercase and handling null values gracefully.
+ */
+fun String?.normalized() = this.orEmpty().lowercase()
