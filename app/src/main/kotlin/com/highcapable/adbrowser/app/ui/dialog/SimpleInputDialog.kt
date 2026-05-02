@@ -74,7 +74,7 @@ fun SimpleInputDialog(
         title = title,
         onCloseRequest = onCloseRequest,
         ownerWindow = ownerWindow,
-        width = 480.dp
+        maxWidth = 480.dp
     ) {
         ProvidePrimaryAction(window) {
             Text(prompt)

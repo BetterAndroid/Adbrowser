@@ -39,6 +39,7 @@ import java.awt.Toolkit
 import java.awt.Window
 import java.awt.event.WindowEvent
 import java.awt.event.WindowFocusListener
+import java.awt.event.WindowListener
 import java.awt.event.WindowStateListener
 import java.beans.PropertyChangeListener
 import java.lang.reflect.Proxy
@@ -60,6 +61,49 @@ fun WindowFocusListener(
 
     override fun windowLostFocus(event: WindowEvent?) {
         windowLostFocus(event)
+    }
+}
+
+/**
+ * Creates a [WindowListener] backed by lambdas, so call sites can keep the same lightweight style
+ * as [WindowFocusListener] without inlining anonymous adapter classes.
+ */
+fun WindowListener(
+    windowOpened: (WindowEvent?) -> Unit = {},
+    windowClosing: (WindowEvent?) -> Unit = {},
+    windowClosed: (WindowEvent?) -> Unit = {},
+    windowIconified: (WindowEvent?) -> Unit = {},
+    windowDeiconified: (WindowEvent?) -> Unit = {},
+    windowActivated: (WindowEvent?) -> Unit = {},
+    windowDeactivated: (WindowEvent?) -> Unit = {}
+) = object : WindowListener {
+
+    override fun windowOpened(event: WindowEvent?) {
+        windowOpened(event)
+    }
+
+    override fun windowClosing(event: WindowEvent?) {
+        windowClosing(event)
+    }
+
+    override fun windowClosed(event: WindowEvent?) {
+        windowClosed(event)
+    }
+
+    override fun windowIconified(event: WindowEvent?) {
+        windowIconified(event)
+    }
+
+    override fun windowDeiconified(event: WindowEvent?) {
+        windowDeiconified(event)
+    }
+
+    override fun windowActivated(event: WindowEvent?) {
+        windowActivated(event)
+    }
+
+    override fun windowDeactivated(event: WindowEvent?) {
+        windowDeactivated(event)
     }
 }
 

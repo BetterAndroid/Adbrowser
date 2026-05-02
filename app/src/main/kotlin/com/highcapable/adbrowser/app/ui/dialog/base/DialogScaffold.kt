@@ -20,39 +20,60 @@
  *
  * This file is created by fankes on 2026/4/5.
  */
+@file:Suppress("AssignedValueIsNeverRead", "COMPOSE_APPLIER_CALL_MISMATCH")
+
 package com.highcapable.adbrowser.app.ui.dialog.base
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.ComposeDialog
+import androidx.compose.ui.awt.SwingDialog
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogWindow
+import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.window.DialogWindowScope
-import androidx.compose.ui.window.rememberDialogState
 import com.highcapable.adbrowser.app.ui.component.WindowButtonsSpacing
 import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
+import com.highcapable.adbrowser.app.ui.input.WindowListener
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.utils.LookAndFeel
 import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
+import java.awt.Dialog
+import java.awt.GraphicsConfiguration
+import java.awt.Rectangle
+import java.awt.Toolkit
 import java.awt.Window
+import javax.swing.JDialog
 
 @Composable
 fun DialogScaffold(
     title: String,
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null,
-    width: Dp = 460.dp,
+    width: Dp = Dp.Unspecified,
     height: Dp = Dp.Unspecified,
+    maxWidth: Dp = 460.dp,
+    maxHeight: Dp = Dp.Unspecified,
     verticalSpacing: Dp = 12.dp,
     contentPadding: ComponentPadding = ComponentPadding(20.dp),
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
@@ -60,55 +81,178 @@ fun DialogScaffold(
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
-    DialogWindow(
-        onCloseRequest = onCloseRequest,
-        title = title,
-        resizable = false,
-        state = rememberDialogState(width = width, height = height)
+    val currentTitle by rememberUpdatedState(title)
+    val currentOnCloseRequest by rememberUpdatedState(onCloseRequest)
+    var hasCenteredDialog by remember(ownerWindow) { mutableStateOf(false) }
+
+    SwingDialog(
+        create = {
+            createComposeDialog(ownerWindow).apply {
+                defaultCloseOperation = JDialog.DO_NOTHING_ON_CLOSE
+                addWindowListener(
+                    WindowListener(
+                        windowClosing = { currentOnCloseRequest() }
+                    )
+                )
+                LookAndFeel.applyMacOSImmersiveTitleBarStyle(this)
+            }
+        },
+        dispose = ComposeDialog::dispose,
+        update = { dialog ->
+            dialog.title = currentTitle
+            dialog.isResizable = false
+            dialog.pack()
+            if (!hasCenteredDialog) {
+                ownerWindow?.let(dialog::setLocationRelativeTo)
+                hasCenteredDialog = true
+            }
+        }
     ) {
         val colors = AdbrowserTheme.colors
 
-        LaunchedEffect(Unit) {
-            LookAndFeel.applyMacOSImmersiveTitleBarStyle(window)
-        }
-        LaunchedEffect(window, ownerWindow) {
-            if (ownerWindow == null) return@LaunchedEffect
+        val density = LocalDensity.current
+        val maxDialogSize = rememberDialogMaxSize(window, density, maxWidth, maxHeight)
+        val resolvedWidth = width.coerceToAtMostOrNull(maxDialogSize.width)
+        val resolvedHeight = height.coerceToAtMostOrNull(maxDialogSize.height)
+        val compatiblePadding = contentPadding.copy(
+            top = contentPadding.top / if (WindowTitleBar.isAvailable) 2 else 1
+        )
 
-            // DialogWindow centers by screen by default. Waiting until the first frame is laid out
-            // lets AWT know the dialog's final measured size before we center it over the owner window.
-            withFrameNanos {}
-            window.setLocationRelativeTo(ownerWindow)
-        }
-
-        Column(
+        DialogScaffoldLayout(
             modifier = Modifier
                 .background(colors.mainBackground)
-                .fillMaxWidth()
-                .wrapContentHeight(),
-            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
-            horizontalAlignment = horizontalAlignment
-        ) {
-            // If the window title bar is available,
-            // we need to remove the top padding to avoid extra space between the title bar and the content.
-            val compatiblePadding = contentPadding.copy(
-                top = if (WindowTitleBar.isAvailable) 0.dp else contentPadding.top
-            )
+                .then(if (resolvedWidth != null)
+                    Modifier.width(resolvedWidth)
+                else Modifier.widthIn(max = maxDialogSize.width))
+                .then(if (resolvedHeight != null)
+                    Modifier.height(resolvedHeight)
+                else Modifier.heightIn(max = maxDialogSize.height)),
+            title = title,
+            titleBarBackgroundColor = titleBarBackgroundColor,
+            buttonsSpacing = buttonsSpacing,
+            contentPadding = compatiblePadding,
+            verticalSpacing = verticalSpacing,
+            horizontalAlignment = horizontalAlignment,
+            content = content
+        )
+    }
+}
 
-            WindowTitleBar(
-                title = title,
-                backgroundColor = titleBarBackgroundColor,
-                buttonsSpacing = buttonsSpacing
-            )
+/**
+ * Measures the dialog body first, then fits the custom title bar to that body width.
+ *
+ * This avoids letting the title bar's internal `fillMaxWidth()` force every auto-sized dialog to
+ * jump straight to the maximum allowed width.
+ */
+@Composable
+private fun DialogWindowScope.DialogScaffoldLayout(
+    modifier: Modifier = Modifier,
+    title: String,
+    titleBarBackgroundColor: Color,
+    buttonsSpacing: WindowButtonsSpacing,
+    contentPadding: ComponentPadding,
+    verticalSpacing: Dp,
+    horizontalAlignment: Alignment.Horizontal,
+    content: @Composable DialogWindowScope.() -> Unit
+) {
+    val showTitleBar = WindowTitleBar.isAvailable
+    val titleBarHeightPx = with(LocalDensity.current) { buttonsSpacing.height.roundToPx() }
+
+    Layout(
+        modifier = modifier,
+        content = {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(compatiblePadding),
+                modifier = Modifier.padding(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(verticalSpacing),
                 horizontalAlignment = horizontalAlignment
             ) {
                 content()
             }
+            if (showTitleBar)
+                WindowTitleBar(
+                    title = title,
+                    backgroundColor = titleBarBackgroundColor,
+                    buttonsSpacing = buttonsSpacing
+                )
+        }
+    ) { measurables, constraints ->
+        val bodyMeasurable = measurables.first()
+        val titleBarMeasurable = measurables.getOrNull(1)
+        val reservedTitleBarHeight = if (titleBarMeasurable != null) titleBarHeightPx else 0
+        val bodyConstraints = Constraints(
+            minWidth = constraints.minWidth,
+            maxWidth = constraints.maxWidth,
+            minHeight = (constraints.minHeight - reservedTitleBarHeight).coerceAtLeast(0),
+            maxHeight = (constraints.maxHeight - reservedTitleBarHeight).coerceAtLeast(0)
+        )
+        val bodyPlaceable = bodyMeasurable.measure(bodyConstraints)
+        val titleBarPlaceable = titleBarMeasurable?.measure(
+            Constraints(
+                minWidth = bodyPlaceable.width,
+                maxWidth = bodyPlaceable.width,
+                minHeight = reservedTitleBarHeight,
+                maxHeight = reservedTitleBarHeight
+            )
+        )
+
+        val layoutWidth = bodyPlaceable.width.coerceIn(constraints.minWidth, constraints.maxWidth)
+        val layoutHeight = (bodyPlaceable.height + (titleBarPlaceable?.height ?: 0))
+            .coerceIn(constraints.minHeight, constraints.maxHeight)
+
+        layout(layoutWidth, layoutHeight) {
+            var currentY = 0
+            titleBarPlaceable?.let {
+                it.placeRelative(0, currentY)
+                currentY += it.height
+            }
+            bodyPlaceable.placeRelative(0, currentY)
         }
     }
 }
+
+@Composable
+private fun rememberDialogMaxSize(
+    window: Window,
+    density: Density,
+    maxWidth: Dp,
+    maxHeight: Dp
+) = remember(window.graphicsConfiguration, density, maxWidth, maxHeight) {
+    window.resolveDialogMaxSize(density, maxWidth, maxHeight)
+}
+
+private fun Window.resolveDialogMaxSize(density: Density, maxWidth: Dp, maxHeight: Dp): DpSize {
+    val usableBounds = graphicsConfiguration
+        ?.let(::screenUsableBounds)
+        ?: Rectangle(Toolkit.getDefaultToolkit().screenSize)
+    val safeMaxWidth = with(density) { usableBounds.width.toDp() } * DialogScreenFillFraction
+    val safeMaxHeight = with(density) { usableBounds.height.toDp() } * DialogScreenFillFraction
+
+    return DpSize(
+        width = if (!maxWidth.isUnspecified) maxWidth.coerceAtMost(safeMaxWidth) else safeMaxWidth,
+        height = if (!maxHeight.isUnspecified) maxHeight.coerceAtMost(safeMaxHeight) else safeMaxHeight
+    )
+}
+
+private fun createComposeDialog(ownerWindow: Window?) =
+    if (ownerWindow != null) ComposeDialog(
+        ownerWindow,
+        Dialog.ModalityType.DOCUMENT_MODAL,
+        ownerWindow.graphicsConfiguration
+    ) else ComposeDialog()
+
+private fun screenUsableBounds(configuration: GraphicsConfiguration): Rectangle {
+    val screenBounds = configuration.bounds
+    val screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(configuration)
+
+    return Rectangle(
+        screenBounds.x + screenInsets.left,
+        screenBounds.y + screenInsets.top,
+        screenBounds.width - screenInsets.left - screenInsets.right,
+        screenBounds.height - screenInsets.top - screenInsets.bottom
+    )
+}
+
+private fun Dp.coerceToAtMostOrNull(max: Dp) =
+    if (!isUnspecified) coerceAtMost(max) else null
+
+private const val DialogScreenFillFraction = 0.85f

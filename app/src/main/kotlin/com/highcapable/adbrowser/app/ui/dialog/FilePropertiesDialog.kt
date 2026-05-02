@@ -129,7 +129,7 @@ fun FilePropertiesDialog(
         contentPadding = ComponentPadding(12.dp),
         // Make the dialog slightly wider on non-macOS platforms to
         // accommodate the permission mode input field, which is hidden on macOS.
-        width = if (OsType.isMacOS) 300.dp else 320.dp
+        maxWidth = if (OsType.isMacOS) 300.dp else 320.dp
     ) {
         PanelSurface(
             modifier = Modifier.fillMaxWidth(),
