@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.cl.AppState
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
+import com.highcapable.adbrowser.core.adb.model.OperationResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -39,6 +40,7 @@ class DeviceConnectDialogModel(private val appState: AppState) : ViewModel() {
     private companion object {
 
         const val MAX_ADDRESS_HISTORY_SIZE = 12
+        const val DEVICE_UNAUTHORIZED_KEYWORD = "device unauthorized"
     }
 
     sealed interface Status {
@@ -126,7 +128,7 @@ class DeviceConnectDialogModel(private val appState: AppState) : ViewModel() {
             status = Status.Connecting
             try {
                 val result = adbClient.connectDevice(address)
-                if (!result.isOk) {
+                if (!result.isOk && !result.isDeviceUnauthorized()) {
                     status = Status.Failed(result.errorMessage)
                     return@launch
                 }
@@ -177,4 +179,13 @@ class DeviceConnectDialogModel(private val appState: AppState) : ViewModel() {
     fun dispose() {
         modelScope.cancel()
     }
+
+    /**
+     * Some devices report an unauthorized transport immediately after `adb connect`.
+     *
+     * For the connect dialog this still means the network connection itself succeeded, and the
+     * subsequent device refresh should surface that transport in the unauthorized state.
+     */
+    private fun OperationResult<*>.isDeviceUnauthorized() =
+        errorMessage.orEmpty().lowercase().contains(DEVICE_UNAUTHORIZED_KEYWORD)
 }
