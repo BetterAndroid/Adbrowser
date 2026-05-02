@@ -117,6 +117,7 @@ import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
+import com.highcapable.adbrowser.app.ui.vm.model.type.ErrorMessage
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import com.highcapable.adbrowser.core.common.utils.OsType
@@ -1145,11 +1146,16 @@ private fun StatusMessageText(status: MainStageModel.StatusMessage): String = wh
 
 @Composable
 private fun FileOperationFailureMessage(state: MainStageModel.DialogState.FileOperationFailure): String {
-    val detail = state.rawMessage
-        ?.takeIf { it.isNotBlank() && it != MainStageModel.UNKNOWN_ERROR_TOKEN }
-        ?: strings.commonUnknownError
+    val detail = when (ErrorMessage.resolveFileKind(state.rawMessage)) {
+        ErrorMessage.FileKind.AlreadyExists -> strings.dialogRenameErrorAlreadyExists
+        ErrorMessage.FileKind.PermissionDenied -> strings.mainFileListHintPermissionDenied
+        ErrorMessage.FileKind.Unknown -> when (ErrorMessage.resolveInternalKind(state.rawMessage)) {
+            ErrorMessage.InternalKind.InvalidPermission -> strings.dialogPropertiesInvalidPermission
+            ErrorMessage.InternalKind.Unknown -> strings.commonUnknownError
+            null -> state.rawMessage.orEmpty()
+        }
+    }
 
-    // TODO: Use more specific messages for different failure types, e.g. permission denied, target already exists, etc.
     return when (state.type) {
         MainStageModel.FileOperationType.Delete -> strings.dialogFileOperationFailureDelete.formatWithArgs(state.itemName, detail)
         MainStageModel.FileOperationType.Copy -> strings.dialogFileOperationFailureCopy.formatWithArgs(state.itemName, detail)
@@ -1159,9 +1165,11 @@ private fun FileOperationFailureMessage(state: MainStageModel.DialogState.FileOp
 
 @Composable
 private fun RenameErrorMessage(state: MainStageModel.DialogState.RenameError): String {
-    val detail = state.rawMessage
-        ?.takeIf { it.isNotBlank() && it != MainStageModel.UNKNOWN_ERROR_TOKEN }
-        ?: strings.commonUnknownError
+    val detail = when (ErrorMessage.resolveInternalKind(state.rawMessage)) {
+        ErrorMessage.InternalKind.InvalidPermission -> strings.dialogPropertiesInvalidPermission
+        ErrorMessage.InternalKind.Unknown -> strings.commonUnknownError
+        null -> state.rawMessage.orEmpty()
+    }
 
     return when (state.kind) {
         MainStageModel.DialogState.RenameErrorKind.AlreadyExists -> strings.dialogRenameErrorAlreadyExists

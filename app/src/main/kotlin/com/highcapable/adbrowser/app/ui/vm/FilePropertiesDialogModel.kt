@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.highcapable.adbrowser.app.ui.vm.base.ViewModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
+import com.highcapable.adbrowser.app.ui.vm.model.type.orUnknownErrorToken
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
 
@@ -149,7 +150,7 @@ class FilePropertiesDialogModel(
             return CloseResult.Close
         }
 
-        val message = result.errorMessage?.takeIf { it.isNotBlank() } ?: MainStageModel.UNKNOWN_ERROR_TOKEN
+        val message = result.orUnknownErrorToken()
         statusMessageRaw = message
         return CloseResult.ConfirmDiscard(message)
     }

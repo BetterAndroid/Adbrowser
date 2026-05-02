@@ -37,10 +37,14 @@ import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
 import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
 import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut.Companion.toUiType
 import com.highcapable.adbrowser.app.ui.vm.model.PathBreadcrumbSegment
+import com.highcapable.adbrowser.app.ui.vm.model.type.ErrorMessage
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileSortMode.Companion.toUiType
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode.Companion.toUiType
+import com.highcapable.adbrowser.app.ui.vm.model.type.orUnknownErrorToken
+import com.highcapable.adbrowser.app.ui.vm.model.type.resolveAdbErrorKind
+import com.highcapable.adbrowser.app.ui.vm.model.type.resolveFileErrorKind
 import com.highcapable.adbrowser.core.adb.fs.model.DeviceFileEntry
 import com.highcapable.adbrowser.core.adb.model.AndroidDevice
 import com.highcapable.adbrowser.core.adb.model.OperationResult
@@ -55,9 +59,6 @@ import kotlinx.coroutines.runBlocking
 class MainStageModel(private val appState: AppState) : ViewModel() {
 
     companion object {
-
-        const val INVALID_PERMISSION_TOKEN = "__invalid_permission__"
-        const val UNKNOWN_ERROR_TOKEN = "__unknown_error__"
 
         private const val DEVICE_PANE_MIN_WIDTH = 240f
 
@@ -726,8 +727,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         if (!result.isOk) {
             clearInlineRename(state)
             dialogState = DialogState.RenameError(
-                kind = resolveRenameErrorKind(result.errorMessage),
-                rawMessage = result.errorMessage.orUnknownErrorToken()
+                kind = resolveRenameErrorKind(result),
+                rawMessage = result.orUnknownErrorToken()
             )
             return false
         }
@@ -1014,7 +1015,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
                 return true
             }
 
-            return when (awaitFileOperationFailureDecision(type, item, result.errorMessage, canApplyToSubsequent)) {
+            return when (awaitFileOperationFailureDecision(type, item, result, canApplyToSubsequent)) {
                 FileOperationFailureAction.Retry -> continue
                 FileOperationFailureAction.Skip -> true
                 FileOperationFailureAction.Cancel -> false
@@ -1025,7 +1026,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     private suspend fun awaitFileOperationFailureDecision(
         type: FileOperationType,
         item: ClipboardItemSnapshot,
-        errorMessage: String?,
+        result: OperationResult<*>,
         canApplyToSubsequent: Boolean
     ): FileOperationFailureAction {
         val queue = pendingFileOperationQueue ?: return FileOperationFailureAction.Cancel
@@ -1036,7 +1037,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         dialogState = DialogState.FileOperationFailure(
             type = type,
             itemName = item.name,
-            rawMessage = errorMessage.orUnknownErrorToken(),
+            rawMessage = result.orUnknownErrorToken(),
             canApplyToSubsequent = canApplyToSubsequent
         )
 
@@ -1645,14 +1646,14 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
      * value, and the dialog should reflect the real final permission instead of a locally inferred one.
      */
     fun applyPermission(snapshot: FileEntrySnapshot, modeText: String): OperationResult<FilePermission.Info> {
-        val mode = FilePermission.parseMode(modeText) ?: return OperationResult.failure(INVALID_PERMISSION_TOKEN)
+        val mode = FilePermission.parseMode(modeText) ?: return OperationResult.failure(ErrorMessage.INVALID_PERMISSION_TOKEN)
 
         val setResult = runBlocking { permissionService.setPermission(snapshot.device, snapshot.fullPath, mode) }
-        if (!setResult.isOk) return OperationResult.failure(setResult.errorMessage.orUnknownErrorToken())
+        if (!setResult.isOk) return OperationResult.failure(setResult.orUnknownErrorToken())
 
         val getResult = runBlocking { permissionService.getPermission(snapshot.device, snapshot.fullPath) }
         val info = getResult.data
-        if (!getResult.isOk || info == null) return OperationResult.failure(getResult.errorMessage.orUnknownErrorToken())
+        if (!getResult.isOk || info == null) return OperationResult.failure(getResult.orUnknownErrorToken())
 
         updateEntryPermission(snapshot.fullPath, info.symbolicPermission)
 
@@ -1739,7 +1740,7 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
             persistCurrentPath(state, device)
         } else {
             fillEntries(state, emptyList())
-            state.fileListHint = resolveFailureHint(result.errorMessage)
+            state.fileListHint = resolveFailureHint(result)
 
             // File-area hints already explain why the current directory cannot be shown. Keeping
             // the status bar empty here lets it fall back to the neutral item-count text, so
@@ -2366,27 +2367,19 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         return normalized
     }
 
-    private fun resolveFailureHint(errorMessage: String?): FileListHint {
-        val message = errorMessage.orEmpty().lowercase()
-
-        // Backend error messages are not fully normalized yet, so this intentionally relies on
-        // tolerant substring checks instead of exact string matching.
-        return when {
-            "device unauthorized" in message -> FileListHint.DeviceUnauthorized
-            "device offline" in message -> FileListHint.DeviceOffline
-            ("device '" in message && "' not found" in message) ||
-                ("device" in message && "not found" in message && "error:" in message) -> FileListHint.DeviceNotFound
-            "no such file or directory" in message || "not found" in message -> FileListHint.PathNotFound
-            "permission denied" in message ||
-                "operation not permitted" in message || 
-                "not permitted" in message -> FileListHint.PermissionDenied
-            else -> FileListHint.LoadFailed
-        }
+    private fun resolveFailureHint(result: OperationResult<*>) = when (result.resolveAdbErrorKind()) {
+        ErrorMessage.AdbKind.DeviceUnauthorized -> FileListHint.DeviceUnauthorized
+        ErrorMessage.AdbKind.DeviceOffline -> FileListHint.DeviceOffline
+        ErrorMessage.AdbKind.DeviceNotFound -> FileListHint.DeviceNotFound
+        ErrorMessage.AdbKind.PathNotFound -> FileListHint.PathNotFound
+        ErrorMessage.AdbKind.PermissionDenied -> FileListHint.PermissionDenied
+        ErrorMessage.AdbKind.Unknown -> FileListHint.LoadFailed
     }
 
-    private fun resolveRenameErrorKind(message: String?) = when {
-        "already exists" in message.orEmpty().lowercase() -> DialogState.RenameErrorKind.AlreadyExists
-        else -> DialogState.RenameErrorKind.Generic
+    private fun resolveRenameErrorKind(result: OperationResult<*>) = when (result.resolveFileErrorKind()) {
+        ErrorMessage.FileKind.AlreadyExists -> DialogState.RenameErrorKind.AlreadyExists
+        ErrorMessage.FileKind.PermissionDenied,
+        ErrorMessage.FileKind.Unknown -> DialogState.RenameErrorKind.Generic
     }
 
     /**
@@ -2433,6 +2426,4 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     ) = when (selection.reason) {
         PendingDeviceSelectionCoordinator.Reason.Connected -> setStatus(StatusMessage.Key.DeviceConnected, device.brandModel)
     }
-
-    private fun String?.orUnknownErrorToken() = this?.takeIf { it.isNotBlank() } ?: UNKNOWN_ERROR_TOKEN
 }

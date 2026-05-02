@@ -60,8 +60,8 @@ import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionAccess
 import com.highcapable.adbrowser.app.ui.vm.FilePropertiesDialogModel.PermissionScope
-import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.vm.model.FileEntrySnapshot
+import com.highcapable.adbrowser.app.ui.vm.model.type.ErrorMessage
 import com.highcapable.adbrowser.core.adb.model.OperationResult
 import com.highcapable.adbrowser.core.common.fs.FilePermission
 import com.highcapable.adbrowser.core.common.utils.OsType
@@ -96,12 +96,10 @@ fun FilePropertiesDialog(
     val invalidPermissionText = strings.dialogPropertiesInvalidPermission
     val unknownErrorText = strings.commonUnknownError
     val resolveDialogStatusText: (String?) -> String = { raw ->
-        val value = raw.orEmpty()
-        when {
-            value.isBlank() -> unknownErrorText
-            value == MainStageModel.INVALID_PERMISSION_TOKEN -> invalidPermissionText
-            value == MainStageModel.UNKNOWN_ERROR_TOKEN -> unknownErrorText
-            else -> value
+        when (ErrorMessage.resolveInternalKind(raw)) {
+            ErrorMessage.InternalKind.InvalidPermission -> invalidPermissionText
+            ErrorMessage.InternalKind.Unknown -> unknownErrorText
+            null -> raw.orEmpty()
         }
     }
 
