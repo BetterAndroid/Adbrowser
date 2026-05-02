@@ -36,9 +36,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowScope
 import androidx.compose.ui.window.FrameWindowScope
-import com.highcapable.adbrowser.app.ui.input.applyJbrCustomTitleBar
-import com.highcapable.adbrowser.app.ui.input.customTitleBarMouseEventHandler
-import com.highcapable.adbrowser.app.ui.input.rememberJbrCustomTitleBar
+import com.highcapable.adbrowser.app.ui.platform.jbr.JBR
+import com.highcapable.adbrowser.app.ui.platform.jbr.applyJbrCustomTitleBar
+import com.highcapable.adbrowser.app.ui.platform.jbr.customTitleBarMouseEventHandler
+import com.highcapable.adbrowser.app.ui.platform.jbr.rememberJbrCustomTitleBar
 import com.highcapable.adbrowser.core.common.utils.OsType
 import org.jetbrains.jewel.ui.component.Text
 import java.awt.Window
@@ -137,7 +138,7 @@ object WindowTitleBar {
     /**
      * Whether the WindowTitleBar component is available on the current platform.
      */
-    val isAvailable get() = OsType.isMacOS
+    val isAvailable get() = OsType.isMacOS && JBR.isAvailable
 }
 
 /**

@@ -31,6 +31,7 @@ import androidx.compose.ui.window.application
 import com.highcapable.adbrowser.app.cl.AppState
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.locale.ProvidedLocales
+import com.highcapable.adbrowser.app.ui.platform.jbr.JBR
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.utils.LookAndFeel
 import com.highcapable.adbrowser.app.ui.utils.SystemAppearance
@@ -47,6 +48,8 @@ import org.jetbrains.jewel.ui.theme.menuStyle
 import java.awt.Desktop
 
 fun main() {
+    JBR.require()
+
     SystemAppearance.initialize()
     LookAndFeel.initialize(SystemAppearance.isDarkMode)
 

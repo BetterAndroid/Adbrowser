@@ -18,58 +18,23 @@
  * and eula along with this software.  If not, see
  * <https://www.gnu.org/licenses/>
  *
- * This file is created by fankes on 2026/5/1.
+ * This file is created by fankes on 2026/5/3.
  */
-package com.highcapable.adbrowser.app.ui.input
+package com.highcapable.adbrowser.app.ui.platform.jbr
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.Dp
-import com.jetbrains.JBR
 import com.jetbrains.WindowDecorations
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-import java.awt.Dialog
-import java.awt.Frame
-import java.awt.Window
-
-/**
- * Remembers a JBR custom title bar for the given host window.
- *
- * The handle is window-scoped because JBR associates native drag and inset state with the host
- * frame itself, so recreating it on every recomposition would only create redundant bridge
- * objects with no benefit.
- */
-@Composable
-fun rememberJbrCustomTitleBar(window: Window) = remember(window) { createJbrCustomTitleBarOrNull() }
-
-/**
- * Applies the requested custom title-bar height to the current frame window.
- *
- * This mirrors the contract Jewel uses on macOS and Windows: Compose owns the visual layer while
- * JBR keeps the host window's native draggable/title-bar region aligned with that layout height.
- */
-fun applyJbrCustomTitleBar(window: Window, customTitleBar: WindowDecorations.CustomTitleBar?, height: Dp) {
-    customTitleBar ?: return
-
-    customTitleBar.height = height.value
-    when (window) {
-        is Frame -> JBR.getWindowDecorations().setCustomTitleBar(window, customTitleBar)
-        is Dialog -> JBR.getWindowDecorations().setCustomTitleBar(window, customTitleBar)
-    }
-}
 
 /**
  * Bridges Compose pointer dispatch back into JBR's native title-bar hit testing.
  *
- * Once a custom title bar is installed, JBR needs explicit guidance about whether the current
- * pointer event belongs to app controls or to the host window chrome. Unconsumed events are
- * treated as draggable title-bar space, while consumed events temporarily disable native hit
- * testing so controls keep normal interaction behavior.
+ * Unconsumed pointer events are treated as draggable title-bar space, while consumed events are
+ * routed back to app controls by temporarily disabling native hit testing.
  */
 fun Modifier.customTitleBarMouseEventHandler(titleBar: WindowDecorations.CustomTitleBar?) =
     if (titleBar == null) this else pointerInput(titleBar) {
@@ -90,6 +55,3 @@ fun Modifier.customTitleBarMouseEventHandler(titleBar: WindowDecorations.CustomT
             }
         }
     }
-
-private fun createJbrCustomTitleBarOrNull(): WindowDecorations.CustomTitleBar? =
-    if (JBR.isWindowDecorationsSupported()) JBR.getWindowDecorations().createCustomTitleBar() else null
