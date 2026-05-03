@@ -168,7 +168,8 @@ private fun RenderContent(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(top = if (needApplyTopPadding) ContentPaddingSpace else 0.dp)
+                // Half the top padding to harmonize spacing with the title bar.
+                .padding(top = if (needApplyTopPadding) ContentPaddingSpace / 2 else 0.dp)
                 .padding(horizontal = ContentPaddingSpace)
                 .padding(bottom = ContentPaddingSpace),
             firstPaneWidth = viewModel.devicePaneWidthDp.dp,

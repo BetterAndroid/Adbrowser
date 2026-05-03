@@ -90,7 +90,7 @@ fun FrameWindowScope.PreferencesStage(
             modifier = modifier
                 .fillMaxSize()
                 // Leaves a little space to look harmonious.
-                .padding(top = 4.dp)
+                .padding(top = 2.dp)
                 .padding(horizontal = ContentPaddingSpace)
                 .padding(bottom = ContentPaddingSpace)
         ) {

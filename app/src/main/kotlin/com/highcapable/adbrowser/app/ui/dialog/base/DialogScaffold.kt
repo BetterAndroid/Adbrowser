@@ -114,9 +114,9 @@ fun DialogScaffold(
         val maxDialogSize = rememberDialogMaxSize(window, density, maxWidth, maxHeight)
         val resolvedWidth = width.coerceToAtMostOrNull(maxDialogSize.width)
         val resolvedHeight = height.coerceToAtMostOrNull(maxDialogSize.height)
-        val compatiblePadding = contentPadding.copy(
-            top = contentPadding.top / if (WindowTitleBar.isAvailable) 2 else 1
-        )
+
+        // Half the top padding to harmonize spacing with the title bar.
+        val compatiblePadding = contentPadding.copy(top = contentPadding.top / 2)
 
         DialogScaffoldLayout(
             modifier = Modifier
