@@ -44,11 +44,13 @@ import androidx.compose.ui.awt.ComposeDialog
 import androidx.compose.ui.awt.SwingDialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.window.DialogWindowScope
@@ -64,6 +66,7 @@ import java.awt.Rectangle
 import java.awt.Toolkit
 import java.awt.Window
 import javax.swing.JDialog
+import javax.swing.SwingUtilities
 
 @Composable
 fun DialogScaffold(
@@ -78,12 +81,15 @@ fun DialogScaffold(
     contentPadding: ComponentPadding = ComponentPadding(20.dp),
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     titleBarBackgroundColor: Color = Color.Transparent,
+    fitsTitleBarHeight: Boolean = true,
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
     val currentTitle by rememberUpdatedState(title)
     val currentOnCloseRequest by rememberUpdatedState(onCloseRequest)
     var hasCenteredDialog by remember(ownerWindow) { mutableStateOf(false) }
+    var contentSize by remember { mutableStateOf(IntSize.Zero) }
+    var packedContentSize by remember { mutableStateOf(IntSize.Zero) }
 
     SwingDialog(
         create = {
@@ -116,11 +122,27 @@ fun DialogScaffold(
         val resolvedHeight = height.coerceToAtMostOrNull(maxDialogSize.height)
 
         // Half the top padding to harmonize spacing with the title bar.
-        val compatiblePadding = contentPadding.copy(top = contentPadding.top / 2)
+        val compatiblePadding = contentPadding.let {
+            if (fitsTitleBarHeight)
+                it.copy(top = contentPadding.top / 2)
+            else it
+        }
+
+        if (contentSize != IntSize.Zero && contentSize != packedContentSize) {
+            packedContentSize = contentSize
+            SwingUtilities.invokeLater {
+                window.pack()
+                if (!hasCenteredDialog) {
+                    ownerWindow?.let(window::setLocationRelativeTo)
+                    hasCenteredDialog = true
+                }
+            }
+        }
 
         DialogScaffoldLayout(
             modifier = Modifier
                 .background(colors.mainBackground)
+                .onSizeChanged { contentSize = it }
                 .then(if (resolvedWidth != null)
                     Modifier.width(resolvedWidth)
                 else Modifier.widthIn(max = maxDialogSize.width))
