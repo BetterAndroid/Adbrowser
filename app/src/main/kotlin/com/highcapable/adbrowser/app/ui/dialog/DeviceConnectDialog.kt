@@ -59,6 +59,7 @@ import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.ContentIcon
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
@@ -120,6 +121,7 @@ fun DeviceConnectDialog(
         title = strings.dialogDeviceConnectTitle,
         onCloseRequest = { viewModel.cancelAndClose(onCloseRequest) },
         horizontalAlignment = Alignment.CenterHorizontally,
+        fitsTitleBarHeight = !WindowTitleBar.isAvailable,
         ownerWindow = ownerWindow
     ) {
         ProvidePrimaryAction(window) {

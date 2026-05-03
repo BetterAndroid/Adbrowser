@@ -56,6 +56,7 @@ import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.ContentIconButton
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.PreferencesStageModel
@@ -90,7 +91,7 @@ fun FrameWindowScope.PreferencesStage(
             modifier = modifier
                 .fillMaxSize()
                 // Leaves a little space to look harmonious.
-                .padding(top = 2.dp)
+                .padding(top = if (WindowTitleBar.isAvailable) 2.dp else 0.dp)
                 .padding(horizontal = ContentPaddingSpace)
                 .padding(bottom = ContentPaddingSpace)
         ) {

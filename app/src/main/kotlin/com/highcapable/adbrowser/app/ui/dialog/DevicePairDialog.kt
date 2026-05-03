@@ -84,6 +84,7 @@ import com.highcapable.adbrowser.app.ui.component.ButtonActionRow
 import com.highcapable.adbrowser.app.ui.component.ContentIcon
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.QrCodePanel
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
 import com.highcapable.adbrowser.app.ui.dialog.base.DialogScaffold
 import com.highcapable.adbrowser.app.ui.interaction.ProvidePrimaryAction
 import com.highcapable.adbrowser.app.ui.modifier.resolveListItemBackground
@@ -144,10 +145,12 @@ fun DevicePairDialog(
         onCloseRequest = {
             if (viewModel.canClose) viewModel.cancelAndClose(onCloseRequest)
         },
-        ownerWindow = ownerWindow,
-        contentPadding = ComponentPadding(12.dp),
-        width = 580.dp,
-        height = 520.dp
+        contentPadding = ComponentPadding(12.dp)
+            .copy(top = if (WindowTitleBar.isAvailable) 2.dp else 0.dp),
+        fitsTitleBarHeight = false,
+        maxWidth = 580.dp,
+        maxHeight = 520.dp,
+        ownerWindow = ownerWindow
     ) {
         DevicePairTabs(viewModel)
 
@@ -248,7 +251,7 @@ private fun ColumnScope.QrPairTab(viewModel: DevicePairDialogModel) {
             .fillMaxSize()
             .weight(1f),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp, alignment = Alignment.CenterVertically)
     ) {
         Text(
             text = strings.dialogDevicePairQrInstructions,
