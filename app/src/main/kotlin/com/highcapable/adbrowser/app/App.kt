@@ -28,24 +28,24 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.window.application
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.AppState
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.locale.ProvidedLocales
 import com.highcapable.adbrowser.app.ui.platform.jbr.JBR
+import com.highcapable.adbrowser.app.ui.platform.macos.MacOSAppMenuLocalizer
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.utils.LookAndFeel
 import com.highcapable.adbrowser.app.ui.utils.SystemAppearance
 import com.highcapable.adbrowser.app.ui.window.manager.AppWindow
 import com.highcapable.adbrowser.app.ui.window.manager.LocalWindowManager
-import com.highcapable.adbrowser.app.ui.window.manager.WindowManager
 import com.highcapable.adbrowser.app.ui.window.manager.rememberWindowManager
 import com.highcapable.adbrowser.app.ui.window.manager.windowRegistries
-import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.domain.AppServices
+import com.highcapable.adbrowser.core.logging.LogService
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.jewel.foundation.theme.JewelTheme
 import org.jetbrains.jewel.ui.theme.menuStyle
-import java.awt.Desktop
 
 fun main() {
     JBR.require()
@@ -72,11 +72,15 @@ private fun runApp(services: AppServices) = application {
         AdbrowserTheme(darkTheme = appState.isDarkTheme) {
             SyncSystemAppearance(appState)
             SyncLookAndFeel(appState)
-            RegisterMacOSAppMenu(windowManager)
 
             ProvidedLocales(
                 settingsLanguageTag = appState.languageTag
             ) {
+                RegisterMacOSAppMenu(
+                    onOpenPreferences = { windowManager.open(AppWindow.Preferences) },
+                    logService = appState.appServices.logService,
+                    onExitRequest = appState.application::exitApplication
+                )
                 RenderWindows()
             }
         }
@@ -104,20 +108,24 @@ private fun SyncLookAndFeel(appState: AppState) {
 }
 
 @Composable
-private fun RegisterMacOSAppMenu(windowManager: WindowManager) {
-    if (!OsType.isMacOS || !Desktop.isDesktopSupported()) return
+private fun RegisterMacOSAppMenu(
+    onOpenPreferences: () -> Unit,
+    logService: LogService,
+    onExitRequest: () -> Unit
+) {
+    val strings = strings
 
-    DisposableEffect(windowManager) {
-        runCatching {
-            Desktop.getDesktop().takeIf {
-                it.isSupported(Desktop.Action.APP_PREFERENCES)
-            }?.setPreferencesHandler {
-                windowManager.open(AppWindow.Preferences)
-            }
+    DisposableEffect(strings, logService, onOpenPreferences, onExitRequest) {
+        val menuLocalizer = MacOSAppMenuLocalizer.install(
+            strings = strings,
+            logService = logService,
+            onOpenPreferences = onOpenPreferences,
+            onExitRequest = onExitRequest
+        )
+
+        onDispose {
+            menuLocalizer?.close()
         }
-
-        // No cleanup needed, the handler will be automatically garbage collected when the app exits.
-        onDispose {}
     }
 }
 
