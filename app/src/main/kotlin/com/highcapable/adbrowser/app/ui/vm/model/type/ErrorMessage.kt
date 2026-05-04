@@ -38,6 +38,7 @@ object ErrorMessage {
     const val UNKNOWN_ERROR_TOKEN = "__unknown_error__"
 
     private const val DEVICE_UNAUTHORIZED = "device unauthorized"
+    private const val FAILED_TO_AUTHENTICATE_TO = "failed to authenticate to"
     private const val DEVICE_OFFLINE = "device offline"
     private const val DEVICE = "device"
     private const val DEVICE_QUOTE_PREFIX = "device '"
@@ -84,7 +85,7 @@ object ErrorMessage {
      */
     fun resolveAdbKind(message: String?) = with(message.normalized()) {
         when {
-            DEVICE_UNAUTHORIZED in this -> AdbKind.DeviceUnauthorized
+            DEVICE_UNAUTHORIZED in this || FAILED_TO_AUTHENTICATE_TO in this -> AdbKind.DeviceUnauthorized
             DEVICE_OFFLINE in this -> AdbKind.DeviceOffline
             isDeviceNotFound(this) -> AdbKind.DeviceNotFound
             NO_SUCH_FILE_OR_DIRECTORY in this || NOT_FOUND in this -> AdbKind.PathNotFound

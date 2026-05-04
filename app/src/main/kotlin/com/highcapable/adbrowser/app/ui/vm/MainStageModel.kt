@@ -2424,6 +2424,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         selection: PendingDeviceSelectionCoordinator.PendingSelection,
         device: AndroidDeviceItem
     ) = when (selection.reason) {
-        PendingDeviceSelectionCoordinator.Reason.Connected -> setStatus(StatusMessage.Key.DeviceConnected, device.brandModel)
+        PendingDeviceSelectionCoordinator.Reason.Connected -> setStatus(
+            StatusMessage.Key.DeviceConnected,
+            device.brandModel.ifBlank { device.serial }
+        )
     }
 }
