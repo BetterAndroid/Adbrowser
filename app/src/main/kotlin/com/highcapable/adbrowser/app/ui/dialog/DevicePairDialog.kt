@@ -512,7 +512,8 @@ private fun PairingCodeDialog(
         title = strings.dialogDevicePairCodeTitle.formatWithArgs(device.address),
         onCloseRequest = { if (!viewModel.isManualPairing) viewModel.dismissPairingCodeDialog() },
         ownerWindow = ownerWindow,
-        width = 420.dp
+        maxWidth = 420.dp,
+        fitsTitleBarHeight = false
     ) {
         ProvidePrimaryAction(window) {
             Column(
