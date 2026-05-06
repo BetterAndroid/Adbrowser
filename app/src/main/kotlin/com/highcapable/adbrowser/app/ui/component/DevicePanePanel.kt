@@ -141,7 +141,7 @@ fun DevicePanePanel(
                 ) {
                     items(devices) { device ->
                         DeviceRow(
-                            item = device,
+                            device = device,
                             selected = selectedDevice == device,
                             onClick = { onDeviceClick(device) },
                             popupHostCoordinates = popupHostCoordinates,

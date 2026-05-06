@@ -69,7 +69,7 @@ import org.jetbrains.jewel.ui.component.Text
 
 @Composable
 fun DeviceRow(
-    item: AndroidDeviceItem,
+    device: AndroidDeviceItem,
     selected: Boolean,
     onClick: () -> Unit,
     popupHostCoordinates: () -> LayoutCoordinates?,
@@ -88,8 +88,8 @@ fun DeviceRow(
         pressed = pressed
     )
     val foreground = if (selected) Color.White else Color.Unspecified
-    val statusColor = if (item.isOnline) OnlineStatusColor else OfflineStatusColor
-    var rowCoordinates by remember(item) { mutableStateOf<LayoutCoordinates?>(null) }
+    val statusColor = if (device.isOnline) DeviceOnlineStatusColor else DeviceOfflineStatusColor
+    var rowCoordinates by remember(device) { mutableStateOf<LayoutCoordinates?>(null) }
 
     Box(
         modifier = modifier
@@ -112,7 +112,7 @@ fun DeviceRow(
                 .background(background)
                 .hoverable(interactionSource = interactionSource)
                 .onPrimaryPress(onPressedChange = { pressed = it }, onPrimaryPress = onClick)
-                .onPressRelease(key = item, onPressedChange = { pressed = it })
+                .onPressRelease(key = device, onPressedChange = { pressed = it })
                 .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -134,7 +134,7 @@ fun DeviceRow(
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.brandModel.ifBlank { strings.mainDeviceListNameUnknowDevice },
+                    text = device.brandModel.ifBlank { strings.mainDeviceListNameUnknowDevice },
                     color = foreground,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
@@ -146,9 +146,9 @@ fun DeviceRow(
                     modifier = Modifier.alpha(0.75f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (item.systemVersion.isNotBlank()) {
+                    if (device.systemVersion.isNotBlank()) {
                         Text(
-                            text = item.systemVersion,
+                            text = device.systemVersion,
                             color = foreground,
                             fontSize = 11.sp,
                             maxLines = 1,
@@ -167,7 +167,7 @@ fun DeviceRow(
                         )
                     }
                     Text(
-                        text = item.serial,
+                        text = device.serial,
                         color = foreground,
                         fontSize = 11.sp,
                         maxLines = 1,
@@ -179,5 +179,5 @@ fun DeviceRow(
     }
 }
 
-private val OnlineStatusColor = Color(0xFF2DB455)
-private val OfflineStatusColor = Color(0xFFE46868)
+val DeviceOnlineStatusColor = Color(0xFF2DB455)
+val DeviceOfflineStatusColor = Color(0xFFE46868)

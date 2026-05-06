@@ -274,6 +274,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         private set
     var isBusy by mutableStateOf(false)
     var isStatusBarVisible by mutableStateOf(true)
+    var isDevicePaneCollapsed by mutableStateOf(false)
+        private set
 
     var menuShortcuts by mutableStateOf(settingsService.current.menuShortcuts.toUiType())
         private set
@@ -332,6 +334,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
 
     /** Returns the active shortcut mapping for one user-facing menu action. */
     fun menuShortcut(action: MenuShortcut.Action) = menuShortcuts[action]
+
+    /** Toggles the available-devices pane without disturbing the remembered splitter width. */
+    fun toggleDevicePaneCollapsed() {
+        isDevicePaneCollapsed = !isDevicePaneCollapsed
+    }
 
     /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
     fun setDevicePaneWidth(widthDp: Float) {

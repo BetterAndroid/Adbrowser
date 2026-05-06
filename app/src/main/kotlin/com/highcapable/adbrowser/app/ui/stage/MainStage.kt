@@ -20,25 +20,27 @@
  *
  * This file is created by fankes on 2026/4/3.
  */
-@file:Suppress("COMPOSE_APPLIER_CALL_MISMATCH", "AssignedValueIsNeverRead")
+@file:Suppress("AssignedValueIsNeverRead", "COMPOSE_APPLIER_CALL_MISMATCH", "ktlint:standard:no-wildcard-imports")
 
 package com.highcapable.adbrowser.app.ui.stage
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -83,6 +85,9 @@ import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.PopupProperties
@@ -91,13 +96,15 @@ import androidx.compose.ui.zIndex
 import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.cl.LocalAppState
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
+import com.highcapable.adbrowser.app.ui.component.ContentIcon
+import com.highcapable.adbrowser.app.ui.component.DeviceCard
 import com.highcapable.adbrowser.app.ui.component.DevicePanePanel
+import com.highcapable.adbrowser.app.ui.component.DraggableResizeHandle
 import com.highcapable.adbrowser.app.ui.component.FileIconItem
 import com.highcapable.adbrowser.app.ui.component.FileListHeader
 import com.highcapable.adbrowser.app.ui.component.FileListHint
 import com.highcapable.adbrowser.app.ui.component.FileListRow
 import com.highcapable.adbrowser.app.ui.component.FileNavigationBar
-import com.highcapable.adbrowser.app.ui.component.FixedWidthHorizontalSplitLayout
 import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
@@ -124,6 +131,7 @@ import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
 import kotlinx.coroutines.flow.distinctUntilChanged
+import org.jetbrains.jewel.ui.component.ActionButton
 import org.jetbrains.jewel.ui.component.ContextMenuItemOptionAction.SelectAllMenuItemOptionAction
 import org.jetbrains.jewel.ui.component.MenuScope
 import org.jetbrains.jewel.ui.component.PopupMenu
@@ -156,46 +164,221 @@ fun FrameWindowScope.MainStage(
 }
 
 @Composable
+fun MainTitleLeftContent(viewModel: MainStageModel) {
+    val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
+
+    ActionButton(
+        onClick = viewModel::toggleDevicePaneCollapsed,
+        modifier = Modifier.size(32.dp),
+        focusable = false
+    ) {
+        ContentIcon(
+            key = if (isDevicePaneCollapsed) AppIcons.SidebarOpen else AppIcons.SidebarClose,
+            contentDescription = if (isDevicePaneCollapsed) "Expand device pane" else "Collapse device pane",
+            modifier = Modifier
+                .size(16.dp)
+                .alpha(0.75f)
+        )
+    }
+}
+
+@Composable
+fun MainTitleRightContent(viewModel: MainStageModel) {
+    val currentDevice = viewModel.selectedDevice
+    val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
+    var lastVisibleDevice by remember { mutableStateOf(currentDevice) }
+
+    if (currentDevice != null) lastVisibleDevice = currentDevice
+    val animatedDevice = currentDevice ?: lastVisibleDevice
+
+    AnimatedVisibility(
+        visible = isDevicePaneCollapsed && currentDevice != null,
+        enter = slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn(),
+        exit = slideOutHorizontally(targetOffsetX = { it / 4 }) + fadeOut(),
+    ) {
+        ActionButton(
+            onClick = viewModel::toggleDevicePaneCollapsed,
+            focusable = false,
+            contentPadding = ComponentPadding.None
+        ) {
+            DeviceCard(
+                device = checkNotNull(animatedDevice),
+                modifier = Modifier.padding(5.dp)
+            )
+        }
+    }
+    Spacer(modifier = Modifier.width(14.dp))
+}
+
+@Composable
 private fun RenderContent(
     viewModel: MainStageModel,
     decorationsVisible: Boolean,
     modifier: Modifier = Modifier
 ) {
     val needApplyTopPadding = !(WindowTitleBar.isAvailable && decorationsVisible)
+    val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
+    val existsDevice = if (isDevicePaneCollapsed && needApplyTopPadding) viewModel.selectedDevice else null
 
     Column(modifier = modifier.fillMaxSize()) {
-        FixedWidthHorizontalSplitLayout(
+        DeviceFileSplitContent(
+            viewModel = viewModel,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 // Half the top padding to harmonize spacing with the title bar.
                 .padding(top = if (needApplyTopPadding) ContentPaddingSpace / 2 else 0.dp)
-                .padding(horizontal = ContentPaddingSpace)
-                .padding(bottom = ContentPaddingSpace),
-            firstPaneWidth = viewModel.devicePaneWidthDp.dp,
-            onFirstPaneWidthChange = { viewModel.setDevicePaneWidth(it.value) },
-            onFirstPaneWidthChangeFinished = viewModel::persistDevicePaneWidth,
-            firstPaneMinWidth = FirstPaneMinWidth,
-            secondPaneMinWidth = SecondPaneMinWidth,
-            dividerWidth = PaneDividerWidth,
-            first = {
-                DevicePane(
-                    viewModel = viewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            },
-            second = {
-                FilePaneHost(
-                    viewModel = viewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+                .padding(end = ContentPaddingSpace)
+                .padding(bottom = ContentPaddingSpace)
         )
         if (viewModel.isStatusBarVisible)
             StatusBar(
                 text = MainStatusBarText(viewModel),
-                versionText = BuildVersion.TEXT
+                versionText = BuildVersion.TEXT,
+                currentDevice = existsDevice
             )
+    }
+}
+
+@Composable
+private fun DeviceFileSplitContent(
+    viewModel: MainStageModel,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
+    val devicePaneVisibility = remember { MutableTransitionState(!isDevicePaneCollapsed) }
+        .apply { targetState = !isDevicePaneCollapsed }
+    val filePaneLeadingInsetWidth by animateDpAsState(
+        targetValue = if (isDevicePaneCollapsed) ContentPaddingSpace else 0.dp,
+        animationSpec = tween(DevicePaneAnimationDurationMillis),
+        label = "filePaneLeadingInsetWidth"
+    )
+
+    BoxWithConstraints(modifier = modifier) {
+        val totalWidthPx = with(density) { maxWidth.toPx() }
+        val minFirstPanePx = with(density) { FirstPaneMinWidth.toPx() }
+        val minSecondPanePx = with(density) { SecondPaneMinWidth.toPx() }
+        val dividerWidthPx = with(density) { PaneDividerWidth.toPx() }
+
+        val maxFirstPanePx = (totalWidthPx - dividerWidthPx - minSecondPanePx)
+            .coerceAtLeast(minFirstPanePx)
+        val firstPaneWidthPx = with(density) { viewModel.devicePaneWidthDp.dp.toPx() }
+            .coerceIn(minFirstPanePx, maxFirstPanePx)
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                AnimatedVisibility(
+                    visibleState = devicePaneVisibility,
+                    enter = slideInHorizontally(initialOffsetX = { -it / 3 }) +
+                        expandHorizontally(expandFrom = Alignment.Start) +
+                        fadeIn(),
+                    exit = slideOutHorizontally(targetOffsetX = { -it / 3 }) +
+                        shrinkHorizontally(shrinkTowards = Alignment.Start) +
+                        fadeOut()
+                ) {
+                    Row(modifier = Modifier.fillMaxHeight()) {
+                        Box(
+                            modifier = Modifier
+                                .width(with(density) { firstPaneWidthPx.toDp() })
+                                .fillMaxHeight()
+                        ) {
+                            DevicePane(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        DraggableResizeHandle(
+                            orientation = Orientation.Horizontal,
+                            onDragDelta = { deltaPx ->
+                                val updatedPx = (firstPaneWidthPx + deltaPx)
+                                    .coerceIn(minFirstPanePx, maxFirstPanePx)
+                                viewModel.setDevicePaneWidth(with(density) { updatedPx.toDp().value })
+                                updatedPx - firstPaneWidthPx
+                            },
+                            onDragStopped = viewModel::persistDevicePaneWidth,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(PaneDividerWidth)
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                        .widthIn(min = SecondPaneMinWidth)
+                ) {
+                    FilePaneHost(
+                        viewModel = viewModel,
+                        leadingInsetWidth = filePaneLeadingInsetWidth,
+                        showExpandToggle = !devicePaneVisibility.currentState && !devicePaneVisibility.targetState,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaneEdgeHoverToggleArea(
+    collapsed: Boolean,
+    onToggle: () -> Unit,
+    alignToStart: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var hovered by remember { mutableStateOf(false) }
+    val centerCompensationPx = with(LocalDensity.current) { DevicePaneToggleCenterCompensation.roundToPx() }
+
+    Box(
+        modifier = modifier
+            .onPointerEvent(PointerEventType.Enter) { hovered = true }
+            .onPointerEvent(PointerEventType.Exit) { hovered = false },
+        contentAlignment = Alignment.Center
+    ) {
+        DevicePaneToggleButton(
+            collapsed = collapsed,
+            visible = hovered,
+            onClick = onToggle,
+            onHoverChanged = { hovered = it },
+            modifier = Modifier.offset {
+                IntOffset(
+                    x = if (alignToStart) centerCompensationPx else -centerCompensationPx,
+                    y = 0
+                )
+            }
+        )
+    }
+}
+
+@Composable
+private fun DevicePaneToggleButton(
+    collapsed: Boolean,
+    visible: Boolean,
+    onClick: () -> Unit,
+    onHoverChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (!visible) return
+    Box(
+        modifier = modifier
+            .onPointerEvent(PointerEventType.Enter) { onHoverChanged(true) }
+            .onPointerEvent(PointerEventType.Exit) { onHoverChanged(false) },
+        contentAlignment = Alignment.Center
+    ) {
+        ActionButton(
+            onClick = onClick,
+            modifier = Modifier.size(width = DevicePaneToggleButtonWidth, height = DevicePaneToggleButtonHeight),
+            focusable = false,
+            contentPadding = ComponentPadding.None
+        ) {
+            ContentIcon(
+                key = if (collapsed) AppIcons.SemiArrowRight else AppIcons.SemiArrowLeft,
+                contentDescription = if (collapsed) "Expand device pane" else "Collapse device pane",
+                modifier = Modifier.size(DevicePaneToggleIconSize)
+            )
+        }
     }
 }
 
@@ -208,50 +391,65 @@ private fun DevicePane(
     val interactionState = remember { DevicePaneInteractionState() }
     var popupHostCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-    Box(
-        modifier = modifier.onGloballyPositioned { popupHostCoordinates = it }
-    ) {
-        DevicePanePanel(
-            devices = viewModel.devices,
-            selectedDevice = viewModel.selectedDevice,
-            listState = listState,
-            title = strings.mainDevicesTitle,
-            noDeviceMessage = strings.mainDeviceListHintNoDevice,
-            onOpenActionMenu = interactionState::openActionMenu,
-            onRefresh = viewModel::refreshDevices,
-            onDeviceClick = viewModel::selectDevice,
-            popupHostCoordinates = { popupHostCoordinates },
-            onDeviceSecondaryClick = { device, position ->
-                viewModel.selectDevice(device)
+    Row {
+        Spacer(modifier = Modifier.width(ContentPaddingSpace))
+        Box(
+            modifier = modifier.onGloballyPositioned { popupHostCoordinates = it }
+        ) {
+            DevicePanePanel(
+                devices = viewModel.devices,
+                selectedDevice = viewModel.selectedDevice,
+                listState = listState,
+                title = strings.mainDevicesTitle,
+                noDeviceMessage = strings.mainDeviceListHintNoDevice,
+                onOpenActionMenu = interactionState::openActionMenu,
+                onRefresh = viewModel::refreshDevices,
+                onDeviceClick = viewModel::selectDevice,
+                popupHostCoordinates = { popupHostCoordinates },
+                onDeviceSecondaryClick = { device, position ->
+                    viewModel.selectDevice(device)
 
-                if (viewModel.canDisconnectDevice(device))
-                    interactionState.openContextMenu(device, position)
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-        DeviceActionMenuPopup(
-            state = interactionState.actionMenuState,
-            onPairNewDevice = {
-                interactionState.dismissActionMenu()
-                viewModel.pairNewDevice()
-            },
-            onConnectToDevice = {
-                interactionState.dismissActionMenu()
-                viewModel.connectToDevice()
-            },
-            onDismissRequest = interactionState::dismissActionMenu
-        )
-        DeviceContextMenuPopup(
-            state = interactionState.contextMenuState,
-            onDisconnect = viewModel::disconnectDevice,
-            onDismissRequest = interactionState::dismissContextMenu
-        )
+                    if (viewModel.canDisconnectDevice(device))
+                        interactionState.openContextMenu(device, position)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            DeviceActionMenuPopup(
+                state = interactionState.actionMenuState,
+                onPairNewDevice = {
+                    interactionState.dismissActionMenu()
+                    viewModel.pairNewDevice()
+                },
+                onConnectToDevice = {
+                    interactionState.dismissActionMenu()
+                    viewModel.connectToDevice()
+                },
+                onDismissRequest = interactionState::dismissActionMenu
+            )
+            DeviceContextMenuPopup(
+                state = interactionState.contextMenuState,
+                onDisconnect = viewModel::disconnectDevice,
+                onDismissRequest = interactionState::dismissContextMenu
+            )
+            PaneEdgeHoverToggleArea(
+                collapsed = false,
+                onToggle = viewModel::toggleDevicePaneCollapsed,
+                alignToStart = false,
+                modifier = Modifier
+                    .zIndex(PaneEdgeToggleZIndex)
+                    .align(Alignment.CenterEnd)
+                    .width(DevicePaneToggleHoverAreaWidth)
+                    .height(DevicePaneToggleHoverAreaHeight)
+            )
+        }
     }
 }
 
 @Composable
 private fun FilePaneHost(
     viewModel: MainStageModel,
+    leadingInsetWidth: Dp,
+    showExpandToggle: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
@@ -262,6 +460,7 @@ private fun FilePaneHost(
                 // switching devices can preserve selection, scroll state, and cached entries.
                 FilePane(
                     viewModel = viewModel,
+                    leadingInsetWidth = leadingInsetWidth,
                     workspace = workspace,
                     modifier = Modifier
                         .fillMaxSize()
@@ -270,20 +469,39 @@ private fun FilePaneHost(
                 )
             }
         }
+        if (showExpandToggle)
+            Row(
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Spacer(modifier = Modifier.width(leadingInsetWidth))
+                PaneEdgeHoverToggleArea(
+                    collapsed = true,
+                    onToggle = viewModel::toggleDevicePaneCollapsed,
+                    alignToStart = true,
+                    modifier = Modifier
+                        .zIndex(PaneEdgeToggleZIndex)
+                        .width(DevicePaneToggleHoverAreaWidth)
+                        .height(DevicePaneToggleHoverAreaHeight)
+                )
+            }
     }
 }
 
 @Composable
 private fun FilePane(
     viewModel: MainStageModel,
+    leadingInsetWidth: Dp,
     workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
-    PanelSurface(modifier = modifier, padding = ComponentPadding(14.dp)) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            NavigationBar(viewModel = viewModel, device = workspace.device)
-            Spacer(Modifier.height(12.dp))
-            FilePaneContent(viewModel = viewModel, workspace = workspace, modifier = Modifier.weight(1f))
+    Row {
+        Spacer(modifier = Modifier.width(leadingInsetWidth))
+        PanelSurface(modifier = modifier, padding = ComponentPadding(14.dp)) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                NavigationBar(viewModel = viewModel, device = workspace.device)
+                Spacer(Modifier.height(12.dp))
+                FilePaneContent(viewModel = viewModel, workspace = workspace, modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -1627,6 +1845,16 @@ private val ContentPaddingSpace = 14.dp
 private val FirstPaneMinWidth = 240.dp
 private val SecondPaneMinWidth = 560.dp
 private val PaneDividerWidth = 10.dp
+
+private val DevicePaneToggleHoverAreaWidth = ContentPaddingSpace
+private val DevicePaneToggleButtonWidth = 20.dp
+private val DevicePaneToggleButtonHeight = 56.dp
+private val DevicePaneToggleHoverAreaHeight = DevicePaneToggleButtonHeight
+private val DevicePaneToggleIconSize = 20.dp
+private val DevicePaneToggleCenterCompensation = 0.5.dp
+
+private const val PaneEdgeToggleZIndex = 2f
+private const val DevicePaneAnimationDurationMillis = 220
 
 private val DefaultFileItemMinWidth = 105.dp
 private val DefaultFileItemOuterPadding = 8.dp

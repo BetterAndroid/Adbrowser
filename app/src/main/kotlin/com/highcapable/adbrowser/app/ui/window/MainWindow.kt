@@ -45,6 +45,8 @@ import com.highcapable.adbrowser.app.ui.input.WindowBounds
 import com.highcapable.adbrowser.app.ui.input.currentBounds
 import com.highcapable.adbrowser.app.ui.menu.MainMenuBar
 import com.highcapable.adbrowser.app.ui.stage.MainStage
+import com.highcapable.adbrowser.app.ui.stage.MainTitleLeftContent
+import com.highcapable.adbrowser.app.ui.stage.MainTitleRightContent
 import com.highcapable.adbrowser.app.ui.vm.MainStageModel
 import com.highcapable.adbrowser.app.ui.window.base.WindowScaffold
 import com.highcapable.adbrowser.core.domain.setting.AppSettings
@@ -71,13 +73,16 @@ fun MainWindow(onCloseRequest: () -> Unit) {
         position = initialPosition
     )
 
+    val viewModel = remember { MainStageModel(appState) }
+
     WindowScaffold(
         onCloseRequest = onCloseRequest,
         title = strings.mainTitle,
         state = windowState,
+        titleLeftContent = { MainTitleLeftContent(viewModel) },
+        titleRightContent = { MainTitleRightContent(viewModel) },
         buttonsSpacing = WindowButtonsSpacing.Medium
     ) { decorationsVisible ->
-        val viewModel = remember { MainStageModel(appState) }
         var liveWindowBounds by remember { mutableStateOf<WindowBounds?>(null) }
 
         LaunchedEffect(Unit) {

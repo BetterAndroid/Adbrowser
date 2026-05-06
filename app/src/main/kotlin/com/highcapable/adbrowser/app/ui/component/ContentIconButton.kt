@@ -25,6 +25,7 @@ package com.highcapable.adbrowser.app.ui.component
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
@@ -38,6 +39,8 @@ fun ContentIconButton(
     contentDescription: String,
     enabled: Boolean = true,
     outlined: Boolean = false,
+    contentWidth: Dp = DefaultContentSize,
+    contentHeight: Dp = DefaultContentSize,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -46,7 +49,7 @@ fun ContentIconButton(
             onClick = onClick,
             enabled = enabled,
             style = AdbrowserTheme.outlineButtonStyle(ComponentPadding.None),
-            modifier = modifier.size(DefaultContentSize)
+            modifier = modifier.size(width = contentWidth, height = contentHeight)
         ) {
             ContentIcon(
                 key = key,
@@ -60,7 +63,7 @@ fun ContentIconButton(
             onClick = onClick,
             enabled = enabled,
             style = AdbrowserTheme.defaultButtonStyle(ComponentPadding.None),
-            modifier = modifier.size(DefaultContentSize)
+            modifier = modifier.size(width = contentWidth, height = contentHeight)
         ) {
             ContentIcon(
                 key = key,

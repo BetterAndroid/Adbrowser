@@ -22,13 +22,22 @@
  */
 package com.highcapable.adbrowser.app.ui.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,15 +45,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.highcapable.adbrowser.app.ui.modifier.edgeBorder
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
+import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
 fun StatusBar(
     text: String,
     versionText: String,
+    currentDevice: AndroidDeviceItem?,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
+    var lastVisibleDevice by remember { mutableStateOf(currentDevice) }
+
+    if (currentDevice != null) lastVisibleDevice = currentDevice
+    val animatedDevice = currentDevice ?: lastVisibleDevice
 
     Row(
         modifier = modifier
@@ -68,6 +83,18 @@ fun StatusBar(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        AnimatedVisibility(
+            visible = currentDevice != null,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DeviceCard(device = checkNotNull(animatedDevice))
+                Spacer(Modifier.width(8.dp))
+                Delimiter()
+                Spacer(Modifier.width(8.dp))
+            }
+        }
         Text(
             text = versionText,
             color = colors.pathBreadcrumbForeground,
