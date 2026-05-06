@@ -199,6 +199,12 @@ fun FrameWindowScope.MainMenuBar(
             }
             Separator()
             CheckboxItem(
+                text = strings.menuShowAvailableDevices,
+                checked = !viewModel.isDevicePaneCollapsed,
+                onCheckedChange = { viewModel.toggleDevicePaneCollapsed() },
+                shortcut = KeyShortcut(Key.D)
+            )
+            CheckboxItem(
                 text = strings.menuShowStatusBar,
                 checked = viewModel.isStatusBarVisible,
                 onCheckedChange = { viewModel.toggleStatusBar() },

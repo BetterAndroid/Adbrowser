@@ -94,6 +94,7 @@ data class Strings(
     val menuFileViewMode: String,
     val menuFileSortMode: String,
     val menuShowStatusBar: String,
+    val menuShowAvailableDevices: String,
     val menuAppLogs: String,
     val menuForward: String,
     val menuBack: String,

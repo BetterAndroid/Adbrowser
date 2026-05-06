@@ -98,6 +98,7 @@ val ZhCNStrings = Strings(
     menuFileViewMode = "查看方式",
     menuFileSortMode = "排序方式",
     menuShowStatusBar = "显示状态栏",
+    menuShowAvailableDevices = "显示可用设备",
     menuAppLogs = "应用日志",
     menuForward = "前进",
     menuBack = "后退",

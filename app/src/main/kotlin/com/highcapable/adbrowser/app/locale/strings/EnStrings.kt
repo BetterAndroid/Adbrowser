@@ -99,6 +99,7 @@ val EnStrings = Strings(
     menuFileViewMode = "View Mode",
     menuFileSortMode = "Sort Mode",
     menuShowStatusBar = "Show Status Bar",
+    menuShowAvailableDevices = "Show Available Devices",
     menuAppLogs = "App Logs",
     menuForward = "Forward",
     menuBack = "Back",
