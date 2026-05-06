@@ -46,12 +46,12 @@ import androidx.compose.ui.unit.sp
 import com.highcapable.adbrowser.app.ui.modifier.edgeBorder
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
+import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import org.jetbrains.jewel.ui.component.Text
 
 @Composable
 fun StatusBar(
     text: String,
-    versionText: String,
     currentDevice: AndroidDeviceItem?,
     modifier: Modifier = Modifier
 ) {
@@ -96,7 +96,7 @@ fun StatusBar(
             }
         }
         Text(
-            text = versionText,
+            text = BuildVersion.TEXT,
             color = colors.pathBreadcrumbForeground,
             fontSize = 12.sp
         )

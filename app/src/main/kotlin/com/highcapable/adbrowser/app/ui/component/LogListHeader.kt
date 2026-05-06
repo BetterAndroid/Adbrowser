@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.ui.component.Text
 
@@ -50,10 +51,6 @@ fun LogListHeader(
     levelWidth: Dp,
     categoryWidth: Dp,
     messageWidth: Dp,
-    timeLabel: String,
-    levelLabel: String,
-    categoryLabel: String,
-    messageLabel: String,
     onResizeTimeAndLevel: (Float) -> Float,
     onResizeLevelAndCategory: (Float) -> Float,
     onResizeCategoryAndMessage: (Float) -> Float,
@@ -81,7 +78,7 @@ fun LogListHeader(
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LogHeaderText(text = timeLabel, width = timeWidth)
+                LogHeaderText(text = strings.logsHeaderTime, width = timeWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeTimeAndLevel(with(density) { deltaPx.toDp().value })
@@ -89,7 +86,7 @@ fun LogListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                LogHeaderText(text = levelLabel, width = levelWidth)
+                LogHeaderText(text = strings.logsHeaderLevel, width = levelWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeLevelAndCategory(with(density) { deltaPx.toDp().value })
@@ -97,7 +94,7 @@ fun LogListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                LogHeaderText(text = categoryLabel, width = categoryWidth)
+                LogHeaderText(text = strings.logsHeaderCategory, width = categoryWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeCategoryAndMessage(with(density) { deltaPx.toDp().value })
@@ -105,7 +102,7 @@ fun LogListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                LogHeaderText(text = messageLabel, width = messageWidth)
+                LogHeaderText(text = strings.logsHeaderMessage, width = messageWidth)
             }
         }
     }

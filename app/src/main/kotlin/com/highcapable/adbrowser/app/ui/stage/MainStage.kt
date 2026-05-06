@@ -126,7 +126,6 @@ import com.highcapable.adbrowser.app.ui.vm.model.DeviceFileItem
 import com.highcapable.adbrowser.app.ui.vm.model.MenuShortcut
 import com.highcapable.adbrowser.app.ui.vm.model.type.ErrorMessage
 import com.highcapable.adbrowser.app.ui.vm.model.type.FileViewMode
-import com.highcapable.adbrowser.core.common.utils.BuildVersion
 import com.highcapable.adbrowser.core.common.utils.OsType
 import com.highcapable.adbrowser.core.common.utils.extension.formatWithArgs
 import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
@@ -236,7 +235,6 @@ private fun RenderContent(
         if (viewModel.isStatusBarVisible)
             StatusBar(
                 text = MainStatusBarText(viewModel),
-                versionText = BuildVersion.TEXT,
                 currentDevice = existsDevice
             )
     }
@@ -402,8 +400,6 @@ private fun DevicePane(
                 devices = viewModel.devices,
                 selectedDevice = viewModel.selectedDevice,
                 listState = listState,
-                title = strings.mainDevicesTitle,
-                noDeviceMessage = strings.mainDeviceListHintNoDevice,
                 onOpenActionMenu = interactionState::openActionMenu,
                 onRefresh = viewModel::refreshDevices,
                 onDeviceClick = viewModel::selectDevice,
@@ -734,10 +730,6 @@ private fun FileListView(
             sizeWidth = viewModel.fileColumnWidthSizePx.dp,
             modifiedWidth = viewModel.fileColumnWidthModifiedPx.dp,
             permissionWidth = viewModel.fileColumnWidthPermissionPx.dp,
-            nameLabel = strings.mainHeaderName,
-            sizeLabel = strings.mainHeaderSize,
-            modifiedLabel = strings.mainHeaderModified,
-            permissionLabel = strings.mainHeaderPermission,
             onResizeNameAndSize = viewModel::resizeNameAndSizeColumns,
             onResizeSizeAndModified = viewModel::resizeSizeAndModifiedColumns,
             onResizeModifiedAndPermission = viewModel::resizeModifiedAndPermissionColumns,

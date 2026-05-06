@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.assets.AppIcons
 import com.highcapable.adbrowser.app.ui.vm.model.AndroidDeviceItem
 import com.highcapable.betterandroid.compose.extension.ui.ComponentPadding
@@ -61,8 +62,6 @@ fun DevicePanePanel(
     devices: List<AndroidDeviceItem>,
     selectedDevice: AndroidDeviceItem?,
     listState: LazyListState,
-    title: String,
-    noDeviceMessage: String,
     onOpenActionMenu: (Offset) -> Unit,
     onRefresh: () -> Unit,
     onDeviceClick: (AndroidDeviceItem) -> Unit,
@@ -86,7 +85,7 @@ fun DevicePanePanel(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = title,
+                        text = strings.mainDevicesTitle,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         maxLines = 1,
@@ -157,7 +156,7 @@ fun DevicePanePanel(
                 )
                 if (devices.isEmpty())
                     DeviceListHint(
-                        message = noDeviceMessage,
+                        message = strings.mainDeviceListHintNoDevice,
                         modifier = Modifier.align(Alignment.Center)
                     )
             }

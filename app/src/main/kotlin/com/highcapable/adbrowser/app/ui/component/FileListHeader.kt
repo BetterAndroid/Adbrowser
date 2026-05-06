@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cafe.adriel.lyricist.strings
 import com.highcapable.adbrowser.app.ui.theme.AdbrowserTheme
 import org.jetbrains.jewel.ui.component.Text
 
@@ -50,10 +51,6 @@ fun FileListHeader(
     sizeWidth: Dp,
     modifiedWidth: Dp,
     permissionWidth: Dp,
-    nameLabel: String,
-    sizeLabel: String,
-    modifiedLabel: String,
-    permissionLabel: String,
     onResizeNameAndSize: (Float) -> Float,
     onResizeSizeAndModified: (Float) -> Float,
     onResizeModifiedAndPermission: (Float) -> Float,
@@ -81,7 +78,7 @@ fun FileListHeader(
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HeaderText(text = nameLabel, width = nameWidth)
+                HeaderText(text = strings.mainHeaderName, width = nameWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeNameAndSize(with(density) { deltaPx.toDp().value })
@@ -89,7 +86,7 @@ fun FileListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                HeaderText(text = sizeLabel, width = sizeWidth)
+                HeaderText(text = strings.mainHeaderSize, width = sizeWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeSizeAndModified(with(density) { deltaPx.toDp().value })
@@ -97,7 +94,7 @@ fun FileListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                HeaderText(text = modifiedLabel, width = modifiedWidth)
+                HeaderText(text = strings.mainHeaderModified, width = modifiedWidth)
                 FileColumnSplitter(
                     onDragDelta = { deltaPx ->
                         val consumedDp = onResizeModifiedAndPermission(with(density) { deltaPx.toDp().value })
@@ -105,7 +102,7 @@ fun FileListHeader(
                     },
                     onDragStopped = onResizeFinished
                 )
-                HeaderText(text = permissionLabel, width = permissionWidth)
+                HeaderText(text = strings.mainHeaderPermission, width = permissionWidth)
             }
         }
     }
