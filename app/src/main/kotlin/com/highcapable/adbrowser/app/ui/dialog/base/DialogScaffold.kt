@@ -27,6 +27,7 @@ package com.highcapable.adbrowser.app.ui.dialog.base
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -71,6 +72,7 @@ import javax.swing.SwingUtilities
 @Composable
 fun DialogScaffold(
     title: String,
+    titleIsVisible: Boolean = true,
     onCloseRequest: () -> Unit,
     ownerWindow: Window? = null,
     width: Dp = Dp.Unspecified,
@@ -83,6 +85,8 @@ fun DialogScaffold(
     titleBarBackgroundColor: Color = Color.Transparent,
     fitsTitleBarHeight: Boolean = true,
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default,
+    titleLeftContent: @Composable (RowScope.() -> Unit)? = null,
+    titleRightContent: @Composable (RowScope.() -> Unit)? = null,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
     val currentTitle by rememberUpdatedState(title)
@@ -150,11 +154,14 @@ fun DialogScaffold(
                     Modifier.height(resolvedHeight)
                 else Modifier.heightIn(max = maxDialogSize.height)),
             title = title,
+            titleIsVisible = titleIsVisible,
             titleBarBackgroundColor = titleBarBackgroundColor,
             buttonsSpacing = buttonsSpacing,
             contentPadding = compatiblePadding,
             verticalSpacing = verticalSpacing,
             horizontalAlignment = horizontalAlignment,
+            titleLeftContent = titleLeftContent,
+            titleRightContent = titleRightContent,
             content = content
         )
     }
@@ -170,11 +177,14 @@ fun DialogScaffold(
 private fun DialogWindowScope.DialogScaffoldLayout(
     modifier: Modifier = Modifier,
     title: String,
+    titleIsVisible: Boolean,
     titleBarBackgroundColor: Color,
     buttonsSpacing: WindowButtonsSpacing,
     contentPadding: ComponentPadding,
     verticalSpacing: Dp,
     horizontalAlignment: Alignment.Horizontal,
+    titleLeftContent: @Composable (RowScope.() -> Unit)?,
+    titleRightContent: @Composable (RowScope.() -> Unit)?,
     content: @Composable DialogWindowScope.() -> Unit
 ) {
     val showTitleBar = WindowTitleBar.isAvailable
@@ -193,6 +203,9 @@ private fun DialogWindowScope.DialogScaffoldLayout(
             if (showTitleBar)
                 WindowTitleBar(
                     title = title,
+                    titleIsVisible = titleIsVisible,
+                    leftContent = titleLeftContent,
+                    rightContent = titleRightContent,
                     backgroundColor = titleBarBackgroundColor,
                     buttonsSpacing = buttonsSpacing
                 )

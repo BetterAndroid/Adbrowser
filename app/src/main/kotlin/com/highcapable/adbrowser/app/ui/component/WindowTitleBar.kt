@@ -23,9 +23,14 @@
 package com.highcapable.adbrowser.app.ui.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
@@ -55,6 +60,9 @@ import javax.swing.RootPaneContainer
 fun FrameWindowScope.WindowTitleBar(
     modifier: Modifier = Modifier,
     title: String = "",
+    titleIsVisible: Boolean = true,
+    leftContent: @Composable (RowScope.() -> Unit)? = null,
+    rightContent: @Composable (RowScope.() -> Unit)? = null,
     backgroundColor: Color = Color.Transparent,
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default
 ) {
@@ -63,6 +71,9 @@ fun FrameWindowScope.WindowTitleBar(
         rootPaneContainer = window,
         modifier = modifier,
         title = title,
+        titleIsVisible = titleIsVisible,
+        leftContent = leftContent,
+        rightContent = rightContent,
         backgroundColor = backgroundColor,
         buttonsSpacing = buttonsSpacing
     )
@@ -78,6 +89,9 @@ fun FrameWindowScope.WindowTitleBar(
 fun DialogWindowScope.WindowTitleBar(
     modifier: Modifier = Modifier,
     title: String = "",
+    titleIsVisible: Boolean = true,
+    leftContent: @Composable (RowScope.() -> Unit)? = null,
+    rightContent: @Composable (RowScope.() -> Unit)? = null,
     backgroundColor: Color = Color.Transparent,
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default
 ) {
@@ -86,6 +100,9 @@ fun DialogWindowScope.WindowTitleBar(
         rootPaneContainer = window,
         modifier = modifier,
         title = title,
+        titleIsVisible = titleIsVisible,
+        leftContent = leftContent,
+        rightContent = rightContent,
         backgroundColor = backgroundColor,
         buttonsSpacing = buttonsSpacing
     )
@@ -96,9 +113,12 @@ private fun WindowTitleBarContent(
     hostWindow: Window,
     rootPaneContainer: RootPaneContainer,
     modifier: Modifier = Modifier,
-    title: String = "",
+    title: String,
+    titleIsVisible: Boolean,
+    leftContent: @Composable (RowScope.() -> Unit)?,
+    rightContent: @Composable (RowScope.() -> Unit)?,
     backgroundColor: Color = Color.Transparent,
-    buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default
+    buttonsSpacing: WindowButtonsSpacing
 ) {
     if (!WindowTitleBar.isAvailable) return
 
@@ -118,7 +138,24 @@ private fun WindowTitleBarContent(
             .background(backgroundColor)
             .height(titleBarHeight)
     ) {
-        if (title.isNotBlank())
+        Row(
+            modifier = Modifier.align(Alignment.CenterStart),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            leftContent?.also {
+                Spacer(modifier = Modifier.width(when (buttonsSpacing) {
+                    WindowButtonsSpacing.Default -> MacOSDefaultTitleButtonSpacing
+                    WindowButtonsSpacing.Medium -> MacOSMediumTitleButtonSpacing
+                    WindowButtonsSpacing.Large -> MacOSLargeTitleButtonSpacing
+                }))
+                Spacer(modifier = Modifier.width(WindowTitleBarContentSpacing))
+                Delimiter()
+                Spacer(modifier = Modifier.width(WindowTitleBarContentSpacing))
+                it()
+            }
+        }
+        if (titleIsVisible && title.isNotBlank())
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,6 +164,14 @@ private fun WindowTitleBarContent(
             ) {
                 Text(title, fontWeight = FontWeight.SemiBold)
             }
+        rightContent?.also {
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+                content = it
+            )
+        }
     }
 }
 
@@ -150,8 +195,15 @@ enum class WindowButtonsSpacing(val value: String, val height: Dp) {
     Large("large", MacOSLargeTitleBarHeight)
 }
 
+val WindowTitleBarContentSpacing = 4.dp
+
 private const val MacOSWindowButtonsSpacingKey = "FlatLaf.macOS.windowButtonsSpacing"
 
 private val MacOSDefaultTitleBarHeight = 28.dp
 private val MacOSMediumTitleBarHeight = 40.dp
+
 private val MacOSLargeTitleBarHeight = 50.dp
+private val MacOSDefaultTitleButtonSpacing = 70.dp
+private val MacOSMediumTitleButtonSpacing = 75.dp
+
+private val MacOSLargeTitleButtonSpacing = 80.dp

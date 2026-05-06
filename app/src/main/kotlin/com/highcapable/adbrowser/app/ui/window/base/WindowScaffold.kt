@@ -24,6 +24,7 @@ package com.highcapable.adbrowser.app.ui.window.base
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,6 +49,7 @@ fun WindowScaffold(
     visible: Boolean = true,
     title: String,
     icon: Painter? = null,
+    titleIsVisible: Boolean = true,
     undecorated: Boolean = false,
     transparent: Boolean = false,
     resizable: Boolean = true,
@@ -58,6 +60,8 @@ fun WindowScaffold(
     onKeyEvent: (KeyEvent) -> Boolean = { false },
     titleBarBackgroundColor: Color = Color.Transparent,
     buttonsSpacing: WindowButtonsSpacing = WindowButtonsSpacing.Default,
+    titleLeftContent: @Composable (RowScope.() -> Unit)? = null,
+    titleRightContent: @Composable (RowScope.() -> Unit)? = null,
     content: @Composable FrameWindowScope.(decorationsVisible: Boolean) -> Unit
 ) {
     Window(
@@ -90,6 +94,9 @@ fun WindowScaffold(
             if (isWindowDecorationsVisible)
                 WindowTitleBar(
                     title = title,
+                    titleIsVisible = titleIsVisible,
+                    leftContent = titleLeftContent,
+                    rightContent = titleRightContent,
                     backgroundColor = titleBarBackgroundColor,
                     buttonsSpacing = buttonsSpacing
                 )
