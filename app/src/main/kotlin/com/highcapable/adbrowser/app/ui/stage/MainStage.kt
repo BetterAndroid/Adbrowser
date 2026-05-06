@@ -227,7 +227,9 @@ private fun RenderContent(
                 .weight(1f)
                 .fillMaxWidth()
                 // Half the top padding to harmonize spacing with the title bar.
-                .padding(top = if (needApplyTopPadding) ContentPaddingSpace / 2 else 0.dp)
+                .padding(top = if (needApplyTopPadding)
+                    ContentPaddingSpace / (if (WindowTitleBar.isAvailable) 1 else 2)
+                else 0.dp)
                 .padding(end = ContentPaddingSpace)
                 .padding(bottom = ContentPaddingSpace)
         )
