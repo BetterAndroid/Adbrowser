@@ -36,9 +36,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
+import com.google.zxing.qrcode.encoder.ByteMatrix
+import com.google.zxing.qrcode.encoder.Encoder
 import org.jetbrains.jewel.foundation.theme.JewelTheme
+import kotlin.math.floor
 
 @Composable
 fun QrCodePanel(
@@ -48,7 +50,7 @@ fun QrCodePanel(
     backgroundColor: Color = Color.Transparent
 ) {
     val matrix = remember(content) {
-        QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, QrMatrixSize, QrMatrixSize)
+        Encoder.encode(content, ErrorCorrectionLevel.M).matrix
     }
 
     Box(
@@ -61,17 +63,25 @@ fun QrCodePanel(
                 .fillMaxSize()
                 .aspectRatio(1f)
         ) {
-            val moduleSize = size.minDimension / matrix.width.toFloat()
+            val availableSize = size.minDimension * QrCoverageRatio
+            val moduleSize = floor(availableSize / matrix.width.toFloat()).coerceAtLeast(1f)
+            val qrSize = moduleSize * matrix.width
+            val left = (size.width - qrSize) / 2f
+            val top = (size.height - qrSize) / 2f
 
-            // Draw discrete QR modules instead of scaling a bitmap so the code stays crisp on both
-            // HiDPI and regular desktop displays.
+            // Draw the native QR matrix on an integer pixel grid. This avoids semi-transparent
+            // interpolation artifacts on some Windows scale factors while keeping the background
+            // fully transparent for theme adaptation.
             (0 until matrix.height).forEach { y ->
                 (0 until matrix.width).forEach { x ->
-                    if (!matrix[x, y]) return@forEach
+                    if (!matrix.isDark(x, y)) return@forEach
 
                     drawRect(
                         color = foregroundColor,
-                        topLeft = Offset(x * moduleSize, y * moduleSize),
+                        topLeft = Offset(
+                            x = left + x * moduleSize,
+                            y = top + y * moduleSize
+                        ),
                         size = Size(moduleSize, moduleSize)
                     )
                 }
@@ -80,4 +90,6 @@ fun QrCodePanel(
     }
 }
 
-private const val QrMatrixSize = 256
+private fun ByteMatrix.isDark(x: Int, y: Int) = get(x, y).toInt() == 1
+
+private const val QrCoverageRatio = 0.88f
