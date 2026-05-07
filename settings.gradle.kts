@@ -49,6 +49,9 @@ gropify {
                 "git.commit.id.abbrev" to "",
                 "git.commit.time" to ""
             )
+            keyValuesRules(
+                "git.commit.id.abbrev" to ValueRule(String::class)
+            )
         }
     }
 }
