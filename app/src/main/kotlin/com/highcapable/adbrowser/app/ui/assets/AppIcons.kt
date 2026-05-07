@@ -34,6 +34,8 @@ object AppIcons : AppAssets("icons") {
     val Folder = createSvg("Folder")
     val SidebarOpen = createSvg("SidebarOpen")
     val SidebarClose = createSvg("SidebarClose")
+    val StatusBarClose = createSvg("StatusBarClose")
+    val StatusBarOpen = createSvg("StatusBarOpen")
     val ArrowLeft = createSvg("ArrowLeft")
     val ArrowUp = createSvg("ArrowUp")
     val SemiArrowLeft = createSvg("SemiArrowLeft")

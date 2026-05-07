@@ -113,6 +113,7 @@ import com.highcapable.adbrowser.app.ui.component.PanelSurface
 import com.highcapable.adbrowser.app.ui.component.PathBreadcrumbBar
 import com.highcapable.adbrowser.app.ui.component.StatusBar
 import com.highcapable.adbrowser.app.ui.component.WindowTitleBar
+import com.highcapable.adbrowser.app.ui.component.WindowTitleBarContentSpacing
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialog
 import com.highcapable.adbrowser.app.ui.dialog.ConfirmDialogIcon
 import com.highcapable.adbrowser.app.ui.dialog.DeviceConnectDialog
@@ -169,15 +170,30 @@ fun FrameWindowScope.MainStage(
 @Composable
 fun MainTitleLeftContent(viewModel: MainStageModel) {
     val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
+    val isStatusBarVisible = viewModel.isStatusBarVisible
 
+    Spacer(modifier = Modifier.width(WindowTitleBarContentSpacing))
     ActionButton(
         onClick = viewModel::toggleDevicePaneCollapsed,
-        modifier = Modifier.size(32.dp),
+        modifier = Modifier.size(24.dp),
         focusable = false
     ) {
         ContentIcon(
             key = if (isDevicePaneCollapsed) AppIcons.SidebarOpen else AppIcons.SidebarClose,
             contentDescription = if (isDevicePaneCollapsed) "Expand device pane" else "Collapse device pane",
+            modifier = Modifier
+                .size(16.dp)
+                .alpha(0.75f)
+        )
+    }
+    ActionButton(
+        onClick = viewModel::toggleStatusBar,
+        modifier = Modifier.size(24.dp),
+        focusable = false
+    ) {
+        ContentIcon(
+            key = if (isStatusBarVisible) AppIcons.StatusBarOpen else AppIcons.StatusBarClose,
+            contentDescription = if (isStatusBarVisible) "Hide status bar" else "Show status bar",
             modifier = Modifier
                 .size(16.dp)
                 .alpha(0.75f)
@@ -208,7 +224,7 @@ fun MainTitleRightContent(viewModel: MainStageModel) {
             modifier = Modifier.padding(5.dp)
         )
     }
-    Spacer(modifier = Modifier.width(14.dp))
+    Spacer(modifier = Modifier.width(ContentPaddingSpace))
 }
 
 @Composable
