@@ -494,9 +494,12 @@ private fun FilePane(
     workspace: MainStageModel.DeviceWorkspaceState,
     modifier: Modifier = Modifier
 ) {
-    Row {
+    Row(modifier = modifier) {
         Spacer(modifier = Modifier.width(leadingInsetWidth))
-        PanelSurface(modifier = modifier, padding = ComponentPadding(14.dp)) {
+        PanelSurface(
+            modifier = Modifier.fillMaxSize(),
+            padding = ComponentPadding(14.dp)
+        ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 NavigationBar(viewModel = viewModel, device = workspace.device)
                 Spacer(Modifier.height(12.dp))
