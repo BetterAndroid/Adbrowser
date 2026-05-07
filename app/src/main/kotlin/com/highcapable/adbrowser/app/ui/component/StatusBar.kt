@@ -53,6 +53,8 @@ import org.jetbrains.jewel.ui.component.Text
 fun StatusBar(
     text: String,
     currentDevice: AndroidDeviceItem?,
+    devices: List<AndroidDeviceItem>,
+    onDeviceSelected: (AndroidDeviceItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = AdbrowserTheme.colors
@@ -89,8 +91,14 @@ fun StatusBar(
             exit = fadeOut()
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                DeviceCard(device = checkNotNull(animatedDevice))
-                Spacer(Modifier.width(8.dp))
+                DeviceCard(
+                    devices = devices,
+                    selectedDevice = checkNotNull(animatedDevice),
+                    onDeviceSelected = onDeviceSelected,
+                    menuDirection = DeviceCardMenuDirection.Top,
+                    modifier = Modifier.padding(horizontal = 3.dp)
+                )
+                Spacer(Modifier.width(5.dp))
                 Delimiter()
                 Spacer(Modifier.width(8.dp))
             }

@@ -221,6 +221,22 @@ fun FrameWindowScope.MainMenuBar(
             text = strings.menuDevice,
             mnemonic = deviceMnemonic
         ) {
+            if (viewModel.devices.isNotEmpty()) {
+                Menu(text = strings.mainDevicesTitle) {
+                    viewModel.devices.forEach { device ->
+                        val isSelected = viewModel.isSelectedWorkspace(device)
+
+                        CheckboxItem(
+                            text = device.brandModel.ifBlank { device.serial },
+                            checked = isSelected,
+                            onCheckedChange = {
+                                if (!isSelected && it) viewModel.selectDevice(device)
+                            }
+                        )
+                    }
+                }
+                Separator()
+            }
             Item(
                 text = strings.menuPairNewDevice,
                 onClick = viewModel::pairNewDevice

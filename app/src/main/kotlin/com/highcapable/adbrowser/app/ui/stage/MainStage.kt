@@ -195,16 +195,14 @@ fun MainTitleRightContent(viewModel: MainStageModel) {
         enter = slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn(),
         exit = slideOutHorizontally(targetOffsetX = { it / 4 }) + fadeOut(),
     ) {
-        ActionButton(
-            onClick = viewModel::toggleDevicePaneCollapsed,
-            focusable = false,
-            contentPadding = ComponentPadding.None
-        ) {
-            DeviceCard(
-                device = checkNotNull(animatedDevice),
-                modifier = Modifier.padding(5.dp)
-            )
-        }
+        DeviceCard(
+            devices = viewModel.devices,
+            selectedDevice = checkNotNull(animatedDevice),
+            onDeviceSelected = { device ->
+                if (device != viewModel.selectedDevice) viewModel.selectDevice(device)
+            },
+            modifier = Modifier.padding(5.dp)
+        )
     }
     Spacer(modifier = Modifier.width(14.dp))
 }
@@ -235,7 +233,11 @@ private fun RenderContent(
         if (viewModel.isStatusBarVisible)
             StatusBar(
                 text = MainStatusBarText(viewModel),
-                currentDevice = existsDevice
+                currentDevice = existsDevice,
+                devices = viewModel.devices,
+                onDeviceSelected = { device ->
+                    if (device != viewModel.selectedDevice) viewModel.selectDevice(device)
+                }
             )
     }
 }
