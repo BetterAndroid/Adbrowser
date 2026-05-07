@@ -29,11 +29,15 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.HorizontalScrollbar
 import androidx.compose.foundation.VerticalScrollbar
@@ -216,6 +220,8 @@ private fun RenderContent(
     val needApplyTopPadding = !(WindowTitleBar.isAvailable && decorationsVisible)
     val isDevicePaneCollapsed = viewModel.isDevicePaneCollapsed
     val existsDevice = if (isDevicePaneCollapsed && needApplyTopPadding) viewModel.selectedDevice else null
+    val statusBarVisibility = remember { MutableTransitionState(viewModel.isStatusBarVisible) }
+        .apply { targetState = viewModel.isStatusBarVisible }
 
     Column(modifier = modifier.fillMaxSize()) {
         DeviceFileSplitContent(
@@ -230,7 +236,15 @@ private fun RenderContent(
                 .padding(end = ContentPaddingSpace)
                 .padding(bottom = ContentPaddingSpace)
         )
-        if (viewModel.isStatusBarVisible)
+        AnimatedVisibility(
+            visibleState = statusBarVisibility,
+            enter = slideInVertically(initialOffsetY = { it / 2 }) +
+                expandVertically(expandFrom = Alignment.Bottom) +
+                fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it / 2 }) +
+                shrinkVertically(shrinkTowards = Alignment.Bottom) +
+                fadeOut()
+        ) {
             StatusBar(
                 text = MainStatusBarText(viewModel),
                 currentDevice = existsDevice,
@@ -239,6 +253,7 @@ private fun RenderContent(
                     if (device != viewModel.selectedDevice) viewModel.selectDevice(device)
                 }
             )
+        }
     }
 }
 
