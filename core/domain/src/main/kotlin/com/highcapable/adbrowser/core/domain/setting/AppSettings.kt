@@ -48,6 +48,8 @@ data class AppSettings(
     var lastDeviceSerial: String = "",
     var deviceHomePaths: MutableMap<String, String> = mutableMapOf(),
     var deviceLastPaths: MutableMap<String, String> = mutableMapOf(),
+    var isStatusBarVisible: Boolean = true,
+    var isDevicePaneCollapsed: Boolean = false,
     var devicePaneWidth: Double = DEFAULT_DEVICE_PANE_WIDTH,
     var fileColumnWidthName: Double = DEFAULT_FILE_COLUMN_WIDTH_NAME,
     var fileColumnWidthSize: Double = DEFAULT_FILE_COLUMN_WIDTH_SIZE,

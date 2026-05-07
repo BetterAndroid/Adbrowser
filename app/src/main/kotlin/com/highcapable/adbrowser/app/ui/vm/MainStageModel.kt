@@ -273,8 +273,9 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     var statusMessage by mutableStateOf<StatusMessage>(StatusMessage.None)
         private set
     var isBusy by mutableStateOf(false)
-    var isStatusBarVisible by mutableStateOf(true)
-    var isDevicePaneCollapsed by mutableStateOf(false)
+
+    var isStatusBarVisible by mutableStateOf(settingsService.current.isStatusBarVisible)
+    var isDevicePaneCollapsed by mutableStateOf(settingsService.current.isDevicePaneCollapsed)
         private set
 
     var menuShortcuts by mutableStateOf(settingsService.current.menuShortcuts.toUiType())
@@ -338,6 +339,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     /** Toggles the available-devices pane without disturbing the remembered splitter width. */
     fun toggleDevicePaneCollapsed() {
         isDevicePaneCollapsed = !isDevicePaneCollapsed
+        settingsService.current.isDevicePaneCollapsed = isDevicePaneCollapsed
+        saveSettingsAsync()
     }
 
     /** Updates the splitter width in memory; persistence is intentionally deferred until drag end. */
@@ -360,6 +363,8 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
     fun onExternalSettingsChanged(refreshFileList: Boolean = false) {
         val settings = settingsService.current
         menuShortcuts = settings.menuShortcuts.toUiType()
+        isStatusBarVisible = settings.isStatusBarVisible
+        isDevicePaneCollapsed = settings.isDevicePaneCollapsed
         devicePaneWidthDp = settings.devicePaneWidth.toFloat().coerceAtLeast(DEVICE_PANE_MIN_WIDTH)
         fileColumnWidthNamePx = settings.fileColumnWidthName.toFloat()
         fileColumnWidthSizePx = settings.fileColumnWidthSize.toFloat()
@@ -1287,9 +1292,11 @@ class MainStageModel(private val appState: AppState) : ViewModel() {
         selectedDevice?.let { navigateTo(it, "/") }
     }
 
-    /** Toggles status bar visibility without touching persisted preferences. */
+    /** Toggles status bar visibility and persists the user's preference immediately. */
     fun toggleStatusBar() {
         isStatusBarVisible = !isStatusBarVisible
+        settingsService.current.isStatusBarVisible = isStatusBarVisible
+        saveSettingsAsync()
     }
 
     /** Resolves the active path input field and attempts to open the entered path. */
