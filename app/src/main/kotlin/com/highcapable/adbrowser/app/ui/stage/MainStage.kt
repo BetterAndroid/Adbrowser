@@ -502,7 +502,9 @@ private fun FilePaneHost(
         }
         if (showExpandToggle)
             Row(
-                modifier = Modifier.align(Alignment.CenterStart)
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .zIndex(PaneEdgeToggleZIndex)
             ) {
                 Spacer(modifier = Modifier.width(leadingInsetWidth))
                 PaneEdgeHoverToggleArea(
@@ -510,7 +512,6 @@ private fun FilePaneHost(
                     onToggle = viewModel::toggleDevicePaneCollapsed,
                     alignToStart = true,
                     modifier = Modifier
-                        .zIndex(PaneEdgeToggleZIndex)
                         .width(DevicePaneToggleHoverAreaWidth)
                         .height(DevicePaneToggleHoverAreaHeight)
                 )
