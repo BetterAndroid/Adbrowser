@@ -48,7 +48,7 @@ fun ContentIconButton(
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            style = AdbrowserTheme.outlineButtonStyle(ComponentPadding.None),
+            style = AdbrowserTheme.outlineButtonStyle(ComponentPadding.Zero),
             modifier = modifier.size(width = contentWidth, height = contentHeight)
         ) {
             ContentIcon(
@@ -62,7 +62,7 @@ fun ContentIconButton(
         DefaultButton(
             onClick = onClick,
             enabled = enabled,
-            style = AdbrowserTheme.defaultButtonStyle(ComponentPadding.None),
+            style = AdbrowserTheme.defaultButtonStyle(ComponentPadding.Zero),
             modifier = modifier.size(width = contentWidth, height = contentHeight)
         ) {
             ContentIcon(

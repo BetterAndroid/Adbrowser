@@ -135,7 +135,7 @@ object AdbrowserTheme {
         colors = JewelTheme.textAreaStyle.colors,
         metrics = TextAreaMetrics(
             borderWidth = JewelTheme.textAreaStyle.metrics.borderWidth,
-            contentPadding = ComponentPadding.None,
+            contentPadding = ComponentPadding.Zero,
             cornerSize = JewelTheme.textAreaStyle.metrics.cornerSize,
             minSize = DpSize.Zero
         )

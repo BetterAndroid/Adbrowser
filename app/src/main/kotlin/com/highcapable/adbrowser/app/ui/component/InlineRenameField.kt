@@ -82,7 +82,7 @@ fun InlineRenameField(
     fontSize: TextUnit = AdbrowserTheme.DefaultItemFontSize,
     minWidth: Dp = 0.dp,
     maxWidth: Dp = Dp.Unspecified,
-    contentPadding: ComponentPadding = ComponentPadding.None,
+    contentPadding: ComponentPadding = ComponentPadding.Zero,
     onBoundsInRootChanged: (Rect) -> Unit = {},
     centeredMultiline: Boolean = false
 ) {

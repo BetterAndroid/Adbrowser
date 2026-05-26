@@ -404,7 +404,7 @@ private fun DevicePaneToggleButton(
             onClick = onClick,
             modifier = Modifier.size(width = DevicePaneToggleButtonWidth, height = DevicePaneToggleButtonHeight),
             focusable = false,
-            contentPadding = ComponentPadding.None
+            contentPadding = ComponentPadding.Zero
         ) {
             ContentIcon(
                 key = if (collapsed) AppIcons.SemiArrowRight else AppIcons.SemiArrowLeft,

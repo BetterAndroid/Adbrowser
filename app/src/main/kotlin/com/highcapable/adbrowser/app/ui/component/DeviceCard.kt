@@ -107,7 +107,7 @@ fun DeviceCard(
         modifier = Modifier
             .focusRequester(focusRequester)
             .onGloballyPositioned { buttonCoordinates = it },
-        contentPadding = ComponentPadding.None
+        contentPadding = ComponentPadding.Zero
     ) {
         Row(
             modifier = modifier,
