@@ -186,6 +186,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.swing)
 
+    implementation(platform(libs.kavaref.bom))
     implementation(libs.kavaref.core)
     implementation(libs.kavaref.extension)
 
