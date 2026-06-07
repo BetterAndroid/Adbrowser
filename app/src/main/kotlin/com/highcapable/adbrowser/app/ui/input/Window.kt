@@ -306,7 +306,7 @@ private val addFullScreenListenerTo by lazy {
         FullScreenUtilitiesClass?.resolve()
             ?.optional()
             ?.firstMethodOrNull {
-                name == "addFullScreenListenerTo"
+                name = "addFullScreenListenerTo"
                 parameters(Window::class, listenerClass)
             }
     }
@@ -317,7 +317,7 @@ private val removeFullScreenListenerFrom by lazy {
         FullScreenUtilitiesClass?.resolve()
             ?.optional()
             ?.firstMethodOrNull {
-                name == "removeFullScreenListenerFrom"
+                name = "removeFullScreenListenerFrom"
                 parameters(Window::class, listenerClass)
             }
     }
