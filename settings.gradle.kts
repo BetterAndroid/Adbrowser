@@ -19,18 +19,19 @@ dependencyResolutionManagement {
 }
 
 plugins {
-    id("com.highcapable.gropify") version "1.0.1"
+    id("com.highcapable.gropify") version "1.0.2"
 }
 
 gropify {
     global {
         jvm {
-            className = rootProject.name
             includeKeys(
                 "^project\\..*$".toRegex(),
                 "^gradle\\..*$".toRegex(),
                 "^git\\..*$".toRegex()
             )
+
+            className = rootProject.name
             isRestrictedAccessEnabled = true
         }
     }

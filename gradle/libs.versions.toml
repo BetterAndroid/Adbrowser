@@ -1,23 +1,23 @@
 [versions]
-kotlin = "2.3.21"
-kotlin-ksp = "2.3.7"
-coroutines = "1.10.2"
-kotlinx-serialization = "1.9.0"
+kotlin = "2.4.0"
+kotlin-ksp = "2.3.9"
+coroutines = "1.11.0"
+kotlinx-serialization = "1.11.0"
 kotlin-inject = "0.9.0"
-jna = "5.18.1"
+jna = "5.19.0"
 flatlaf = "3.7.1"
-jetbrains-compose = "1.10.3"
-compose-compiler = "2.3.21"
-log4j = "2.25.4"
+jetbrains-compose = "1.11.1"
+compose-compiler = "2.4.0"
+log4j = "2.26.0"
 lyricist = "1.8.0"
 lyricist-processor = "1.8.0"
 betterandroid-compose-extension = "1.0.3"
-kavaref-bom = "1.0.3"
+kavaref-bom = "1.1.0"
 jbr-api = "1.10.1"
-jewel = "0.34.0-253.32098.37"
+jewel = "0.37.0-262.4852.51"
 intellij-platform-icons = "253.31033.145"
 junit = "4.13.2"
-git-properties = "2.5.7"
+git-properties = "4.0.1"
 zxing = "3.5.4"
 
 [plugins]
@@ -46,6 +46,7 @@ lyricist-processor = { group = "cafe.adriel.lyricist", name = "lyricist-processo
 betterandroid-compose-extension-desktop = { group = "com.highcapable.betterandroid", name = "compose-extension-desktop", version.ref = "betterandroid-compose-extension" }
 kavaref-bom = { group = "com.highcapable.kavaref", name = "kavaref-bom", version.ref = "kavaref-bom" }
 kavaref-core = { group = "com.highcapable.kavaref", name = "kavaref-core" }
+kavaref-jvm = { group = "com.highcapable.kavaref", name = "kavaref-jvm" }
 kavaref-extension = { group = "com.highcapable.kavaref", name = "kavaref-extension" }
 jbr-api = { group = "org.jetbrains.runtime", name = "jbr-api", version.ref = "jbr-api" }
 jewel-int-ui-standalone = { group = "org.jetbrains.jewel", name = "jewel-int-ui-standalone", version.ref = "jewel" }

@@ -188,6 +188,7 @@ dependencies {
 
     implementation(platform(libs.kavaref.bom))
     implementation(libs.kavaref.core)
+    implementation(libs.kavaref.jvm)
     implementation(libs.kavaref.extension)
 
     implementation(compose.desktop.currentOs) {
