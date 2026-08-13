@@ -51,7 +51,7 @@
 
 ## Star History
 
-![Star History Chart](https://api.star-history.com/svg?repos=BetterAndroid/Adbrowser&type=Date)
+[![Star History Chart](https://api.star-history.com/chart?repos=BetterAndroid/Adbrowser&type=date&legend=top-left&sealed_token=4A6291sujO6s7PxU6DyLpncJIuD7GuHMEi03bpWffS3AMrt0iRMO_JHRErHfyhF2wTsdy0nw4VEdS48_l9JdwzVJNB8wTBy6YES4jgfHJ-apLzlwQa7hxA)](https://www.star-history.com/?repos=BetterAndroid%2FAdbrowser&type=date&legend=top-left)
 
 ## 许可证
 
